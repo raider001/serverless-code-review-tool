@@ -10,6 +10,8 @@ import com.kalynx.serverlessreviewtool.theme.components.ThemedComboBox;
 import com.kalynx.serverlessreviewtool.theme.components.ThemedList;
 import com.kalynx.serverlessreviewtool.theme.components.ThemedScrollPane;
 import com.kalynx.serverlessreviewtool.theme.components.ThemedTitledBorder;
+import com.kalynx.serverlessreviewtool.theme.components.ThemedButton;
+import com.kalynx.serverlessreviewtool.theme.components.ThemedTabbedPane;
 
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
@@ -25,11 +27,21 @@ public class ReviewSelectionPanel extends ThemedPanel {
     private ThemedTextField titleFilter;
     private ThemedTextField authorFilter;
     private ThemedComboBox<String> repositoryFilter;
-    private ThemedList<ReviewItem> reviewList;
-    private DefaultListModel<ReviewItem> reviewListModel;
+
+    // Three separate lists for each tab
+    private ThemedList<ReviewItem> myReviewsList;
+    private DefaultListModel<ReviewItem> myReviewsListModel;
+
+    private ThemedList<ReviewItem> toReviewList;
+    private DefaultListModel<ReviewItem> toReviewListModel;
+
+    private ThemedList<ReviewItem> completedList;
+    private DefaultListModel<ReviewItem> completedListModel;
+
     private ThemedScrollPane scrollPane;
     private ThemedPanel filterPanel;
     private ThemedPanel listPanel;
+    private ThemedTabbedPane tabbedPane;
 
     public ReviewSelectionPanel() {
         this.themeManager = ThemeManager.getInstance();
@@ -119,32 +131,57 @@ public class ReviewSelectionPanel extends ThemedPanel {
     }
 
     /**
-     * Create the scrollable review list panel
+     * Create the scrollable review list panel with tabs
      */
     private ThemedPanel createReviewListPanel() {
         listPanel = new ThemedPanel();
         listPanel.setLayout(new BorderLayout());
-        listPanel.setBorder(ThemedTitledBorder.create("Reviews"));
 
-        // Create the list model and list
-        reviewListModel = new DefaultListModel<>();
-        reviewList = new ThemedList<>(reviewListModel);
-        reviewList.setCellRenderer(new ReviewItemRenderer());
+        // Create tabbed pane
+        tabbedPane = new ThemedTabbedPane();
 
-        // Add selection listener
-        reviewList.addListSelectionListener(e -> {
-            if (!e.getValueIsAdjusting()) {
-                ReviewItem selected = reviewList.getSelectedValue();
-                if (selected != null) {
-                    onReviewSelected(selected);
-                }
-            }
-        });
+        // Tab 1: My Reviews - Reviews created by the user
+        myReviewsListModel = new DefaultListModel<>();
+        myReviewsList = new ThemedList<>(myReviewsListModel);
+        myReviewsList.setCellRenderer(new ReviewItemRenderer());
+        myReviewsList.onItemSelected(this::onReviewSelected);
+        ThemedScrollPane myReviewsScrollPane = new ThemedScrollPane(myReviewsList);
+        tabbedPane.addTab("My Reviews", myReviewsScrollPane);
 
-        // Wrap in scroll pane
-        scrollPane = new ThemedScrollPane(reviewList);
+        // Tab 2: To Review - Reviews waiting for the user's response
+        toReviewListModel = new DefaultListModel<>();
+        toReviewList = new ThemedList<>(toReviewListModel);
+        toReviewList.setCellRenderer(new ReviewItemRenderer());
+        toReviewList.onItemSelected(this::onReviewSelected);
+        ThemedScrollPane toReviewScrollPane = new ThemedScrollPane(toReviewList);
+        tabbedPane.addTab("To Review", toReviewScrollPane);
 
-        listPanel.add(scrollPane, BorderLayout.CENTER);
+        // Tab 3: Completed - Reviews user has responded to, waiting for acknowledgement
+        completedListModel = new DefaultListModel<>();
+        completedList = new ThemedList<>(completedListModel);
+        completedList.setCellRenderer(new ReviewItemRenderer());
+        completedList.onItemSelected(this::onReviewSelected);
+        ThemedScrollPane completedScrollPane = new ThemedScrollPane(completedList);
+        tabbedPane.addTab("Completed", completedScrollPane);
+
+        listPanel.add(tabbedPane, BorderLayout.CENTER);
+
+        // Bottom panel with Create Review button
+        ThemedPanel bottomPanel = new ThemedPanel();
+        bottomPanel.setLayout(new FlowLayout(FlowLayout.RIGHT, themeManager.scale(10), themeManager.scale(5)));
+        bottomPanel.setOpaque(false);
+
+        ThemedButton createReviewButton = new ThemedButton("Create Review");
+        createReviewButton.setPreferredSize(new Dimension(themeManager.scale(130), themeManager.scale(32)));
+        createReviewButton.setToolTipText("Create a new code review");
+
+        // Use accent style to make it prominent
+        createReviewButton.setAccentStyle(true);
+
+        createReviewButton.addActionListener(e -> onCreateReview());
+        bottomPanel.add(createReviewButton);
+
+        listPanel.add(bottomPanel, BorderLayout.SOUTH);
 
         return listPanel;
     }
@@ -175,18 +212,101 @@ public class ReviewSelectionPanel extends ThemedPanel {
     }
 
     /**
+     * Handle create review button click
+     */
+    private void onCreateReview() {
+        System.out.println("Create Review button clicked");
+        // TODO: Show create review dialog or navigate to create review view
+
+        // Placeholder: Show a simple message dialog
+        JOptionPane.showMessageDialog(
+            this,
+            "Create Review functionality will be implemented here.\n\n" +
+            "This will allow users to:\n" +
+            "- Select a repository\n" +
+            "- Choose commits/branches to review\n" +
+            "- Add reviewers\n" +
+            "- Set review title and description",
+            "Create Review",
+            JOptionPane.INFORMATION_MESSAGE
+        );
+    }
+
+    /**
      * Load sample reviews for demonstration
      */
     private void loadSampleReviews() {
-        reviewListModel.addElement(new ReviewItem(
+        loadMyReviews();
+        loadToReviewReviews();
+        loadCompletedReviews();
+
+        // Update tab counts
+        updateTabCounts();
+    }
+
+    /**
+     * Update the counts displayed in each tab
+     */
+    private void updateTabCounts() {
+        tabbedPane.setTabTitleWithCount(0, "My Reviews", myReviewsListModel.getSize());
+        tabbedPane.setTabTitleWithCount(1, "To Review", toReviewListModel.getSize());
+        tabbedPane.setTabTitleWithCount(2, "Completed", completedListModel.getSize());
+    }
+
+    /**
+     * Load "My Reviews" - Reviews created by the user
+     */
+    private void loadMyReviews() {
+        myReviewsListModel.clear();
+
+        myReviewsListModel.addElement(new ReviewItem(
+            "Update database migration scripts",
+            "You",
+            "backend-api",
+            "Pending",
+            "3 days ago"
+        ));
+
+        myReviewsListModel.addElement(new ReviewItem(
+            "Add unit tests for user service",
+            "You",
+            "backend-api",
+            "Approved",
+            "6 hours ago"
+        ));
+
+        myReviewsListModel.addElement(new ReviewItem(
+            "Refactor authentication middleware",
+            "You",
+            "shared-lib",
+            "Changes Requested",
+            "1 week ago"
+        ));
+
+        myReviewsListModel.addElement(new ReviewItem(
+            "Optimize database queries",
+            "You",
+            "backend-api",
+            "Pending",
+            "4 days ago"
+        ));
+    }
+
+    /**
+     * Load "To Review" - Reviews waiting for the user's response
+     */
+    private void loadToReviewReviews() {
+        toReviewListModel.clear();
+
+        toReviewListModel.addElement(new ReviewItem(
             "Add OAuth2 authentication flow",
             "John Doe",
             "backend-api",
-            "Approved",
+            "Pending",
             "2 days ago"
         ));
 
-        reviewListModel.addElement(new ReviewItem(
+        toReviewListModel.addElement(new ReviewItem(
             "Implement responsive navigation menu",
             "Jane Smith",
             "frontend-app",
@@ -194,39 +314,15 @@ public class ReviewSelectionPanel extends ThemedPanel {
             "5 hours ago"
         ));
 
-        reviewListModel.addElement(new ReviewItem(
+        toReviewListModel.addElement(new ReviewItem(
             "Fix memory leak in image processing",
             "Bob Johnson",
             "mobile-app",
-            "Changes Requested",
+            "Pending",
             "1 day ago"
         ));
 
-        reviewListModel.addElement(new ReviewItem(
-            "Update database migration scripts",
-            "Alice Williams",
-            "backend-api",
-            "Approved",
-            "3 days ago"
-        ));
-
-        reviewListModel.addElement(new ReviewItem(
-            "Add unit tests for user service",
-            "Charlie Brown",
-            "backend-api",
-            "Pending",
-            "6 hours ago"
-        ));
-
-        reviewListModel.addElement(new ReviewItem(
-            "Refactor authentication middleware",
-            "Diana Prince",
-            "shared-lib",
-            "Approved",
-            "1 week ago"
-        ));
-
-        reviewListModel.addElement(new ReviewItem(
+        toReviewListModel.addElement(new ReviewItem(
             "Implement dark mode support",
             "Eve Anderson",
             "frontend-app",
@@ -234,12 +330,43 @@ public class ReviewSelectionPanel extends ThemedPanel {
             "2 hours ago"
         ));
 
-        reviewListModel.addElement(new ReviewItem(
-            "Optimize database queries",
-            "Frank Miller",
+        toReviewListModel.addElement(new ReviewItem(
+            "Add GraphQL API endpoints",
+            "Michael Scott",
+            "backend-api",
+            "Pending",
+            "12 hours ago"
+        ));
+    }
+
+    /**
+     * Load "Completed" - Reviews user has responded to, waiting for acknowledgement
+     */
+    private void loadCompletedReviews() {
+        completedListModel.clear();
+
+        completedListModel.addElement(new ReviewItem(
+            "Implement user profile editing",
+            "Sarah Connor",
+            "frontend-app",
+            "Approved",
+            "1 day ago"
+        ));
+
+        completedListModel.addElement(new ReviewItem(
+            "Fix security vulnerability in auth",
+            "James Bond",
+            "backend-api",
+            "Approved",
+            "3 hours ago"
+        ));
+
+        completedListModel.addElement(new ReviewItem(
+            "Add Redis caching layer",
+            "Tony Stark",
             "backend-api",
             "Changes Requested",
-            "4 days ago"
+            "2 days ago"
         ));
     }
 
@@ -264,10 +391,8 @@ public class ReviewSelectionPanel extends ThemedPanel {
             filterPanel.setForeground(theme.getForegroundColor());
         }
 
-        // Recreate list panel border with current theme colors
+        // Recreate list panel styling with current theme colors
         if (listPanel != null) {
-            javax.swing.border.Border newBorder = ThemedTitledBorder.create("Reviews");
-            listPanel.setBorder(newBorder);
             listPanel.setForeground(theme.getForegroundColor());
         }
 

@@ -6,6 +6,7 @@ import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 import javax.swing.*;
 import java.awt.*;
 import java.util.Vector;
+import java.util.function.Consumer;
 
 /**
  * A JList that automatically applies and updates theme colors
@@ -18,29 +19,47 @@ public class ThemedList<T> extends JList<T> {
     public ThemedList() {
         super();
         this.themeManager = ThemeManager.getInstance();
-        setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        setFixedCellHeight(themeManager.scale(80));
+        initializeDefaults();
     }
 
     public ThemedList(T[] items) {
         super(items);
         this.themeManager = ThemeManager.getInstance();
-        setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        setFixedCellHeight(themeManager.scale(80));
+        initializeDefaults();
     }
 
     public ThemedList(Vector<? extends T> items) {
         super(items);
         this.themeManager = ThemeManager.getInstance();
-        setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        setFixedCellHeight(themeManager.scale(80));
+        initializeDefaults();
     }
 
     public ThemedList(ListModel<T> model) {
         super(model);
         this.themeManager = ThemeManager.getInstance();
+        initializeDefaults();
+    }
+
+    private void initializeDefaults() {
         setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         setFixedCellHeight(themeManager.scale(80));
+    }
+
+    /**
+     * Set a callback to be invoked when an item is selected
+     * Handles the valueIsAdjusting check internally
+     *
+     * @param callback The callback to invoke with the selected item
+     */
+    public void onItemSelected(Consumer<T> callback) {
+        addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                T selected = getSelectedValue();
+                if (selected != null && callback != null) {
+                    callback.accept(selected);
+                }
+            }
+        });
     }
 
     @Override
