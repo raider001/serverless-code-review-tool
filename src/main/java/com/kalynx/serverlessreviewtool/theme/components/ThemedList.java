@@ -21,28 +21,28 @@ public class ThemedList<T> extends JList<T> {
         setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         setFixedCellHeight(themeManager.scale(80));
     }
-    
+
     public ThemedList(T[] items) {
         super(items);
         this.themeManager = ThemeManager.getInstance();
         setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         setFixedCellHeight(themeManager.scale(80));
     }
-    
+
     public ThemedList(Vector<? extends T> items) {
         super(items);
         this.themeManager = ThemeManager.getInstance();
         setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         setFixedCellHeight(themeManager.scale(80));
     }
-    
+
     public ThemedList(ListModel<T> model) {
         super(model);
         this.themeManager = ThemeManager.getInstance();
         setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         setFixedCellHeight(themeManager.scale(80));
     }
-    
+
     @Override
     protected void paintComponent(Graphics g) {
         // Query theme colors on demand - no caching needed
