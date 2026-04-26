@@ -6,6 +6,8 @@ import com.kalynx.serverlessreviewtool.theme.components.ThemedButton;
 import com.kalynx.serverlessreviewtool.theme.components.ThemedLabel;
 import com.kalynx.serverlessreviewtool.theme.components.ThemedPanel;
 import com.kalynx.serverlessreviewtool.theme.components.ThemedPopupDialog;
+import com.kalynx.serverlessreviewtool.theme.components.ThemedTextField;
+import com.kalynx.serverlessreviewtool.theme.components.ThemedSpinner;
 
 import javax.swing.*;
 import java.awt.*;
@@ -15,9 +17,9 @@ import java.awt.*;
  * Uses themed components for consistent styling
  */
 public class RepositoryConfigDialog extends ThemedPopupDialog {
-    private final JTextField nameField;
-    private final JTextField urlField;
-    private final JSpinner intervalSpinner;
+    private final ThemedTextField nameField;
+    private final ThemedTextField urlField;
+    private final ThemedSpinner intervalSpinner;
     private boolean confirmed = false;
 
     public RepositoryConfigDialog(Component parent, String title, SettingsPanel.RepositoryConfig existingConfig) {
@@ -32,15 +34,15 @@ public class RepositoryConfigDialog extends ThemedPopupDialog {
         contentPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
 
         // Name field
-        contentPanel.add(createLabeledField("Repository Name:", nameField = new JTextField(20)));
+        contentPanel.add(createLabeledField("Repository Name:", nameField = new ThemedTextField(20)));
         contentPanel.add(Box.createVerticalStrut(12));
 
         // URL field
-        contentPanel.add(createLabeledField("Repository URL:", urlField = new JTextField(20)));
+        contentPanel.add(createLabeledField("Repository URL:", urlField = new ThemedTextField(20)));
         contentPanel.add(Box.createVerticalStrut(12));
 
         // Polling interval
-        intervalSpinner = new JSpinner(new SpinnerNumberModel(15, 1, 1440, 1));
+        intervalSpinner = new ThemedSpinner(new SpinnerNumberModel(15, 1, 1440, 1));
         contentPanel.add(createLabeledField("Polling Interval (minutes):", intervalSpinner));
         contentPanel.add(Box.createVerticalStrut(20));
 
@@ -68,20 +70,9 @@ public class RepositoryConfigDialog extends ThemedPopupDialog {
             urlField.setText(existingConfig.getUrl());
             intervalSpinner.setValue(existingConfig.getPollingIntervalMinutes());
         }
-
-        // Apply theme to text fields
-        applyThemeToTextField(nameField, theme);
-        applyThemeToTextField(urlField, theme);
     }
 
-    private void applyThemeToTextField(JTextField field, Theme theme) {
-        field.setBackground(theme.getInputBackground());
-        field.setForeground(theme.getForegroundColor());
-        field.setCaretColor(theme.getAccentColor());
-        field.setBorder(BorderFactory.createLineBorder(theme.getBorderColor(), 1));
-    }
-
-    private JPanel createLabeledField(String label, JComponent field) {
+    private ThemedPanel createLabeledField(String label, JComponent field) {
         ThemedPanel panel = new ThemedPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setOpaque(false);

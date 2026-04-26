@@ -45,12 +45,12 @@ public class SettingsPanel extends ThemedPanel {
         contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
         // Notification Service Section
-        notificationServicePanel = (ThemedPanel) createNotificationServiceSection();
+        notificationServicePanel = createNotificationServiceSection();
         contentPanel.add(notificationServicePanel);
         contentPanel.add(Box.createVerticalStrut(20));
 
         // Repository Management Section - expands to fill space
-        repositorySectionPanel = (ThemedPanel) createRepositorySection();
+        repositorySectionPanel = createRepositorySection();
         contentPanel.add(repositorySectionPanel);
         contentPanel.add(Box.createVerticalStrut(20));
 
@@ -60,7 +60,7 @@ public class SettingsPanel extends ThemedPanel {
         return contentPanel;
     }
 
-    private JPanel createNotificationServiceSection() {
+    private ThemedPanel createNotificationServiceSection() {
         ThemedPanel section = new ThemedPanel();
         section.setLayout(new BorderLayout());
         section.setBorder(ThemedTitledBorder.create("Automatic Notification Service"));
@@ -87,7 +87,7 @@ public class SettingsPanel extends ThemedPanel {
         return section;
     }
 
-    private JPanel createRepositorySection() {
+    private ThemedPanel createRepositorySection() {
         ThemedPanel section = new ThemedPanel();
         section.setLayout(new BorderLayout(0, themeManager.scale(8)));
 
@@ -125,7 +125,7 @@ public class SettingsPanel extends ThemedPanel {
         return section;
     }
 
-    private JPanel createPollingSection() {
+    private ThemedPanel createPollingSection() {
         ThemedPanel section = new ThemedPanel();
         section.setLayout(new BoxLayout(section, BoxLayout.Y_AXIS));
 

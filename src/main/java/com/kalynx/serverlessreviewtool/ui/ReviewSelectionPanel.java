@@ -433,17 +433,17 @@ public class ReviewSelectionPanel extends ThemedPanel {
      * ReviewItemRenderer - Custom renderer for review list items
      */
     private class ReviewItemRenderer extends ThemedPanel implements ListCellRenderer<ReviewItem> {
-        private final JLabel titleLabel;
-        private final JLabel metadataLabel;
-        private final JLabel statusLabel;
-        private final JLabel timeLabel;
+        private final ThemedLabel titleLabel;
+        private final ThemedLabel metadataLabel;
+        private final ThemedLabel statusLabel;
+        private final ThemedLabel timeLabel;
 
         public ReviewItemRenderer() {
-            setLayout(new BorderLayout(themeManager.scale(10), themeManager.scale(5)));
+            setLayout(new BorderLayout(themeManager.scale(10), themeManager.scale(2)));
             setBorder(BorderFactory.createEmptyBorder(
-                themeManager.scale(8),
+                themeManager.scale(4),
                 themeManager.scale(12),
-                themeManager.scale(8),
+                themeManager.scale(4),
                 themeManager.scale(12)
             ));
 
@@ -452,14 +452,14 @@ public class ReviewSelectionPanel extends ThemedPanel {
             leftPanel.setOpaque(false);
             leftPanel.setLayout(new BoxLayout(leftPanel, BoxLayout.Y_AXIS));
 
-            titleLabel = new JLabel();
+            titleLabel = new ThemedLabel();
             titleLabel.setFont(ScalableComponent.createScaledFont("Segoe UI", Font.BOLD, 13));
 
-            metadataLabel = new JLabel();
+            metadataLabel = new ThemedLabel();
             metadataLabel.setFont(ScalableComponent.createScaledFont("Segoe UI", Font.PLAIN, 11));
 
             leftPanel.add(titleLabel);
-            leftPanel.add(Box.createVerticalStrut(themeManager.scale(4)));
+            leftPanel.add(Box.createVerticalStrut(themeManager.scale(2)));
             leftPanel.add(metadataLabel);
 
             // Right side: Status and time
@@ -467,7 +467,7 @@ public class ReviewSelectionPanel extends ThemedPanel {
             rightPanel.setOpaque(false);
             rightPanel.setLayout(new BoxLayout(rightPanel, BoxLayout.Y_AXIS));
 
-            statusLabel = new JLabel();
+            statusLabel = new ThemedLabel();
             statusLabel.setFont(ScalableComponent.createScaledFont("Segoe UI", Font.BOLD, 11));
             statusLabel.setOpaque(true);
             statusLabel.setBorder(BorderFactory.createEmptyBorder(
@@ -477,15 +477,23 @@ public class ReviewSelectionPanel extends ThemedPanel {
                 themeManager.scale(6)
             ));
 
-            timeLabel = new JLabel();
+            timeLabel = new ThemedLabel();
             timeLabel.setFont(ScalableComponent.createScaledFont("Segoe UI", Font.PLAIN, 10));
 
             rightPanel.add(statusLabel);
-            rightPanel.add(Box.createVerticalStrut(themeManager.scale(4)));
+            rightPanel.add(Box.createVerticalStrut(themeManager.scale(2)));
             rightPanel.add(timeLabel);
 
             add(leftPanel, BorderLayout.CENTER);
             add(rightPanel, BorderLayout.EAST);
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            // Override to prevent ThemedPanel from resetting background
+            // Just paint the background color that was set in getListCellRendererComponent
+            g.setColor(getBackground());
+            g.fillRect(0, 0, getWidth(), getHeight());
         }
 
         @Override
