@@ -20,23 +20,18 @@ import java.util.Set;
 /**
  * LineNumberedTextPane - A text pane with line numbers and line change indicators
  * Displays added/removed/modified line indicators with proper theming support
+ * This component should be wrapped in a scroll pane by the parent container
  */
-public class LineNumberedTextPane extends JPanel {
+public class LineNumberedTextPane extends ThemedPanel {
 
     private final ThemeManager themeManager;
-    private final JTextPane textPane;
+    private final ThemedTextPane textPane;
     private final LineNumberPanel lineNumberPanel;
 
     // Synchronized font configuration
     private static final String FONT_NAME = "Consolas"; // Better looking code font
     private static final int FONT_SIZE_BASE = 14; // Increased to match UI font size
     private final int scaledFontSize;
-
-    // Line type indicators
-    private static final int LINE_CONTEXT = 0;
-    private static final int LINE_ADDED = 1;
-    private static final int LINE_REMOVED = 2;
-    private static final int LINE_MODIFIED = 3;
 
     private final Set<Integer> addedLines = new HashSet<>();
     private final Set<Integer> removedLines = new HashSet<>();
@@ -45,13 +40,22 @@ public class LineNumberedTextPane extends JPanel {
 
     public LineNumberedTextPane() {
         this.themeManager = ThemeManager.getInstance();
-        this.textPane = new JTextPane();
+        this.textPane = new ThemedTextPane();
         this.lineNumberPanel = new LineNumberPanel();
         this.scaledFontSize = themeManager.scale(FONT_SIZE_BASE);
 
+        // Set consistent font on text pane to match line numbers
+        Font synchronizedFont = new Font(FONT_NAME, Font.PLAIN, scaledFontSize);
+        textPane.setFont(synchronizedFont);
+
+
+        // Set zero margins on text pane - padding will be handled uniformly by row header alignment
+        textPane.setMargin(new Insets(0, 0, 0, 0));
+
         setLayout(new BorderLayout());
 
-        // Add line number panel on the left
+
+        // Add line number panel as row header on the left
         add(lineNumberPanel, BorderLayout.WEST);
 
         // Add text pane in center
@@ -204,6 +208,13 @@ public class LineNumberedTextPane extends JPanel {
     }
 
     /**
+     * Get the line number panel for use as a row header in external scroll pane
+     */
+    public LineNumberPanel getLineNumberPanel() {
+        return lineNumberPanel;
+    }
+
+    /**
      * Add a comment to a specific line
      */
     public void addComment(int lineNumber, String comment) {
@@ -226,8 +237,9 @@ public class LineNumberedTextPane extends JPanel {
 
     /**
      * Inner class for rendering line numbers with background color indicators
+     * Visible for use as a row header in external scroll panes
      */
-    private class LineNumberPanel extends JPanel {
+    public class LineNumberPanel extends JPanel {
         private static final int RIGHT_MARGIN = 8;
 
         LineNumberPanel() {
@@ -239,6 +251,10 @@ public class LineNumberedTextPane extends JPanel {
             super.paintComponent(g);
             Graphics2D g2d = (Graphics2D) g;
             g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            // Improve text rendering consistency with text pane
+            g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_LCD_HRGB);
+            g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            g2d.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
 
             Theme theme = themeManager.getCurrentTheme();
 
@@ -258,13 +274,25 @@ public class LineNumberedTextPane extends JPanel {
 
             // Get text from pane
             String text = textPane.getText();
+            if (text.isEmpty()) {
+                updatePreferredWidth(fm);
+                return;
+            }
+
+            // Start drawing from top with padding - no manual offset needed
+            // The row header viewport handles scrolling automatically
             int lineNumber = 1;
-            int y = ascent + 2; // Align with text baseline
+            int y = ascent;
 
             // Draw line numbers and background colors
             String[] lines = text.split("\n", -1);
-            for (String line : lines) {
-                if (y - ascent > getHeight()) break;
+            for (String ignored : lines) {
+                if (y > getHeight()) break;
+                if (y + lineHeight < 0) {
+                    y += lineHeight;
+                    lineNumber++;
+                    continue;
+                }
 
                 // Draw background color for line indicator
                 drawLineBackground(g2d, lineNumber, y - ascent, lineHeight);
@@ -274,7 +302,7 @@ public class LineNumberedTextPane extends JPanel {
                 g2d.setFont(font);
                 String lineStr = String.valueOf(lineNumber);
                 int numberX = getWidth() - RIGHT_MARGIN - fm.stringWidth(lineStr);
-                g2d.drawString(lineStr, numberX, y);
+                g2d.drawString(lineStr, numberX, y + 2);
 
                 y += lineHeight;
                 lineNumber++;
@@ -298,6 +326,11 @@ public class LineNumberedTextPane extends JPanel {
 
         private void drawLineBackground(Graphics2D g2d, int lineNumber, int y, int lineHeight) {
             Theme theme = themeManager.getCurrentTheme();
+
+            // Only draw if the line is visible in the viewport
+            if (y < 0 || y > getHeight()) {
+                return;
+            }
 
             if (addedLines.contains(lineNumber)) {
                 g2d.setColor(theme.getAddedLineColor());

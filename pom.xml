@@ -18,7 +18,12 @@
     </properties>
 
     <dependencies>
-        <!-- Add your dependencies here -->
+        <!-- MigLayout for advanced GUI layout -->
+        <dependency>
+            <groupId>com.miglayout</groupId>
+            <artifactId>miglayout-swing</artifactId>
+            <version>11.2</version>
+        </dependency>
     </dependencies>
 
     <build>

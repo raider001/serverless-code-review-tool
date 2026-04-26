@@ -215,21 +215,35 @@ public class ReviewSelectionPanel extends ThemedPanel {
      * Handle create review button click
      */
     private void onCreateReview() {
-        System.out.println("Create Review button clicked");
-        // TODO: Show create review dialog or navigate to create review view
-
-        // Placeholder: Show a simple message dialog
-        JOptionPane.showMessageDialog(
-            this,
-            "Create Review functionality will be implemented here.\n\n" +
-            "This will allow users to:\n" +
-            "- Select a repository\n" +
-            "- Choose commits/branches to review\n" +
-            "- Add reviewers\n" +
-            "- Set review title and description",
-            "Create Review",
-            JOptionPane.INFORMATION_MESSAGE
+        // Get list of available repositories (in real app, fetch from data source)
+        java.util.List<String> availableRepositories = java.util.Arrays.asList(
+            "frontend-app", "backend-api", "mobile-app", "shared-lib"
         );
+
+        // Get list of available reviewers (in real app, fetch from data source)
+        java.util.List<String> availableReviewers = java.util.Arrays.asList(
+            "John Doe", "Jane Smith", "Bob Johnson", "Eve Anderson", "Michael Scott", "Sarah Connor", "James Bond", "Tony Stark"
+        );
+
+        CreateReviewDialog dialog = new CreateReviewDialog(SwingUtilities.getWindowAncestor(this), availableRepositories, availableReviewers);
+        dialog.setVisible(true);
+
+        if (dialog.isConfirmed()) {
+            String title = dialog.getReviewTitle();
+            String summary = dialog.getSummary();
+            boolean isBranchMode = dialog.isBranchMode();
+            java.util.List<String> selectedRepos = dialog.getSelectedRepositories();
+            java.util.List<String> selectedReviewers = dialog.getSelectedReviewers();
+
+            System.out.println("Creating review:");
+            System.out.println("  Title: " + title);
+            System.out.println("  Summary: " + summary);
+            System.out.println("  Mode: " + (isBranchMode ? "Branch-based" : "Commit-based"));
+            System.out.println("  Repositories: " + selectedRepos);
+            System.out.println("  Reviewers: " + selectedReviewers);
+
+            // TODO: Create the review in the backend and navigate to review details
+        }
     }
 
     /**

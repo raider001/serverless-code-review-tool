@@ -3,6 +3,7 @@ package com.kalynx.serverlessreviewtool.ui;
 import com.kalynx.serverlessreviewtool.theme.Theme;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 import com.kalynx.serverlessreviewtool.theme.components.*;
+import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;
 import java.awt.*;
@@ -41,21 +42,19 @@ public class SettingsPanel extends ThemedPanel {
 
     private JPanel createContentPanel() {
         ThemedPanel contentPanel = new ThemedPanel();
-        contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
-        contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        // MigLayout: all columns grow, each row only takes what it needs except repository section
+        contentPanel.setLayout(new MigLayout("fill", "", ""));
 
-        // Notification Service Section
+        // Notification Service Section - only takes required space
         notificationServicePanel = createNotificationServiceSection();
-        contentPanel.add(notificationServicePanel);
-        contentPanel.add(Box.createVerticalStrut(20));
+        contentPanel.add(notificationServicePanel, "grow, wrap");
 
-        // Repository Management Section - expands to fill space
+        // Repository Management Section - expands to fill remaining space
         repositorySectionPanel = createRepositorySection();
-        contentPanel.add(repositorySectionPanel);
-        contentPanel.add(Box.createVerticalStrut(20));
+        contentPanel.add(repositorySectionPanel, "grow, pushy, wrap");
 
-        // Polling Configuration Section
-        contentPanel.add(createPollingSection());
+        // Polling Configuration Section - fixed size at bottom
+        contentPanel.add(createPollingSection(), "grow");
 
         return contentPanel;
     }

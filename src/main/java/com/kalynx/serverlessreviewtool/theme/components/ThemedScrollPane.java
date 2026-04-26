@@ -70,14 +70,21 @@ public class ThemedScrollPane extends JScrollPane {
         // Replace default scrollbars with themed ones using type-safe enums
         setVerticalScrollBar(new ThemedScrollBar(ScrollBarOrientation.VERTICAL));
         setHorizontalScrollBar(new ThemedScrollBar(ScrollBarOrientation.HORIZONTAL));
+        applyThemeColors();
+    }
+
+    private void applyThemeColors() {
+        Theme theme = themeManager.getCurrentTheme();
+        Color bg = theme.getBackgroundColor();
+        setBorder(null);
+        setBackground(bg);
+        getViewport().setBackground(bg);
+        getViewport().setOpaque(true);
     }
 
     @Override
     protected void paintComponent(Graphics g) {
-        // Query theme colors on demand
-        Theme theme = themeManager.getCurrentTheme();
-        setBorder(null); // No border for cleaner look
-        getViewport().setBackground(theme.getBackgroundColor());
+        applyThemeColors();
         super.paintComponent(g);
     }
 }

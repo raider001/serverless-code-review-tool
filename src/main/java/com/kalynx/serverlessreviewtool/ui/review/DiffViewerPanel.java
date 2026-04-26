@@ -79,9 +79,14 @@ public class DiffViewerPanel extends ThemedPanel {
         leftPane = new LineNumberedTextPane();
         rightPane = new LineNumberedTextPane();
 
-        // Wrap in themed scroll panes for scrolling support with theme integration
+        // Wrap in scroll panes
         ThemedScrollPane leftScrollPane = new ThemedScrollPane(leftPane);
+        leftScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+        leftScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+
         ThemedScrollPane rightScrollPane = new ThemedScrollPane(rightPane);
+        rightScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+        rightScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
 
         // Synchronize scrolling between left and right panes
         synchronizeScrollPanes(leftScrollPane, rightScrollPane);
@@ -95,7 +100,12 @@ public class DiffViewerPanel extends ThemedPanel {
 
     private void createUnifiedView() {
         unifiedPane = new LineNumberedTextPane();
+
+        // Wrap in scroll pane
         ThemedScrollPane unifiedScrollPane = new ThemedScrollPane(unifiedPane);
+        unifiedScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+        unifiedScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+
         contentPanel.add(unifiedScrollPane, DiffViewMode.UNIFIED.name());
     }
 

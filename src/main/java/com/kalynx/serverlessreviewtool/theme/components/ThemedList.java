@@ -42,7 +42,10 @@ public class ThemedList<T> extends JList<T> {
 
     private void initializeDefaults() {
         setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        setFixedCellHeight(themeManager.scale(80));
+        // Don't set fixed cell height - let it size to content
+        setFixedCellHeight(-1);
+        // Calculate optimal row height based on font metrics
+        setFont(new Font("Segoe UI", Font.PLAIN, themeManager.scale(12)));
     }
 
     /**
