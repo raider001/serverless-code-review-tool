@@ -2,6 +2,7 @@ package com.kalynx.serverlessreviewtool.ui;
 
 import com.kalynx.serverlessreviewtool.theme.components.ThemedFrame;
 import com.kalynx.serverlessreviewtool.theme.components.ThemedPanel;
+import com.kalynx.serverlessreviewtool.theme.icons.AppIcon;
 
 import javax.swing.*;
 import java.awt.*;
@@ -20,6 +21,7 @@ public class MainFrame extends ThemedFrame {
 
     public MainFrame() {
         super("Serverless Review Tool", 1000, 700);
+        setApplicationIcon(AppIcon.createIconImages());
         initializePanels();
         setupMenuItems();
         showReviewPanel();

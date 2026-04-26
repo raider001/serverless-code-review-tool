@@ -23,21 +23,21 @@ public class CustomTitleBar extends ThemedPanel {
     private Point initialClick;
     private final SlideOutMenu slideOutMenu;
 
+    /**
+     * Full title bar for a JFrame: hamburger menu, theme toggle, minimize, maximize, close.
+     */
     public CustomTitleBar(JFrame parentFrame, String title) {
         this.themeManager = ThemeManager.getInstance();
 
         setLayout(new BorderLayout());
         setPreferredSize(ScalableComponent.createDimension(800, 40));
-        setOpaque(true); // Ensure no transparency
+        setOpaque(true);
 
-        // Initialize slide-out menu
         slideOutMenu = new SlideOutMenu(parentFrame);
 
-        // Title section with hamburger menu
         ThemedPanel titlePanel = new ThemedPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         titlePanel.setOpaque(false);
 
-        // Hamburger menu button
         QuickButton hamburgerBtn = new QuickButton(new HamburgerIcon())
                 .setAccentHover()
                 .setTooltip("Menu");
@@ -52,31 +52,23 @@ public class CustomTitleBar extends ThemedPanel {
         titleLabel.setForeground(themeManager.getCurrentTheme().getAccentColor());
         titlePanel.add(titleLabel);
 
-        // Button section
         ThemedPanel buttonPanel = new ThemedPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
         buttonPanel.setOpaque(false);
 
-        // Theme toggle button
         themeToggleBtn = createThemeToggleButton();
         themeToggleBtn.addActionListener(e -> {
-            // Toggle theme
             if (themeManager.getCurrentTheme().getName().equals("Dark")) {
                 themeManager.setLightTheme();
             } else {
                 themeManager.setDarkTheme();
             }
-
-            // Update the toggle button icon for new theme
             updateThemeToggleButton();
         });
 
-        // Window control buttons
-        QuickButton minimizeBtn = new QuickButton(new MinimizeIcon())
-                .setTooltip("Minimize");
+        QuickButton minimizeBtn = new QuickButton(new MinimizeIcon()).setTooltip("Minimize");
         minimizeBtn.addActionListener(e -> parentFrame.setState(Frame.ICONIFIED));
 
-        QuickButton maximizeBtn = new QuickButton(new MaximizeIcon())
-                .setTooltip("Maximize");
+        QuickButton maximizeBtn = new QuickButton(new MaximizeIcon()).setTooltip("Maximize");
         maximizeBtn.addActionListener(e -> {
             if (parentFrame.getExtendedState() == Frame.MAXIMIZED_BOTH) {
                 parentFrame.setExtendedState(Frame.NORMAL);
@@ -88,11 +80,7 @@ public class CustomTitleBar extends ThemedPanel {
         QuickButton closeBtn = new QuickButton(new CloseIcon())
                 .setCustomHover(new Color(232, 17, 35), Color.WHITE)
                 .setTooltip("Close");
-        closeBtn.addActionListener(e -> {
-            parentFrame.dispose();
-            System.exit(0);
-        });
-
+        closeBtn.addActionListener(e -> { parentFrame.dispose(); System.exit(0); });
 
         buttonPanel.add(themeToggleBtn);
         buttonPanel.add(minimizeBtn);
@@ -102,28 +90,47 @@ public class CustomTitleBar extends ThemedPanel {
         add(titlePanel, BorderLayout.WEST);
         add(buttonPanel, BorderLayout.EAST);
 
-        // Make title bar draggable
-        addMouseListener(new MouseAdapter() {
-            public void mousePressed(MouseEvent e) {
-                initialClick = e.getPoint();
-            }
-        });
+        makeDraggable(parentFrame);
+    }
 
+    /**
+     * Compact title bar for a dialog or any Window: title + close only, no menu/min/max.
+     */
+    public CustomTitleBar(Window window, String title) {
+        this.themeManager = ThemeManager.getInstance();
+        this.slideOutMenu = null;
+        this.themeToggleBtn = null;
+
+        setLayout(new BorderLayout());
+        setPreferredSize(new Dimension(0, themeManager.scale(40)));
+        setOpaque(true);
+
+        titleLabel = new JLabel(title);
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, themeManager.scale(13)));
+        titleLabel.setForeground(themeManager.getCurrentTheme().getForegroundColor());
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(0, themeManager.scale(10), 0, 0));
+
+        QuickButton closeBtn = new QuickButton(new CloseIcon()).setTooltip("Close");
+        closeBtn.addActionListener(e -> window.dispose());
+
+        add(titleLabel, BorderLayout.WEST);
+        add(closeBtn,   BorderLayout.EAST);
+
+        makeDraggable(window);
+    }
+
+    private void makeDraggable(Window window) {
+        addMouseListener(new MouseAdapter() {
+            public void mousePressed(MouseEvent e) { initialClick = e.getPoint(); }
+        });
         addMouseMotionListener(new MouseMotionAdapter() {
             @Override
             public void mouseDragged(MouseEvent e) {
-                // Get location of window
-                int thisX = parentFrame.getLocation().x;
-                int thisY = parentFrame.getLocation().y;
-
-                // Determine how much the mouse moved since the initial click
-                int xMoved = e.getX() - initialClick.x;
-                int yMoved = e.getY() - initialClick.y;
-
-                // Move window to this position
-                int X = thisX + xMoved;
-                int Y = thisY + yMoved;
-                parentFrame.setLocation(X, Y);
+                if (initialClick != null) {
+                    int x = window.getLocation().x + e.getX() - initialClick.x;
+                    int y = window.getLocation().y + e.getY() - initialClick.y;
+                    window.setLocation(x, y);
+                }
             }
         });
     }

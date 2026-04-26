@@ -2,6 +2,8 @@ package com.kalynx.serverlessreviewtool.theme.components;
 
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 import com.kalynx.serverlessreviewtool.theme.WindowResizeHandler;
+import com.kalynx.serverlessreviewtool.theme.icons.AppIcon;
+import com.kalynx.serverlessreviewtool.theme.icons.ThemeIcon;
 
 import javax.swing.*;
 import java.awt.*;
@@ -81,12 +83,25 @@ public class ThemedFrame extends JFrame {
         windowPanel.add(contentPanel, BorderLayout.CENTER);
         add(windowPanel);
 
+        // Default icon: generic theme icon – subclasses can override via setApplicationIcon()
+        setIconImages(ThemeIcon.createIconImages());
+
         // Add window resize handler for edges and corners
         WindowResizeHandler resizeHandler = new WindowResizeHandler(this, themeManager.scale(8));
         windowPanel.addMouseListener(resizeHandler);
         windowPanel.addMouseMotionListener(resizeHandler);
         contentPanel.addMouseListener(resizeHandler);
         contentPanel.addMouseMotionListener(resizeHandler);
+    }
+
+    /**
+     * Replace the application icon. Call this after the constructor if you want
+     * a different icon instead of the default {@link AppIcon}.
+     *
+     * @param images One or more images at different resolutions (16, 32, 48 … px).
+     */
+    public void setApplicationIcon(java.util.List<? extends Image> images) {
+        setIconImages(images);
     }
 
     /**
