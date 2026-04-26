@@ -1,5 +1,6 @@
 package com.kalynx.serverlessreviewtool.ui;
 
+import com.kalynx.serverlessreviewtool.configuration.AppSettings;
 import com.kalynx.serverlessreviewtool.theme.Theme;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 import com.kalynx.serverlessreviewtool.theme.components.ThemedButton;
@@ -22,12 +23,11 @@ public class RepositoryConfigDialog extends ThemedPopupDialog {
     private final ThemedSpinner intervalSpinner;
     private boolean confirmed = false;
 
-    public RepositoryConfigDialog(Component parent, String title, SettingsPanel.RepositoryConfig existingConfig) {
+    public RepositoryConfigDialog(Component parent, String title, AppSettings.RepositoryConfig existingConfig) {
         super(parent, title);
         setDialogSize(450, 300);
 
         ThemeManager themeManager = ThemeManager.getInstance();
-        Theme theme = themeManager.getCurrentTheme();
 
         ThemedPanel contentPanel = (ThemedPanel) getContentPanel();
         contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
@@ -95,8 +95,8 @@ public class RepositoryConfigDialog extends ThemedPopupDialog {
         return confirmed;
     }
 
-    public SettingsPanel.RepositoryConfig getRepositoryConfig() {
-        return new SettingsPanel.RepositoryConfig(
+    public AppSettings.RepositoryConfig getRepositoryConfig() {
+        return new AppSettings.RepositoryConfig(
                 nameField.getText(),
                 urlField.getText(),
                 (Integer) intervalSpinner.getValue()

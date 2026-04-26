@@ -10,6 +10,7 @@ public interface Theme {
     // Main colors
     Color getBackgroundColor();
     Color getForegroundColor();
+    Color getSecondaryTextColor();  // muted text for subtitles / labels
     Color getAccentColor();
     Color getSecondaryAccentColor();
     

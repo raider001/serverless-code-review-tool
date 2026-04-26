@@ -20,6 +20,7 @@ public class CustomTitleBar extends ThemedPanel {
     private final ThemeManager themeManager;
     private final JLabel titleLabel;
     private final QuickButton themeToggleBtn;
+    private ThemedPanel buttonPanel;
     private Point initialClick;
     private final SlideOutMenu slideOutMenu;
 
@@ -52,7 +53,7 @@ public class CustomTitleBar extends ThemedPanel {
         titleLabel.setForeground(themeManager.getCurrentTheme().getAccentColor());
         titlePanel.add(titleLabel);
 
-        ThemedPanel buttonPanel = new ThemedPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        buttonPanel = new ThemedPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
         buttonPanel.setOpaque(false);
 
         themeToggleBtn = createThemeToggleButton();
@@ -260,5 +261,21 @@ public class CustomTitleBar extends ThemedPanel {
     public SlideOutMenu getSlideOutMenu() {
         return slideOutMenu;
     }
+
+    /**
+     * Add an action button to the title bar (left of theme toggle)
+     * Only available for JFrame title bars (not dialogs)
+     */
+    public void addActionButton(QuickButton button) {
+        if (buttonPanel != null && themeToggleBtn != null) {
+            // Count how many components are already in the button panel
+            int insertPosition = buttonPanel.getComponentCount() > 0 ? 
+                                 buttonPanel.getComponentCount() - 4 : 0; // Insert before theme/min/max/close
+            buttonPanel.add(button, insertPosition);
+            buttonPanel.revalidate();
+            buttonPanel.repaint();
+        }
+    }
 }
+
 

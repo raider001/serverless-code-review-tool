@@ -19,6 +19,7 @@ public class ThemedBadge extends JPanel {
     private final ThemeManager themeManager;
     private final String text;
     private boolean hovering = false;
+    private Color   customColor = null;   // null = use blended accent
 
     private static final int PAD_H        = 10;   // horizontal inner padding
     private static final int PAD_V        = 4;    // vertical inner padding
@@ -30,13 +31,16 @@ public class ThemedBadge extends JPanel {
 
         setOpaque(false);
         setLayout(null);
-        setCursor(new Cursor(Cursor.HAND_CURSOR));
-        setToolTipText("Click to remove");
+
+        if (onRemove != null) {
+            setCursor(new Cursor(Cursor.HAND_CURSOR));
+            setToolTipText("Click to remove");
+        }
 
         addMouseListener(new MouseAdapter() {
             @Override public void mouseEntered(MouseEvent e) { hovering = true;  repaint(); }
             @Override public void mouseExited (MouseEvent e) { hovering = false; repaint(); }
-            @Override public void mouseClicked(MouseEvent e) { onRemove.run(); }
+            @Override public void mouseClicked(MouseEvent e) { if (onRemove != null) onRemove.run(); }
         });
     }
 
@@ -53,8 +57,10 @@ public class ThemedBadge extends JPanel {
         int   h     = getHeight();
         int   arc   = themeManager.scale(CORNER);
 
-        // Pill background – blend accent with bg for a softer look on dark themes
-        Color base = blendColor(theme.getAccentColor(), theme.getBackgroundColor(), 0.55f);
+        // Pill background – use customColor if set, otherwise blend accent with bg
+        Color base = (customColor != null)
+            ? customColor
+            : blendColor(theme.getAccentColor(), theme.getBackgroundColor(), 0.55f);
         Color fill = hovering ? darken(base, 0.12f) : base;
         g2.setColor(fill);
         g2.fillRoundRect(0, 0, w, h, arc, arc);
@@ -83,6 +89,12 @@ public class ThemedBadge extends JPanel {
 
     @Override public Dimension getMinimumSize() { return getPreferredSize(); }
     @Override public Dimension getMaximumSize() { return getPreferredSize(); }
+
+    /** Override the pill colour. Pass {@code null} to restore the default blended accent. */
+    public void setCustomColor(Color color) {
+        this.customColor = color;
+        repaint();
+    }
 
     // ── colour helpers ────────────────────────────────────────────────────────
 

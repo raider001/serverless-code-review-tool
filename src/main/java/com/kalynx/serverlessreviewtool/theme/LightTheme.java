@@ -8,9 +8,10 @@ import java.awt.Color;
 public class LightTheme implements Theme {
 
     // Main colors - Warmer tones
-    private static final Color BACKGROUND = new Color(252, 250, 245); // Warm off-white (cream)
-    private static final Color FOREGROUND = new Color(35, 30, 25); // Warm dark brown
-    private static final Color ACCENT = new Color(200, 115, 50); // Warm orange-brown
+    private static final Color BACKGROUND = new Color(252, 250, 245);
+    private static final Color FOREGROUND = new Color(35, 30, 25);
+    private static final Color SECONDARY_TEXT = new Color(120, 110, 95); // muted warm brown
+    private static final Color ACCENT = new Color(200, 115, 50);
     private static final Color SECONDARY_ACCENT = new Color(185, 135, 90); // Warm tan
     
     // Component colors - APCA-compliant with warm tones
@@ -43,6 +44,11 @@ public class LightTheme implements Theme {
     @Override
     public Color getForegroundColor() {
         return FOREGROUND;
+    }
+
+    @Override
+    public Color getSecondaryTextColor() {
+        return SECONDARY_TEXT;
     }
 
     @Override

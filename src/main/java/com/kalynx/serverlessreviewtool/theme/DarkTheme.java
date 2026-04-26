@@ -9,8 +9,9 @@ public class DarkTheme implements Theme {
     
     // Main colors
     private static final Color BACKGROUND = new Color(30, 30, 35);
-    private static final Color FOREGROUND = new Color(230, 230, 235); // Increased from 220 for better contrast
-    private static final Color ACCENT = new Color(58, 150, 221); // Adjusted blue for better APCA contrast
+    private static final Color FOREGROUND = new Color(230, 230, 235);
+    private static final Color SECONDARY_TEXT = new Color(150, 155, 165); // muted grey-blue
+    private static final Color ACCENT = new Color(58, 150, 221);
     private static final Color SECONDARY_ACCENT = new Color(100, 160, 200);
     
     // Component colors - APCA-compliant
@@ -44,7 +45,12 @@ public class DarkTheme implements Theme {
     public Color getForegroundColor() {
         return FOREGROUND;
     }
-    
+
+    @Override
+    public Color getSecondaryTextColor() {
+        return SECONDARY_TEXT;
+    }
+
     @Override
     public Color getAccentColor() {
         return ACCENT;

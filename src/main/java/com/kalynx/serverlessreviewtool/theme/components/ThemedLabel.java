@@ -31,5 +31,10 @@ public class ThemedLabel extends JLabel {
 
         super.paintComponent(g);
     }
+
+    public ThemedLabel setThemedToolTipText(String text) {
+        super.setToolTipText(text);
+        return this;
+    }
 }
 
