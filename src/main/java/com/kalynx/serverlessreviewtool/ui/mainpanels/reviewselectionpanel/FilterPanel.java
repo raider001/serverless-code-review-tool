@@ -2,7 +2,6 @@ package com.kalynx.serverlessreviewtool.ui.mainpanels.reviewselectionpanel;
 
 import com.kalynx.serverlessreviewtool.eventlisteners.SetOnFilterEvent;
 import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
-import com.kalynx.serverlessreviewtool.models.Repository;
 import com.kalynx.serverlessreviewtool.theme.components.ThemedComboBox;
 import com.kalynx.serverlessreviewtool.theme.components.ThemedLabel;
 import com.kalynx.serverlessreviewtool.theme.components.ThemedPanel;
@@ -10,6 +9,7 @@ import com.kalynx.serverlessreviewtool.theme.components.ThemedTextField;
 import com.kalynx.serverlessreviewtool.utils.DebounceTimer;
 import net.miginfocom.swing.MigLayout;
 
+import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.util.*;
@@ -88,19 +88,21 @@ public class FilterPanel extends ThemedPanel {
     }
 
     private void loadRepositories() {
-        String currentSelection = (String) repositories.getSelectedItem();
+        SwingUtilities.invokeLater(() -> {
+            String currentSelection = (String) repositories.getSelectedItem();
 
-        repositories.removeAllItems();
-        repositories.addItem("All Repositories");
-        repositoryManager.getRepositories().forEach(repo -> repositories.addItem(repo.getName()));
+            repositories.removeAllItems();
+            repositories.addItem("All Repositories");
+            repositoryManager.getRepositories().forEach(repo -> repositories.addItem(repo.getName()));
 
-        if (currentSelection != null) {
-            repositories.setSelectedItem(currentSelection);
-        }
+            if (currentSelection != null) {
+                repositories.setSelectedItem(currentSelection);
+            }
 
-        if (repositories.getSelectedItem() == null) {
-            repositories.setSelectedIndex(0);
-        }
+            if (repositories.getSelectedItem() == null) {
+                repositories.setSelectedIndex(0);
+            }
+        });
     }
 
     private void notifyFilterEventListener() {
