@@ -17,10 +17,10 @@ public class ReviewListPanel extends ThemedPanel {
 
     private final ReviewItemManager reviewItemManager = ReviewItemManager.getInstance();
 
-    private ThemedTabbedPane tabbedPane = new ThemedTabbedPane();
-    private ReviewList       myReviewsList  = new ReviewList();
-    private ReviewList       myOpenReviewsList = new ReviewList();
-    private ReviewList       completedReviewsList = new ReviewList();
+    private final ThemedTabbedPane tabbedPane = new ThemedTabbedPane();
+    private final ReviewList       myReviewsList  = new ReviewList();
+    private final ReviewList       myOpenReviewsList = new ReviewList();
+    private final ReviewList       completedReviewsList = new ReviewList();
 
     public ReviewListPanel() {
          configureLayout();
@@ -56,6 +56,7 @@ public class ReviewListPanel extends ThemedPanel {
         myReviewsList.setFilters(titleFilter, authorFilter, repositoryFilter);
         myOpenReviewsList.setFilters(titleFilter, authorFilter, repositoryFilter);
         completedReviewsList.setFilters(titleFilter, authorFilter, repositoryFilter);
+        updateTabs();
     }
 
     private void updateModel(DefaultListModel<ReviewItem> model, List<ReviewItem> reviews) {

@@ -1,6 +1,8 @@
 package com.kalynx.serverlessreviewtool.ui.mainpanels.reviewselectionpanel;
 
 import com.kalynx.serverlessreviewtool.eventlisteners.SetOnFilterEvent;
+import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
+import com.kalynx.serverlessreviewtool.models.Repository;
 import com.kalynx.serverlessreviewtool.theme.components.ThemedComboBox;
 import com.kalynx.serverlessreviewtool.theme.components.ThemedLabel;
 import com.kalynx.serverlessreviewtool.theme.components.ThemedPanel;
@@ -16,11 +18,8 @@ public class FilterPanel extends ThemedPanel {
 
     private final Set<SetOnFilterEvent> filterEventListeners = new HashSet<>();
     private DebounceTimer debounceTimer;
+    private final RepositoryManager repositoryManager = RepositoryManager.getInstance();
 
-    // temporary mock data
-    String[] repositoryData = {"All Repositories", "frontend-app", "backend-api", "mobile-app", "shared-lib"};
-
-    // fields
     private final ThemedLabel titleLabel = new ThemedLabel("Title:")
             .setThemedToolTipText("Filter reviews by title");
     private final ThemedTextField titleFilterTextField = new ThemedTextField(20);
@@ -29,11 +28,13 @@ public class FilterPanel extends ThemedPanel {
     private final ThemedTextField authorFilterTextField = new ThemedTextField(20);
     private final ThemedLabel repositoryLabel = new ThemedLabel("Repository:")
             .setThemedToolTipText("Filter reviews by repository");
-    private final ThemedComboBox<String> repositories = new ThemedComboBox<>(repositoryData);
+    private final ThemedComboBox<String> repositories = new ThemedComboBox<>();
 
     public FilterPanel() {
         configureLayout();
         setupEventListeners();
+        setupRepositoryListener();
+        loadRepositories();
     }
 
     private void setupEventListeners() {
@@ -82,12 +83,30 @@ public class FilterPanel extends ThemedPanel {
         return this;
     }
 
+    private void setupRepositoryListener() {
+        RepositoryManager.getInstance().addListener(repos -> loadRepositories());
+    }
+
+    private void loadRepositories() {
+        String currentSelection = (String) repositories.getSelectedItem();
+
+        repositories.removeAllItems();
+        repositories.addItem("All Repositories");
+        repositoryManager.getRepositories().forEach(repo -> repositories.addItem(repo.getName()));
+
+        if (currentSelection != null) {
+            repositories.setSelectedItem(currentSelection);
+        }
+
+        if (repositories.getSelectedItem() == null) {
+            repositories.setSelectedIndex(0);
+        }
+    }
+
     private void notifyFilterEventListener() {
         String selectedRepo = (String) repositories.getSelectedItem();
         List<String> repoFilter = null;
 
-        // If "All Repositories" is selected, pass null (no filter)
-        // Otherwise, create a list with the selected repository
         if (selectedRepo != null && !selectedRepo.equals("All Repositories")) {
             repoFilter = Collections.singletonList(selectedRepo);
         }

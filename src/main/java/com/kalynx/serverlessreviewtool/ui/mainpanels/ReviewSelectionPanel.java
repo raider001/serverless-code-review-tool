@@ -30,7 +30,6 @@ public class ReviewSelectionPanel extends ThemedPanel {
 
         add(filterPanel, "cell 0 0, grow");
         add(listPanel, "cell 0 1, grow");
-
         add(createReviewButton, "cell 0 2, align right");
     }
 
