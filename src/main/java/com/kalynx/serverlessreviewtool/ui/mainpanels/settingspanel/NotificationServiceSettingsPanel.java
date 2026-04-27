@@ -9,14 +9,14 @@ import com.kalynx.serverlessreviewtool.utils.Validator;
 import net.miginfocom.swing.MigLayout;
 
 
-public class NotificationServiceSettings extends ThemedPanel {
+public class NotificationServiceSettingsPanel extends ThemedPanel {
 
     private final SettingsManager settingsManager;
 
     private final ThemedLabel urlLabel = new ThemedLabel("Service URL:");
     private final ThemedTextField urlTextField = new ThemedTextField(30);
 
-    public NotificationServiceSettings() {
+    public NotificationServiceSettingsPanel() {
         settingsManager = SettingsManager.getInstance();
         configureLayout();
         setupValidation();

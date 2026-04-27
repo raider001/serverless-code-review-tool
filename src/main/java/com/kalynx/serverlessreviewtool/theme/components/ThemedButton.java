@@ -10,23 +10,33 @@ import java.awt.event.MouseEvent;
 
 /**
  * ThemedButton - A modern, flat, theme-aware button component
+ *
+ * Clean implementation that calculates colors on-demand during paint
+ * without permanently modifying component state.
  */
 public class ThemedButton extends JButton {
 
     private final ThemeManager themeManager;
     private boolean isHovered = false;
     private boolean isPressed = false;
-    private boolean useAccentStyle = false; // For primary/accent-styled buttons
+    private boolean useAccentStyle = false;
 
     public ThemedButton(String text) {
         super(text);
         this.themeManager = ThemeManager.getInstance();
+        initializeButton();
+    }
 
+    public ThemedButton() {
+        this("");
+    }
+
+    private void initializeButton() {
         // Modern flat button style
         setFocusPainted(false);
         setBorderPainted(false);
-        setContentAreaFilled(true);
-        setOpaque(true);
+        setContentAreaFilled(false); // We'll paint it ourselves
+        setOpaque(false);
         setCursor(new Cursor(Cursor.HAND_CURSOR));
         setFont(new Font("Segoe UI", Font.PLAIN, themeManager.scale(12)));
 
@@ -38,12 +48,14 @@ public class ThemedButton extends JButton {
             themeManager.scale(16)
         ));
 
-        // Add hover effects
+        // Add hover/press listeners
         addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
-                isHovered = true;
-                repaint();
+                if (isEnabled()) {
+                    isHovered = true;
+                    repaint();
+                }
             }
 
             @Override
@@ -54,8 +66,10 @@ public class ThemedButton extends JButton {
 
             @Override
             public void mousePressed(MouseEvent e) {
-                isPressed = true;
-                repaint();
+                if (isEnabled()) {
+                    isPressed = true;
+                    repaint();
+                }
             }
 
             @Override
@@ -66,15 +80,17 @@ public class ThemedButton extends JButton {
         });
     }
 
-    public ThemedButton() {
-        this("");
-    }
-
     /**
      * Set whether this button should use accent color styling (primary button)
      */
     public void setAccentStyle(boolean useAccentStyle) {
         this.useAccentStyle = useAccentStyle;
+        // Update font weight for accent buttons
+        if (useAccentStyle) {
+            setFont(getFont().deriveFont(Font.BOLD));
+        } else {
+            setFont(new Font("Segoe UI", Font.PLAIN, themeManager.scale(12)));
+        }
         repaint();
     }
 
@@ -84,93 +100,109 @@ public class ThemedButton extends JButton {
 
     @Override
     protected void paintComponent(Graphics g) {
-        if (themeManager != null) {
-            Graphics2D g2d = (Graphics2D) g.create();
-            g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        Graphics2D g2d = (Graphics2D) g.create();
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-            Theme theme = themeManager.getCurrentTheme();
+        Theme theme = themeManager.getCurrentTheme();
 
-            // Calculate background color based on state
-            Color bgColor;
-            Color fgColor;
+        // Calculate colors based on current state
+        Color bgColor = getButtonBackgroundColor(theme);
+        Color fgColor = getButtonForegroundColor(theme);
 
-            if (!isEnabled()) {
-                // Disabled state - more transparent
-                if (useAccentStyle) {
-                    bgColor = new Color(
-                        theme.getAccentColor().getRed(),
-                        theme.getAccentColor().getGreen(),
-                        theme.getAccentColor().getBlue(),
-                        100
-                    );
-                    fgColor = new Color(255, 255, 255, 100);
-                } else {
-                    bgColor = new Color(
-                        theme.getButtonBackground().getRed(),
-                        theme.getButtonBackground().getGreen(),
-                        theme.getButtonBackground().getBlue(),
-                        100
-                    );
-                    fgColor = new Color(
-                        theme.getButtonForeground().getRed(),
-                        theme.getButtonForeground().getGreen(),
-                        theme.getButtonForeground().getBlue(),
-                        100
-                    );
-                }
-            } else if (useAccentStyle) {
-                // Accent/Primary button styling
-                if (isPressed) {
-                    bgColor = darkenColor(theme.getAccentColor(), 0.2f);
-                } else if (isHovered) {
-                    bgColor = lightenColor(theme.getAccentColor(), 0.1f);
-                } else {
-                    bgColor = theme.getAccentColor();
-                }
-                fgColor = Color.WHITE;
-                // Make accent buttons bold
-                setFont(getFont().deriveFont(Font.BOLD));
-            } else {
-                // Normal button styling
-                if (isPressed) {
-                    bgColor = darkenColor(theme.getAccentColor(), 0.2f);
-                    fgColor = Color.WHITE;
-                } else if (isHovered) {
-                    bgColor = theme.getAccentColor();
-                    fgColor = Color.WHITE;
-                } else {
-                    bgColor = theme.getButtonBackground();
-                    fgColor = theme.getButtonForeground();
-                }
-                setFont(getFont().deriveFont(Font.PLAIN));
-            }
+        // Paint background
+        g2d.setColor(bgColor);
+        g2d.fillRect(0, 0, getWidth(), getHeight());
 
-            setBackground(bgColor);
-            setForeground(fgColor);
+        // Set foreground for text
+        setForeground(fgColor);
 
-            g2d.dispose();
-        }
+        g2d.dispose();
+
+        // Paint text and icon
         super.paintComponent(g);
     }
 
     /**
-     * Lighten a color by a factor
+     * Calculate background color based on current button state
      */
-    private Color lightenColor(Color color, float factor) {
-        int r = Math.min((int)(color.getRed() + (255 - color.getRed()) * factor), 255);
-        int g = Math.min((int)(color.getGreen() + (255 - color.getGreen()) * factor), 255);
-        int b = Math.min((int)(color.getBlue() + (255 - color.getBlue()) * factor), 255);
-        return new Color(r, g, b);
+    private Color getButtonBackgroundColor(Theme theme) {
+        if (!isEnabled()) {
+            // Disabled state - more transparent
+            Color baseColor = useAccentStyle ? theme.getAccentColor() : theme.getButtonBackground();
+            return new Color(
+                baseColor.getRed(),
+                baseColor.getGreen(),
+                baseColor.getBlue(),
+                100
+            );
+        }
+
+        if (useAccentStyle) {
+            // Accent/Primary button styling
+            if (isPressed) {
+                return adjustBrightness(theme.getAccentColor(), 0.8f);
+            } else if (isHovered) {
+                return adjustBrightness(theme.getAccentColor(), 1.1f);
+            } else {
+                return theme.getAccentColor();
+            }
+        } else {
+            // Normal button styling
+            if (isPressed) {
+                return adjustBrightness(theme.getAccentColor(), 0.8f);
+            } else if (isHovered) {
+                return theme.getAccentColor();
+            } else {
+                return theme.getButtonBackground();
+            }
+        }
     }
 
     /**
-     * Darken a color by a factor
+     * Calculate foreground color based on current button state
      */
-    private Color darkenColor(Color color, float factor) {
-        int r = Math.max((int)(color.getRed() * (1 - factor)), 0);
-        int g = Math.max((int)(color.getGreen() * (1 - factor)), 0);
-        int b = Math.max((int)(color.getBlue() * (1 - factor)), 0);
-        return new Color(r, g, b);
+    private Color getButtonForegroundColor(Theme theme) {
+        if (!isEnabled()) {
+            // Disabled state - more transparent
+            Color baseColor = useAccentStyle ? Color.WHITE : theme.getButtonForeground();
+            return new Color(
+                baseColor.getRed(),
+                baseColor.getGreen(),
+                baseColor.getBlue(),
+                100
+            );
+        }
+
+        if (useAccentStyle) {
+            return Color.WHITE;
+        } else {
+            // Normal button - white text when hovered/pressed, normal color otherwise
+            if (isPressed || isHovered) {
+                return Color.WHITE;
+            } else {
+                return theme.getButtonForeground();
+            }
+        }
+    }
+
+    /**
+     * Adjust brightness of a color by a factor
+     * Factor > 1.0 makes it brighter, < 1.0 makes it darker
+     */
+    private Color adjustBrightness(Color color, float factor) {
+        if (factor > 1.0f) {
+            // Lighten
+            float f = factor - 1.0f;
+            int r = Math.min((int)(color.getRed() + (255 - color.getRed()) * f), 255);
+            int g = Math.min((int)(color.getGreen() + (255 - color.getGreen()) * f), 255);
+            int b = Math.min((int)(color.getBlue() + (255 - color.getBlue()) * f), 255);
+            return new Color(r, g, b);
+        } else {
+            // Darken
+            int r = (int)(color.getRed() * factor);
+            int g = (int)(color.getGreen() * factor);
+            int b = (int)(color.getBlue() * factor);
+            return new Color(r, g, b);
+        }
     }
 }
-

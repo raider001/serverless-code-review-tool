@@ -2,11 +2,9 @@ package com.kalynx.serverlessreviewtool.ui.mainpanels;
 
 import com.kalynx.serverlessreviewtool.configuration.AppSettings;
 import com.kalynx.serverlessreviewtool.configuration.SettingsManager;
-import com.kalynx.serverlessreviewtool.theme.Theme;
-import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 import com.kalynx.serverlessreviewtool.theme.components.*;
-import com.kalynx.serverlessreviewtool.ui.RepositoryConfigDialog;
-import com.kalynx.serverlessreviewtool.ui.mainpanels.settingspanel.NotificationServiceSettings;
+import com.kalynx.serverlessreviewtool.ui.mainpanels.settingspanel.NotificationServiceSettingsPanel;
+import com.kalynx.serverlessreviewtool.ui.mainpanels.settingspanel.RepositoriesPanel;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.settingspanel.WindowSettingsPanel;
 import net.miginfocom.swing.MigLayout;
 
@@ -20,10 +18,8 @@ import java.awt.event.FocusEvent;
  * Includes repository polling configuration and management
  */
 public class SettingsPanel extends ThemedPanel {
-    private final ThemeManager themeManager;
     private final SettingsManager settingsManager;
     private final DefaultListModel<AppSettings.RepositoryConfig> repositoryListModel;
-    private final ThemedList<AppSettings.RepositoryConfig> repositoryList;
     private ThemedPanel repositorySectionPanel;
     private ThemedPanel notificationServicePanel;
     private WindowSettingsPanel windowSettingsPanel;
@@ -31,10 +27,8 @@ public class SettingsPanel extends ThemedPanel {
     private ThemedCheckBox enablePollingCheckBox;
 
     public SettingsPanel() {
-        this.themeManager = ThemeManager.getInstance();
         this.settingsManager = SettingsManager.getInstance();
         this.repositoryListModel = new DefaultListModel<>();
-        this.repositoryList = new ThemedList<>(repositoryListModel);
 
         setLayout(new BorderLayout());
         initializeComponents();
@@ -50,61 +44,22 @@ public class SettingsPanel extends ThemedPanel {
 
     private JPanel createContentPanel() {
         ThemedPanel contentPanel = new ThemedPanel();
-        // MigLayout: all columns grow, each row only takes what it needs except repository section
         contentPanel.setLayout(new MigLayout("fill", "", ""));
 
         windowSettingsPanel = new WindowSettingsPanel();
         contentPanel.add(windowSettingsPanel, "grow, wrap");
 
-        notificationServicePanel = new NotificationServiceSettings();
+        notificationServicePanel = new NotificationServiceSettingsPanel();
         contentPanel.add(notificationServicePanel, "grow, wrap");
 
-        // Repository Management Section - expands to fill remaining space
-        repositorySectionPanel = createRepositorySection();
+
+        repositorySectionPanel = new RepositoriesPanel();
         contentPanel.add(repositorySectionPanel, "grow, pushy, wrap");
 
         // Polling Configuration Section - fixed size at bottom
         contentPanel.add(createPollingSection(), "grow");
 
         return contentPanel;
-    }
-
-    private ThemedPanel createRepositorySection() {
-        ThemedPanel section = new ThemedPanel();
-        section.setLayout(new BorderLayout(0, themeManager.scale(8)));
-
-        // Repository list panel with border
-        ThemedPanel listPanel = new ThemedPanel();
-        listPanel.setLayout(new BorderLayout());
-        listPanel.setBorder(ThemedTitledBorder.create("Repositories"));
-
-        repositoryList.setVisibleRowCount(4);
-        repositoryList.setCellRenderer(new RepositoryListCellRenderer());
-        ThemedScrollPane listScrollPane = new ThemedScrollPane(repositoryList);
-        listPanel.add(listScrollPane, BorderLayout.CENTER);
-
-        section.add(listPanel, BorderLayout.CENTER);
-
-        // Button panel below list
-        ThemedPanel buttonPanel = new ThemedPanel();
-        buttonPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 5, 0));
-        buttonPanel.setOpaque(false);
-
-        ThemedButton addButton = new ThemedButton("Add Repository");
-        addButton.addActionListener(e -> showAddRepositoryDialog());
-
-        ThemedButton editButton = new ThemedButton("Edit Selected");
-        editButton.addActionListener(e -> editSelectedRepository());
-
-        ThemedButton removeButton = new ThemedButton("Remove Selected");
-        removeButton.addActionListener(e -> removeSelectedRepository());
-
-        buttonPanel.add(addButton);
-        buttonPanel.add(editButton);
-        buttonPanel.add(removeButton);
-
-        section.add(buttonPanel, BorderLayout.SOUTH);
-        return section;
     }
 
     private ThemedPanel createPollingSection() {
@@ -147,50 +102,7 @@ public class SettingsPanel extends ThemedPanel {
     }
 
 
-    private void showAddRepositoryDialog() {
-        RepositoryConfigDialog dialog = new RepositoryConfigDialog(
-                SwingUtilities.getWindowAncestor(this),
-                "Add Repository",
-                null
-        );
-        dialog.setVisible(true);
 
-        if (dialog.isConfirmed()) {
-            AppSettings.RepositoryConfig config = dialog.getRepositoryConfig();
-            settingsManager.getSettings().getRepositories().add(config);
-            repositoryListModel.addElement(config);
-            settingsManager.saveSettings();
-        }
-    }
-
-    private void editSelectedRepository() {
-        int selectedIndex = repositoryList.getSelectedIndex();
-        if (selectedIndex >= 0) {
-            AppSettings.RepositoryConfig selected = repositoryListModel.getElementAt(selectedIndex);
-            RepositoryConfigDialog dialog = new RepositoryConfigDialog(
-                    SwingUtilities.getWindowAncestor(this),
-                    "Edit Repository",
-                    selected
-            );
-            dialog.setVisible(true);
-
-            if (dialog.isConfirmed()) {
-                AppSettings.RepositoryConfig updated = dialog.getRepositoryConfig();
-                settingsManager.getSettings().getRepositories().set(selectedIndex, updated);
-                repositoryListModel.setElementAt(updated, selectedIndex);
-                settingsManager.saveSettings();
-            }
-        }
-    }
-
-    private void removeSelectedRepository() {
-        int selectedIndex = repositoryList.getSelectedIndex();
-        if (selectedIndex >= 0) {
-            settingsManager.getSettings().getRepositories().remove(selectedIndex);
-            repositoryListModel.remove(selectedIndex);
-            settingsManager.saveSettings();
-        }
-    }
 
     /**
      * Load settings from SettingsManager into UI components
@@ -212,30 +124,7 @@ public class SettingsPanel extends ThemedPanel {
     /**
      * Custom list cell renderer for repository items
      */
-    private class RepositoryListCellRenderer extends DefaultListCellRenderer {
-        @Override
-        public Component getListCellRendererComponent(JList<?> list, Object value, int index,
-                                                      boolean isSelected, boolean cellHasFocus) {
-            super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
 
-            if (value instanceof AppSettings.RepositoryConfig) {
-                AppSettings.RepositoryConfig config = (AppSettings.RepositoryConfig) value;
-                setText("<html><b>" + config.getName() + "</b><br/>" +
-                        "<small>" + config.getUrl() + " (Poll: " + config.getPollingIntervalMinutes() + " min)</small></html>");
-            }
-
-            Theme theme = themeManager.getCurrentTheme();
-            if (isSelected) {
-                setBackground(theme.getAccentColor());
-                setForeground(Color.WHITE);
-            } else {
-                setBackground(theme.getBackgroundColor());
-                setForeground(theme.getForegroundColor());
-            }
-
-            return this;
-        }
-    }
 
     @Override
     protected void paintComponent(Graphics g) {
