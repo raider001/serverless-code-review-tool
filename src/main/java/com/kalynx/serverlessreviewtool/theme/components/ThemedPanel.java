@@ -4,6 +4,7 @@ import com.kalynx.serverlessreviewtool.theme.Theme;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 
 import javax.swing.*;
+import javax.swing.border.TitledBorder;
 import java.awt.*;
 
 /**
@@ -46,6 +47,15 @@ public class ThemedPanel extends JPanel {
             Theme theme = themeManager.getCurrentTheme();
             setBackground(theme.getBackgroundColor());
             setForeground(theme.getForegroundColor());
+
+            // Automatically update titled borders with current theme
+            if (getBorder() instanceof TitledBorder) {
+                TitledBorder titledBorder = (TitledBorder) getBorder();
+                String title = titledBorder.getTitle();
+                if (title != null) {
+                    setBorder(ThemedTitledBorder.create(title));
+                }
+            }
         }
 
         super.paintComponent(g);
