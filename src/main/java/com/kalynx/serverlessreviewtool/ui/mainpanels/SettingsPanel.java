@@ -1,10 +1,13 @@
-package com.kalynx.serverlessreviewtool.ui;
+package com.kalynx.serverlessreviewtool.ui.mainpanels;
 
 import com.kalynx.serverlessreviewtool.configuration.AppSettings;
 import com.kalynx.serverlessreviewtool.configuration.SettingsManager;
 import com.kalynx.serverlessreviewtool.theme.Theme;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 import com.kalynx.serverlessreviewtool.theme.components.*;
+import com.kalynx.serverlessreviewtool.ui.RepositoryConfigDialog;
+import com.kalynx.serverlessreviewtool.ui.mainpanels.settingspanel.NotificationServiceSettings;
+import com.kalynx.serverlessreviewtool.ui.mainpanels.settingspanel.WindowSettingsPanel;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;
@@ -23,10 +26,7 @@ public class SettingsPanel extends ThemedPanel {
     private final ThemedList<AppSettings.RepositoryConfig> repositoryList;
     private ThemedPanel repositorySectionPanel;
     private ThemedPanel notificationServicePanel;
-    private ThemedPanel windowSettingsPanel;
-    private ThemedTextField notificationServiceUrlField;
-    private ThemedSpinner widthSpinner;
-    private ThemedSpinner heightSpinner;
+    private WindowSettingsPanel windowSettingsPanel;
     private ThemedSpinner intervalSpinner;
     private ThemedCheckBox enablePollingCheckBox;
 
@@ -53,12 +53,10 @@ public class SettingsPanel extends ThemedPanel {
         // MigLayout: all columns grow, each row only takes what it needs except repository section
         contentPanel.setLayout(new MigLayout("fill", "", ""));
 
-        // Window Settings Section
-        windowSettingsPanel = createWindowSettingsSection();
+        windowSettingsPanel = new WindowSettingsPanel();
         contentPanel.add(windowSettingsPanel, "grow, wrap");
 
-        // Notification Service Section - only takes required space
-        notificationServicePanel = createNotificationServiceSection();
+        notificationServicePanel = new NotificationServiceSettings();
         contentPanel.add(notificationServicePanel, "grow, wrap");
 
         // Repository Management Section - expands to fill remaining space
@@ -69,102 +67,6 @@ public class SettingsPanel extends ThemedPanel {
         contentPanel.add(createPollingSection(), "grow");
 
         return contentPanel;
-    }
-
-    private ThemedPanel createNotificationServiceSection() {
-        ThemedPanel section = new ThemedPanel();
-        section.setLayout(new BorderLayout());
-        section.setBorder(ThemedTitledBorder.create("Automatic Notification Service"));
-
-        // Inner panel with padding
-        ThemedPanel innerPanel = new ThemedPanel();
-        innerPanel.setLayout(new FlowLayout(FlowLayout.LEFT, themeManager.scale(10), themeManager.scale(10)));
-        innerPanel.setOpaque(false);
-
-        // URL label
-        ThemedLabel urlLabel = new ThemedLabel("Service URL:");
-        innerPanel.add(urlLabel);
-
-        // URL text field
-        notificationServiceUrlField = new ThemedTextField(30);
-        notificationServiceUrlField.setToolTipText("Enter the notification service URL");
-        notificationServiceUrlField.setPreferredSize(new Dimension(
-            themeManager.scale(350),
-            themeManager.scale(28)
-        ));
-
-        // Auto-save when field loses focus
-        notificationServiceUrlField.addFocusListener(new FocusAdapter() {
-            @Override
-            public void focusLost(FocusEvent e) {
-                settingsManager.updateNotificationServiceUrl(notificationServiceUrlField.getText());
-            }
-        });
-
-        innerPanel.add(notificationServiceUrlField);
-
-        section.add(innerPanel, BorderLayout.CENTER);
-        return section;
-    }
-
-    private ThemedPanel createWindowSettingsSection() {
-        ThemedPanel section = new ThemedPanel();
-        section.setLayout(new BorderLayout());
-        section.setBorder(ThemedTitledBorder.create("Window Settings"));
-
-        // Inner panel with padding
-        ThemedPanel innerPanel = new ThemedPanel();
-        innerPanel.setLayout(new FlowLayout(FlowLayout.LEFT, themeManager.scale(10), themeManager.scale(10)));
-        innerPanel.setOpaque(false);
-
-        // Default Width
-        ThemedLabel widthLabel = new ThemedLabel("Default Width:");
-        innerPanel.add(widthLabel);
-
-        widthSpinner = new ThemedSpinner(new SpinnerNumberModel(1000, 800, 3840, 10));
-        widthSpinner.setPreferredSize(new Dimension(themeManager.scale(100), themeManager.scale(28)));
-        widthSpinner.setToolTipText("Default window width in pixels");
-        innerPanel.add(widthSpinner);
-
-        innerPanel.add(Box.createHorizontalStrut(themeManager.scale(20)));
-
-        // Default Height
-        ThemedLabel heightLabel = new ThemedLabel("Default Height:");
-        innerPanel.add(heightLabel);
-
-        heightSpinner = new ThemedSpinner(new SpinnerNumberModel(700, 600, 2160, 10));
-        heightSpinner.setPreferredSize(new Dimension(themeManager.scale(100), themeManager.scale(28)));
-        heightSpinner.setToolTipText("Default window height in pixels");
-        innerPanel.add(heightSpinner);
-
-        // Add focus listeners AFTER both spinners are created
-        JComponent widthEditor = widthSpinner.getEditor();
-        if (widthEditor instanceof JSpinner.DefaultEditor) {
-            ((JSpinner.DefaultEditor) widthEditor).getTextField().addFocusListener(new FocusAdapter() {
-                @Override
-                public void focusLost(FocusEvent e) {
-                    int width = (Integer) widthSpinner.getValue();
-                    int height = (Integer) heightSpinner.getValue();
-                    settingsManager.updateWindowDefaults(width, height);
-                }
-            });
-        }
-
-        JComponent heightEditor = heightSpinner.getEditor();
-        if (heightEditor instanceof JSpinner.DefaultEditor) {
-            ((JSpinner.DefaultEditor) heightEditor).getTextField().addFocusListener(new FocusAdapter() {
-                @Override
-                public void focusLost(FocusEvent e) {
-                    int width = (Integer) widthSpinner.getValue();
-                    int height = (Integer) heightSpinner.getValue();
-                    settingsManager.updateWindowDefaults(width, height);
-                }
-            });
-        }
-
-
-        section.add(innerPanel, BorderLayout.CENTER);
-        return section;
     }
 
     private ThemedPanel createRepositorySection() {
@@ -295,13 +197,6 @@ public class SettingsPanel extends ThemedPanel {
      */
     private void loadSettings() {
         AppSettings settings = settingsManager.getSettings();
-
-        // Load window settings
-        widthSpinner.setValue(settings.getWindow().getDefaultWidth());
-        heightSpinner.setValue(settings.getWindow().getDefaultHeight());
-
-        // Load notification service URL
-        notificationServiceUrlField.setText(settings.getNotificationServiceUrl());
 
         // Load repositories
         repositoryListModel.clear();

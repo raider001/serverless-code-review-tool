@@ -10,6 +10,7 @@ import com.kalynx.serverlessreviewtool.theme.components.ThemedPanel;
 import com.kalynx.serverlessreviewtool.theme.icons.AppIcon;
 import com.kalynx.serverlessreviewtool.theme.icons.RefreshIcon;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.ReviewSelectionPanel;
+import com.kalynx.serverlessreviewtool.ui.mainpanels.SettingsPanel;
 
 import javax.swing.*;
 import java.awt.*;
