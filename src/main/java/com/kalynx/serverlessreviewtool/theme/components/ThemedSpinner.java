@@ -93,6 +93,15 @@ public class ThemedSpinner extends JSpinner {
             Theme theme = themeManager.getCurrentTheme();
             setBackground(theme.getInputBackground());
             setForeground(theme.getForegroundColor());
+
+            // Update editor text field theme as well
+            JComponent editor = getEditor();
+            if (editor instanceof DefaultEditor) {
+                JTextField textField = ((DefaultEditor) editor).getTextField();
+                textField.setBackground(theme.getInputBackground());
+                textField.setForeground(theme.getForegroundColor());
+                textField.setCaretColor(theme.getAccentColor());
+            }
         }
         super.paintComponent(g);
     }
