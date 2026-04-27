@@ -11,10 +11,6 @@ import javax.swing.*;
 import java.awt.*;
 
 public class SettingsPanel extends ThemedPanel {
-    private final ThemedPanel repositorySectionPanel = new RepositoriesPanel();
-    private final ThemedPanel notificationServicePanel = new NotificationServiceSettingsPanel();
-    private final WindowSettingsPanel windowSettingsPanel = new WindowSettingsPanel();
-    private final PollingSettingsPanel pollingSettingsPanel = new PollingSettingsPanel();
 
     public SettingsPanel() {
         setLayout(new BorderLayout());
@@ -29,10 +25,19 @@ public class SettingsPanel extends ThemedPanel {
     private JPanel createContentPanel() {
         ThemedPanel contentPanel = new ThemedPanel();
         contentPanel.setLayout(new MigLayout("fill", "", ""));
-        contentPanel.add(windowSettingsPanel, "grow, wrap");
-        contentPanel.add(notificationServicePanel, "grow, wrap");
-        contentPanel.add(repositorySectionPanel, "grow, pushy, wrap");
-        contentPanel.add(pollingSettingsPanel, "grow");
+
+        // Create settings sections
+        WindowSettingsPanel windowSettings = new WindowSettingsPanel();
+        NotificationServiceSettingsPanel notificationService = new NotificationServiceSettingsPanel();
+        RepositoriesPanel repositories = new RepositoriesPanel();
+        PollingSettingsPanel polling = new PollingSettingsPanel();
+
+        // Add sections to content panel
+        contentPanel.add(windowSettings, "grow, wrap");
+        contentPanel.add(notificationService, "grow, wrap");
+        contentPanel.add(repositories, "grow, pushy, wrap");
+        contentPanel.add(polling, "grow");
+
         return contentPanel;
     }
 }
