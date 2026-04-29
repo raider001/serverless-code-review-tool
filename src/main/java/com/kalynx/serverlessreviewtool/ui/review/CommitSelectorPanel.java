@@ -130,15 +130,28 @@ public class CommitSelectorPanel extends ThemedPanel {
         private final int TRACK_HEIGHT = themeManager.scale(3);
         private final int MARGIN = themeManager.scale(20);
 
+        private JWindow tooltipWindow;
+        private ThemedPanel tooltipPanel;
+        private ThemedLabel tooltipLabel;
+
         public CommitSliderPanel() {
             setupMouseListeners();
-            setupTooltip();
+            createTooltipWindow();
         }
 
-        private void setupTooltip() {
-            setToolTipText("");
-            ToolTipManager.sharedInstance().setInitialDelay(100);
-            ToolTipManager.sharedInstance().setDismissDelay(Integer.MAX_VALUE);
+        private void createTooltipWindow() {
+            tooltipWindow = new JWindow();
+            tooltipWindow.setFocusableWindowState(false);
+
+            tooltipPanel = new ThemedPanel(new MigLayout("insets 6", "[]", "[]"));
+            tooltipPanel.setBorder(BorderFactory.createLineBorder(
+                themeManager.getCurrentTheme().getBorderColor(), 1));
+
+            tooltipLabel = new ThemedLabel();
+            tooltipLabel.setFont(new Font("Segoe UI", Font.PLAIN, themeManager.scale(11)));
+
+            tooltipPanel.add(tooltipLabel);
+            tooltipWindow.add(tooltipPanel);
         }
 
         private void setupMouseListeners() {
@@ -169,9 +182,7 @@ public class CommitSelectorPanel extends ThemedPanel {
                         fireCommitRangeChanged(commits.get(startIndex), commits.get(endIndex));
                     }
                     dragThumb = -1;
-                    setToolTipText(null);
-                    ToolTipManager.sharedInstance().setEnabled(false);
-                    ToolTipManager.sharedInstance().setEnabled(true);
+                    hideTooltip();
                 }
 
                 @Override
@@ -202,19 +213,32 @@ public class CommitSelectorPanel extends ThemedPanel {
             index = Math.max(0, Math.min(index, commits.size() - 1));
             Commit commit = commits.get(index);
 
-            String tooltip = String.format(
+            String tooltipText = String.format(
                 "<html><b>%s</b><br/>%s<br/><i>%s - %s</i></html>",
                 commit.getHash().substring(0, Math.min(7, commit.getHash().length())),
                 commit.getMessage(),
                 commit.getAuthor(),
                 commit.getDate()
             );
-            setToolTipText(tooltip);
+            tooltipLabel.setText(tooltipText);
 
-            ToolTipManager.sharedInstance().mouseMoved(
-                new MouseEvent(this, MouseEvent.MOUSE_MOVED, System.currentTimeMillis(),
-                               0, getWidth() / 2, getHeight() / 2, 0, false)
-            );
+            tooltipWindow.pack();
+
+            Point locationOnScreen = getLocationOnScreen();
+            int thumbX = getThumbX(index);
+            int thumbY = getHeight() / 2 + themeManager.scale(5);
+
+            int tooltipX = locationOnScreen.x + thumbX - tooltipWindow.getWidth() / 2;
+            int tooltipY = locationOnScreen.y + thumbY - tooltipWindow.getHeight() - themeManager.scale(10);
+
+            tooltipWindow.setLocation(tooltipX, tooltipY);
+            tooltipWindow.setVisible(true);
+        }
+
+        private void hideTooltip() {
+            if (tooltipWindow != null) {
+                tooltipWindow.setVisible(false);
+            }
         }
 
 
