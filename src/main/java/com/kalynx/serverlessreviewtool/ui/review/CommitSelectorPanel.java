@@ -4,7 +4,6 @@ import com.kalynx.serverlessreviewtool.managers.ReviewContextManager;
 import com.kalynx.serverlessreviewtool.models.ReviewContext;
 import com.kalynx.serverlessreviewtool.models.*;
 import com.kalynx.serverlessreviewtool.theme.Theme;
-import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 import com.kalynx.serverlessreviewtool.theme.components.*;
 import net.miginfocom.swing.MigLayout;
 
@@ -89,10 +88,6 @@ public class CommitSelectorPanel extends ThemedPanel {
         return commitSliderPanel.getEndCommit();
     }
 
-    public DiffViewMode getSelectedViewMode() {
-        return (DiffViewMode) viewModeComboBox.getSelectedItem();
-    }
-
     public interface CommitRangeListener {
         void onCommitRangeChanged(Commit startCommit, Commit endCommit);
     }
@@ -137,6 +132,13 @@ public class CommitSelectorPanel extends ThemedPanel {
 
         public CommitSliderPanel() {
             setupMouseListeners();
+            setupTooltip();
+        }
+
+        private void setupTooltip() {
+            setToolTipText("");
+            ToolTipManager.sharedInstance().setInitialDelay(100);
+            ToolTipManager.sharedInstance().setDismissDelay(Integer.MAX_VALUE);
         }
 
         private void setupMouseListeners() {
@@ -151,8 +153,13 @@ public class CommitSelectorPanel extends ThemedPanel {
 
                     if (isNearPoint(e.getX(), e.getY(), startThumbX, thumbY, THUMB_RADIUS)) {
                         dragThumb = 0;
+                        showTooltipForIndex(startIndex);
                     } else if (isNearPoint(e.getX(), e.getY(), endThumbX, thumbY, THUMB_RADIUS)) {
                         dragThumb = 1;
+                        showTooltipForIndex(endIndex);
+                    } else {
+                        int index = getIndexFromX(e.getX());
+                        showTooltipForIndex(index);
                     }
                 }
 
@@ -162,6 +169,9 @@ public class CommitSelectorPanel extends ThemedPanel {
                         fireCommitRangeChanged(commits.get(startIndex), commits.get(endIndex));
                     }
                     dragThumb = -1;
+                    setToolTipText(null);
+                    ToolTipManager.sharedInstance().setEnabled(false);
+                    ToolTipManager.sharedInstance().setEnabled(true);
                 }
 
                 @Override
@@ -172,8 +182,10 @@ public class CommitSelectorPanel extends ThemedPanel {
 
                     if (dragThumb == 0) {
                         startIndex = Math.max(0, Math.min(newIndex, endIndex - 1));
+                        showTooltipForIndex(startIndex);
                     } else {
                         endIndex = Math.max(startIndex + 1, Math.min(newIndex, commits.size() - 1));
+                        showTooltipForIndex(endIndex);
                     }
 
                     repaint();
@@ -183,6 +195,28 @@ public class CommitSelectorPanel extends ThemedPanel {
             addMouseListener(mouseAdapter);
             addMouseMotionListener(mouseAdapter);
         }
+
+        private void showTooltipForIndex(int index) {
+            if (commits.isEmpty()) return;
+
+            index = Math.max(0, Math.min(index, commits.size() - 1));
+            Commit commit = commits.get(index);
+
+            String tooltip = String.format(
+                "<html><b>%s</b><br/>%s<br/><i>%s - %s</i></html>",
+                commit.getHash().substring(0, Math.min(7, commit.getHash().length())),
+                commit.getMessage(),
+                commit.getAuthor(),
+                commit.getDate()
+            );
+            setToolTipText(tooltip);
+
+            ToolTipManager.sharedInstance().mouseMoved(
+                new MouseEvent(this, MouseEvent.MOUSE_MOVED, System.currentTimeMillis(),
+                               0, getWidth() / 2, getHeight() / 2, 0, false)
+            );
+        }
+
 
         private boolean isNearPoint(int x, int y, int centerX, int centerY, int radius) {
             int dx = x - centerX;
@@ -247,34 +281,19 @@ public class CommitSelectorPanel extends ThemedPanel {
             g2.setFont(new Font("Consolas", Font.PLAIN, themeManager.scale(9)));
             FontMetrics fm = g2.getFontMetrics();
 
-            int hashWidth = fm.stringWidth("abc123") + themeManager.scale(4);
-            int availableWidth = trackWidth;
-            int maxVisibleHashes = Math.max(1, availableWidth / hashWidth);
-            int step = Math.max(1, (int) Math.ceil((double) commits.size() / maxVisibleHashes));
+            int[] visibleIndices = getVisibleCommitIndices();
+            for (int i : visibleIndices) {
+                if (i >= 0 && i < commits.size()) {
+                    int x = getThumbX(i);
+                    String hash = commits.get(i).getHash().substring(0, Math.min(6, commits.get(i).getHash().length()));
+                    int textWidth = fm.stringWidth(hash);
 
-            for (int i = 0; i < commits.size(); i += step) {
-                int x = getThumbX(i);
-                String hash = commits.get(i).getHash().substring(0, Math.min(6, commits.get(i).getHash().length()));
-                int textWidth = fm.stringWidth(hash);
+                    g2.setColor(theme.getSecondaryTextColor());
+                    g2.drawString(hash, x - textWidth / 2, centerY - themeManager.scale(12));
 
-                g2.setColor(theme.getSecondaryTextColor());
-                g2.drawString(hash, x - textWidth / 2, centerY - themeManager.scale(12));
-
-                g2.setColor(theme.getBorderColor());
-                g2.fillOval(x - 2, centerY - TRACK_HEIGHT / 2 - 2, 4, 4);
-            }
-
-            if (step > 1 && (commits.size() - 1) % step != 0) {
-                int i = commits.size() - 1;
-                int x = getThumbX(i);
-                String hash = commits.get(i).getHash().substring(0, Math.min(6, commits.get(i).getHash().length()));
-                int textWidth = fm.stringWidth(hash);
-
-                g2.setColor(theme.getSecondaryTextColor());
-                g2.drawString(hash, x - textWidth / 2, centerY - themeManager.scale(12));
-
-                g2.setColor(theme.getBorderColor());
-                g2.fillOval(x - 2, centerY - TRACK_HEIGHT / 2 - 2, 4, 4);
+                    g2.setColor(theme.getBorderColor());
+                    g2.fillOval(x - 2, centerY - TRACK_HEIGHT / 2 - 2, 4, 4);
+                }
             }
 
             g2.setColor(theme.getBorderColor());
@@ -289,6 +308,20 @@ public class CommitSelectorPanel extends ThemedPanel {
             drawThumb(g2, endX, centerY, endIndex == dragThumb, theme);
 
             g2.dispose();
+        }
+
+        private int[] getVisibleCommitIndices() {
+            if (commits.size() <= 3) {
+                int[] indices = new int[commits.size()];
+                for (int i = 0; i < commits.size(); i++) {
+                    indices[i] = i;
+                }
+                return indices;
+            } else if (commits.size() <= 10) {
+                return new int[]{0, commits.size() / 2, commits.size() - 1};
+            } else {
+                return new int[]{0, commits.size() - 1};
+            }
         }
 
         private void drawThumb(Graphics2D g2, int x, int y, boolean isDragging, Theme theme) {
