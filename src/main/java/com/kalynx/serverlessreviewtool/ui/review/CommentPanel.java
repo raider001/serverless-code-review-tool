@@ -3,84 +3,81 @@ package com.kalynx.serverlessreviewtool.ui.review;
 import com.kalynx.serverlessreviewtool.models.ReviewContext;
 import com.kalynx.serverlessreviewtool.models.*;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
-import com.kalynx.serverlessreviewtool.theme.Theme;
 import com.kalynx.serverlessreviewtool.theme.components.*;
+import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;
 import java.awt.*;
 import java.util.List;
 
 /**
- * CommentPanel - Shows and allows adding inline comments for the review
+ * CommentPanel - Shows and allows adding inline comments with threading and resolution tracking
  */
 public class CommentPanel extends ThemedPanel {
 
-    private final ThemeManager themeManager;
+    private final ThemeManager themeManager = ThemeManager.getInstance();
     private ReviewContext reviewContext;
     private ReviewFile currentFile;
 
-    // UI Components
     private ThemedPanel commentsListPanel;
-    private ThemedScrollPane scrollPane;
     private ThemedTextField lineNumberField;
     private ThemedTextArea commentTextArea;
+    private ThemedCheckBox needsResolutionCheckBox;
     private ThemedButton addCommentButton;
 
-    public CommentPanel(ReviewContext reviewContext) {
-        this.themeManager = ThemeManager.getInstance();
-        this.reviewContext = reviewContext;
+    private ReviewComment replyToComment;
 
-        setLayout(new BorderLayout());
+    public CommentPanel(ReviewContext reviewContext) {
+        this.reviewContext = reviewContext;
         setBorder(ThemedTitledBorder.create("Comments"));
 
-        initializeComponents();
+        configureLayout();
+        setupListeners();
+        showPlaceholder();
     }
 
-    private void initializeComponents() {
-        // Comments list at top
+    private void configureLayout() {
+        setLayout(new BorderLayout());
+
         commentsListPanel = new ThemedPanel();
         commentsListPanel.setLayout(new BoxLayout(commentsListPanel, BoxLayout.Y_AXIS));
 
-        scrollPane = new ThemedScrollPane(commentsListPanel);
+        ThemedScrollPane scrollPane = new ThemedScrollPane(commentsListPanel);
         add(scrollPane, BorderLayout.CENTER);
 
-        // Add comment form at bottom
-        ThemedPanel addCommentPanel = new ThemedPanel();
-        addCommentPanel.setLayout(new BorderLayout(themeManager.scale(5), themeManager.scale(5)));
-        addCommentPanel.setBorder(BorderFactory.createEmptyBorder(
-            themeManager.scale(10),
-            themeManager.scale(8),
-            themeManager.scale(10),
-            themeManager.scale(8)
-        ));
+        ThemedPanel addCommentPanel = createAddCommentPanel();
+        add(addCommentPanel, BorderLayout.SOUTH);
+    }
 
-        // Line number input
-        ThemedPanel lineInputPanel = new ThemedPanel();
-        lineInputPanel.setLayout(new FlowLayout(FlowLayout.LEFT, themeManager.scale(5), 0));
-        lineInputPanel.add(new ThemedLabel("Line:"));
+    private ThemedPanel createAddCommentPanel() {
+        ThemedPanel panel = new ThemedPanel(new MigLayout("fill, insets 10", "[grow]", "[]5[]5[]"));
+
+        ThemedPanel linePanel = new ThemedPanel(new MigLayout("insets 0", "[]5[]5[grow]", "[]"));
+        linePanel.add(new ThemedLabel("Line:"));
 
         lineNumberField = new ThemedTextField(5);
         lineNumberField.setToolTipText("Line number for comment");
-        lineInputPanel.add(lineNumberField);
+        linePanel.add(lineNumberField);
 
-        addCommentPanel.add(lineInputPanel, BorderLayout.NORTH);
+        needsResolutionCheckBox = new ThemedCheckBox("Needs Resolution", false);
+        linePanel.add(needsResolutionCheckBox, "growx");
 
-        // Comment text area
+        panel.add(linePanel, "growx, wrap");
+
         commentTextArea = new ThemedTextArea(3, 20);
         commentTextArea.setLineWrap(true);
         commentTextArea.setWrapStyleWord(true);
         ThemedScrollPane textScrollPane = new ThemedScrollPane(commentTextArea);
-        addCommentPanel.add(textScrollPane, BorderLayout.CENTER);
+        panel.add(textScrollPane, "grow, wrap");
 
-        // Add button
         addCommentButton = new ThemedButton("Add Comment");
-        addCommentButton.addActionListener(e -> addComment());
-        addCommentPanel.add(addCommentButton, BorderLayout.SOUTH);
+        panel.add(addCommentButton, "align right");
 
-        add(addCommentPanel, BorderLayout.SOUTH);
+        return panel;
+    }
 
-        // Show placeholder message
-        showPlaceholder();
+    private void setupListeners() {
+        addCommentButton.addActionListener(e -> handleAddComment());
     }
 
     private void showPlaceholder() {
@@ -118,64 +115,43 @@ public class CommentPanel extends ThemedPanel {
             ));
             commentsListPanel.add(noComments);
         } else {
-            for (ReviewComment comment : comments) {
-                commentsListPanel.add(createCommentCard(comment));
-                commentsListPanel.add(Box.createVerticalStrut(themeManager.scale(5)));
-            }
+            List<CommentThread> threads = CommentThread.organizeComments(comments);
+            displayThreads(threads);
         }
 
         commentsListPanel.revalidate();
         commentsListPanel.repaint();
     }
 
-    private ThemedPanel createCommentCard(ReviewComment comment) {
-        Theme theme = themeManager.getCurrentTheme();
-
-        ThemedPanel card = new ThemedPanel();
-        card.setLayout(new BorderLayout(themeManager.scale(5), themeManager.scale(5)));
-        // Simple padding without line border for cleaner look
-        card.setBorder(BorderFactory.createEmptyBorder(
-            themeManager.scale(8),
-            themeManager.scale(8),
-            themeManager.scale(8),
-            themeManager.scale(8)
-        ));
-        // Slightly different background to distinguish comments
-        card.setBackground(theme.getInputBackground());
-
-        // Header with author and line number
-        ThemedPanel header = new ThemedPanel();
-        header.setLayout(new FlowLayout(FlowLayout.LEFT, themeManager.scale(5), 0));
-
-        ThemedLabel authorLabel = new ThemedLabel(comment.getAuthor());
-        authorLabel.setFont(new Font("Segoe UI", Font.BOLD, themeManager.scale(11)));
-        authorLabel.setForeground(theme.getAccentColor());
-        header.add(authorLabel);
-
-        ThemedLabel lineLabel = new ThemedLabel("Line " + comment.getLineNumber());
-        lineLabel.setFont(new Font("Segoe UI", Font.PLAIN, themeManager.scale(10)));
-        header.add(lineLabel);
-
-        ThemedLabel timeLabel = new ThemedLabel("• " + comment.getTimestamp());
-        timeLabel.setFont(new Font("Segoe UI", Font.PLAIN, themeManager.scale(10)));
-        header.add(timeLabel);
-
-        card.add(header, BorderLayout.NORTH);
-
-        // Comment text
-        ThemedTextArea textArea = new ThemedTextArea(comment.getText());
-        textArea.setEditable(false);
-        textArea.setLineWrap(true);
-        textArea.setWrapStyleWord(true);
-        textArea.setOpaque(false);
-        card.add(textArea, BorderLayout.CENTER);
-
-        return card;
+    private void displayThreads(List<CommentThread> threads) {
+        for (CommentThread thread : threads) {
+            displayThread(thread);
+            commentsListPanel.add(Box.createVerticalStrut(themeManager.scale(10)));
+        }
     }
 
-    private void addComment() {
+    private void displayThread(CommentThread thread) {
+        CommentCard card = new CommentCard(thread.getComment());
+        commentsListPanel.add(card);
+        commentsListPanel.add(Box.createVerticalStrut(themeManager.scale(3)));
+
+        for (CommentThread reply : thread.getReplies()) {
+            displayThread(reply);
+        }
+    }
+
+    private void handleReplyToComment(ReviewComment parentComment) {
+        this.replyToComment = parentComment;
+        lineNumberField.setText(String.valueOf(parentComment.getLineNumber()));
+        lineNumberField.setEnabled(false);
+        needsResolutionCheckBox.setEnabled(false);
+        addCommentButton.setText("Add Reply");
+        commentTextArea.requestFocus();
+    }
+
+    private void handleAddComment() {
         if (currentFile == null) {
-            JOptionPane.showMessageDialog(this, "Please select a file first", "No File Selected", JOptionPane.WARNING_MESSAGE);
+            showError("Please select a file first");
             return;
         }
 
@@ -183,52 +159,64 @@ public class CommentPanel extends ThemedPanel {
         String commentText = commentTextArea.getText().trim();
 
         if (lineText.isEmpty() || commentText.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Please enter both line number and comment", "Missing Information", JOptionPane.WARNING_MESSAGE);
+            showError("Please enter both line number and comment");
             return;
         }
 
         try {
             int lineNumber = Integer.parseInt(lineText);
 
-            // Create new comment
             String commentId = "COMMENT-" + System.currentTimeMillis();
+            String parentId = replyToComment != null ? replyToComment.getId() : null;
+            boolean needsResolution = replyToComment == null && needsResolutionCheckBox.isSelected();
+
             ReviewComment newComment = new ReviewComment(
                 commentId,
                 currentFile.getPath(),
                 lineNumber,
-                "Current User", // In real app, get from auth system
+                "Current User",
                 commentText,
-                "just now"
+                "just now",
+                parentId,
+                needsResolution
             );
 
             reviewContext.addComment(newComment);
 
-            // Clear inputs
-            lineNumberField.setText("");
-            commentTextArea.setText("");
-
-            // Reload comments
+            clearCommentForm();
             loadCommentsForFile(currentFile);
 
-            System.out.println("Added comment: " + newComment);
-
         } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(this, "Please enter a valid line number", "Invalid Line Number", JOptionPane.ERROR_MESSAGE);
+            showError("Please enter a valid line number");
         }
+    }
+
+    private void clearCommentForm() {
+        lineNumberField.setText("");
+        lineNumberField.setEnabled(true);
+        commentTextArea.setText("");
+        needsResolutionCheckBox.setSelected(false);
+        needsResolutionCheckBox.setEnabled(true);
+        addCommentButton.setText("Add Comment");
+        replyToComment = null;
+    }
+
+    private void showError(String message) {
+        ThemedConfirmDialog.showMessage(
+            SwingUtilities.getWindowAncestor(this),
+            "Error",
+            message
+        );
+    }
+
+    public void setLineNumber(int lineNumber) {
+        lineNumberField.setText(String.valueOf(lineNumber));
     }
 
     public void setReviewContext(ReviewContext context) {
         this.reviewContext = context;
         this.currentFile = null;
         showPlaceholder();
-    }
-
-    @Override
-    protected void paintComponent(Graphics g) {
-        // Recreate titled border with current theme colors
-        // TitledBorders are immutable and must be recreated to pick up new theme colors
-        setBorder(ThemedTitledBorder.create("Comments"));
-        super.paintComponent(g);
     }
 }
 

@@ -44,6 +44,8 @@ public class ReviewPanel extends ThemedPanel {
 
         List<Repository> repositories = com.kalynx.serverlessreviewtool.mockdata.RepositoryMockData.createDetailedRepositories();
 
+        List<ReviewComment> comments = createSampleComments();
+
         ReviewContext reviewContext = new ReviewContext(
             "REVIEW-123",
             "Implement OAuth2 authentication",
@@ -53,9 +55,63 @@ public class ReviewPanel extends ThemedPanel {
             ReviewStatus.OPEN,
             reviewers,
             repositories,
-            new java.util.ArrayList<>()
+            comments
         );
 
         reviewContextManager.setReviewContext(reviewContext);
+    }
+
+    private List<ReviewComment> createSampleComments() {
+        List<ReviewComment> comments = new java.util.ArrayList<>();
+
+        String filePath = "src/auth/AuthService.java";
+
+        ReviewComment comment1 = new ReviewComment(
+            "C1", filePath, 45, "Alice Chen",
+            "This authentication logic could be simplified. Consider extracting the token validation into a separate method.",
+            "2 hours ago", null, true
+        );
+        comments.add(comment1);
+
+        ReviewComment reply1 = new ReviewComment(
+            "C2", filePath, 45, "Bob Martin",
+            "Good catch! I'll refactor this in the next commit. Should I also extract the refresh token logic?",
+            "1 hour ago", "C1", false
+        );
+        comments.add(reply1);
+
+        ReviewComment reply2 = new ReviewComment(
+            "C3", filePath, 45, "Alice Chen",
+            "Yes, that would make it much more maintainable. Thanks!",
+            "45 minutes ago", "C1", false
+        );
+        comments.add(reply2);
+
+        comment1.markResolved("Bob Martin");
+
+        ReviewComment comment2 = new ReviewComment(
+            "C4", filePath, 12, "Carlos Rivera",
+            "Missing null check here. What happens if the user object is null?",
+            "3 hours ago", null, true
+        );
+        comments.add(comment2);
+
+        ReviewComment comment3 = new ReviewComment(
+            "C5", filePath, 78, "Alice Chen",
+            "Nice implementation! This is much cleaner than the old approach.",
+            "30 minutes ago", null, false
+        );
+        comments.add(comment3);
+
+        String filePath2 = "src/ui/LoginComponent.java";
+
+        ReviewComment comment4 = new ReviewComment(
+            "C6", filePath2, 23, "Bob Martin",
+            "Should we add input validation for the email field?",
+            "1 hour ago", null, true
+        );
+        comments.add(comment4);
+
+        return comments;
     }
 }

@@ -7,17 +7,15 @@ import com.kalynx.serverlessreviewtool.models.ReviewContext;
 import com.kalynx.serverlessreviewtool.models.ReviewFile;
 import com.kalynx.serverlessreviewtool.theme.components.ThemedPanel;
 import com.kalynx.serverlessreviewtool.theme.components.ThemedSplitPane;
-import com.kalynx.serverlessreviewtool.ui.review.CommitSelectorPanel;
-import com.kalynx.serverlessreviewtool.ui.review.DiffViewMode;
-import com.kalynx.serverlessreviewtool.ui.review.DiffViewerPanel;
-import com.kalynx.serverlessreviewtool.ui.review.FileNavigationPanel;
+import com.kalynx.serverlessreviewtool.ui.review.*;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;
+import java.util.List;
 
 /**
- * CodePanel - Contains commit selector, file navigation, and diff viewer
- * Displays the code review interface with commit comparison and file diffs
+ * CodePanel - Contains commit selector, file navigation, diff viewer, and comments
+ * Displays the code review interface with commit comparison, file diffs, and inline comment management
  */
 public class CodePanel extends ThemedPanel {
 
@@ -26,11 +24,14 @@ public class CodePanel extends ThemedPanel {
     private final CommitSelectorPanel commitSelectorPanel = new CommitSelectorPanel();
     private final FileNavigationPanel fileNavigationPanel = new FileNavigationPanel();
     private final DiffViewerPanel diffViewerPanel = new DiffViewerPanel();
-    private final ThemedSplitPane mainSplitPane = new ThemedSplitPane(JSplitPane.HORIZONTAL_SPLIT);
+    private final ThemedSplitPane fileAndDiffSplitPane = new ThemedSplitPane(JSplitPane.HORIZONTAL_SPLIT);
+
+    private ReviewFile currentFile;
 
     public CodePanel() {
         configureLayout();
         setupListeners();
+        setupCommentIntegration();
     }
 
     private void configureLayout() {
@@ -38,11 +39,11 @@ public class CodePanel extends ThemedPanel {
 
         add(commitSelectorPanel, "growx, wrap");
 
-        mainSplitPane.setLeftComponent(fileNavigationPanel);
-        mainSplitPane.setRightComponent(diffViewerPanel);
-        mainSplitPane.setResizeWeight(0.20);
+        fileAndDiffSplitPane.setLeftComponent(fileNavigationPanel);
+        fileAndDiffSplitPane.setRightComponent(diffViewerPanel);
+        fileAndDiffSplitPane.setResizeWeight(0.20);
 
-        add(mainSplitPane, "grow");
+        add(fileAndDiffSplitPane, "grow");
     }
 
     private void setupListeners() {
@@ -51,22 +52,50 @@ public class CodePanel extends ThemedPanel {
         fileNavigationPanel.addFileSelectionListener(this::onFileSelected);
     }
 
-    private void onCommitRangeChanged(Commit startCommit, Commit endCommit) {
-        System.out.println("Commit range changed: " + startCommit.getHash() + " -> " + endCommit.getHash());
+    private void setupCommentIntegration() {
+        diffViewerPanel.setOnLineDoubleClickListener(lineNumber -> {
+            if (currentFile != null) {
+                showInlineCommentDialog(lineNumber);
+            }
+        });
 
+        reviewContextManager.addListener(context -> {
+            if (context != null && currentFile != null) {
+                List<com.kalynx.serverlessreviewtool.models.ReviewComment> comments =
+                    context.getCommentsForFile(currentFile.getPath());
+                diffViewerPanel.setCommentsForCurrentFile(comments);
+            }
+        });
+    }
+
+    private void showInlineCommentDialog(int lineNumber) {
+        ReviewContext context = reviewContextManager.getReviewContext();
+        if (context == null || currentFile == null) return;
+
+        InlineCommentDialog dialog = new InlineCommentDialog(
+            SwingUtilities.getWindowAncestor(this),
+            context,
+            currentFile,
+            lineNumber,
+            this::loadCommentsForCurrentFile
+        );
+        dialog.setVisible(true);
+    }
+
+    private void onCommitRangeChanged(Commit startCommit, Commit endCommit) {
         ReviewFile selectedFile = fileNavigationPanel.getSelectedFile();
         if (selectedFile != null) {
             diffViewerPanel.showDiff(selectedFile, startCommit, endCommit);
+            loadCommentsForCurrentFile();
         }
     }
 
     private void onViewModeChanged(DiffViewMode mode) {
-        System.out.println("View mode changed to: " + mode);
         diffViewerPanel.setViewMode(mode);
     }
 
     private void onFileSelected(ReviewFile file) {
-        System.out.println("File selected: " + file.getPath());
+        this.currentFile = file;
 
         Repository repository = findRepositoryForFile(file);
         if (repository != null) {
@@ -78,6 +107,19 @@ public class CodePanel extends ThemedPanel {
 
         if (startCommit != null && endCommit != null) {
             diffViewerPanel.showDiff(file, startCommit, endCommit);
+        }
+
+        loadCommentsForCurrentFile();
+    }
+
+    private void loadCommentsForCurrentFile() {
+        if (currentFile == null) return;
+
+        ReviewContext context = reviewContextManager.getReviewContext();
+        if (context != null) {
+            List<com.kalynx.serverlessreviewtool.models.ReviewComment> comments =
+                context.getCommentsForFile(currentFile.getPath());
+            diffViewerPanel.setCommentsForCurrentFile(comments);
         }
     }
 

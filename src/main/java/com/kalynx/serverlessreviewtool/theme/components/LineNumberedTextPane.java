@@ -1,25 +1,25 @@
 package com.kalynx.serverlessreviewtool.theme.components;
 
+import com.kalynx.serverlessreviewtool.models.ReviewComment;
 import com.kalynx.serverlessreviewtool.theme.Theme;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
-import com.kalynx.serverlessreviewtool.theme.icons.CommentIcon;
 
 import javax.swing.*;
+import javax.swing.Timer;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.text.*;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.function.Consumer;
 
 /**
- * LineNumberedTextPane - A text pane with line numbers and line change indicators
+ * LineNumberedTextPane - A text pane with line numbers, line change indicators, and comment support
  * Displays added/removed/modified line indicators with proper theming support
+ * Integrates with ReviewComment system for inline code review comments
  * This component should be wrapped in a scroll pane by the parent container
  */
 public class LineNumberedTextPane extends ThemedPanel {
@@ -28,15 +28,16 @@ public class LineNumberedTextPane extends ThemedPanel {
     private final ThemedTextPane textPane;
     private final LineNumberPanel lineNumberPanel;
 
-    // Synchronized font configuration
-    private static final String FONT_NAME = "Consolas"; // Better looking code font
-    private static final int FONT_SIZE_BASE = 14; // Increased to match UI font size
+    private static final String FONT_NAME = "Consolas";
+    private static final int FONT_SIZE_BASE = 14;
     private final int scaledFontSize;
 
     private final Set<Integer> addedLines = new HashSet<>();
     private final Set<Integer> removedLines = new HashSet<>();
     private final Set<Integer> modifiedLines = new HashSet<>();
-    private final Map<Integer, List<String>> lineComments = new HashMap<>(); // line number -> list of comments
+    private final Map<Integer, List<ReviewComment>> lineComments = new HashMap<>();
+
+    private Consumer<Integer> onLineDoubleClick;
 
     public LineNumberedTextPane() {
         this.themeManager = ThemeManager.getInstance();
@@ -44,24 +45,14 @@ public class LineNumberedTextPane extends ThemedPanel {
         this.lineNumberPanel = new LineNumberPanel();
         this.scaledFontSize = themeManager.scale(FONT_SIZE_BASE);
 
-        // Set consistent font on text pane to match line numbers
         Font synchronizedFont = new Font(FONT_NAME, Font.PLAIN, scaledFontSize);
         textPane.setFont(synchronizedFont);
-
-
-        // Set zero margins on text pane - padding will be handled uniformly by row header alignment
         textPane.setMargin(new Insets(0, 0, 0, 0));
 
         setLayout(new BorderLayout());
-
-
-        // Add line number panel as row header on the left
         add(lineNumberPanel, BorderLayout.WEST);
-
-        // Add text pane in center
         add(textPane, BorderLayout.CENTER);
 
-        // Listen to text changes to update line numbers
         textPane.getDocument().addDocumentListener(new DocumentListener() {
             @Override
             public void insertUpdate(DocumentEvent e) {
@@ -79,8 +70,7 @@ public class LineNumberedTextPane extends ThemedPanel {
             }
         });
 
-        // Add double-click listener for comments
-        textPane.addMouseListener(new MouseListener() {
+        textPane.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
                 if (e.getClickCount() == 2) {
@@ -89,45 +79,80 @@ public class LineNumberedTextPane extends ThemedPanel {
             }
 
             @Override
-            public void mousePressed(MouseEvent e) {}
-
-            @Override
-            public void mouseReleased(MouseEvent e) {}
-
-            @Override
-            public void mouseEntered(MouseEvent e) {}
-
-            @Override
-            public void mouseExited(MouseEvent e) {}
+            public void mousePressed(MouseEvent e) {
+                if (SwingUtilities.isRightMouseButton(e)) {
+                    handleRightClick(e);
+                }
+            }
         });
     }
 
-    /**
-     * Handle double-click to add a comment on a line
-     */
     private void handleDoubleClick(MouseEvent e) {
-        int offset = textPane.viewToModel2D(e.getPoint());
+        int lineNumber = getLineNumberFromPoint(e.getPoint());
+        if (lineNumber > 0 && onLineDoubleClick != null) {
+            onLineDoubleClick.accept(lineNumber);
+        }
+    }
+
+    private void handleRightClick(MouseEvent e) {
+        int lineNumber = getLineNumberFromPoint(e.getPoint());
+        if (lineNumber > 0) {
+            showCommentTooltip(e.getPoint(), lineNumber);
+        }
+    }
+
+    private int getLineNumberFromPoint(Point point) {
+        int offset = textPane.viewToModel2D(point);
         String text = textPane.getText();
 
-        // Find line number from offset
         int lineNumber = 1;
         for (int i = 0; i < offset && i < text.length(); i++) {
             if (text.charAt(i) == '\n') {
                 lineNumber++;
             }
         }
+        return lineNumber;
+    }
 
-        // Show comment popup
-        final int finalLineNumber = lineNumber;
-        CommentPopup popup = new CommentPopup(textPane, "");
-        popup.setSubmitCallback(event -> {
-            String comment = popup.getComment().trim();
-            if (!comment.isEmpty()) {
-                addComment(finalLineNumber, comment);
-                lineNumberPanel.repaint();
+    private void showCommentTooltip(Point point, int lineNumber) {
+        List<ReviewComment> comments = lineComments.get(lineNumber);
+        if (comments == null || comments.isEmpty()) {
+            return;
+        }
+
+        StringBuilder tooltip = new StringBuilder("<html>");
+        for (ReviewComment comment : comments) {
+            tooltip.append("<b>").append(comment.getAuthor()).append(":</b> ")
+                   .append(comment.getText().replace("\n", "<br>"))
+                   .append("<br><i>").append(comment.getTimestamp()).append("</i>");
+
+            if (comment.needsResolution()) {
+                tooltip.append(" <font color='red'>[Needs Resolution]</font>");
             }
-        });
-        popup.setVisible(true);
+            if (comment.isResolved()) {
+                tooltip.append(" <font color='green'>[Resolved]</font>");
+            }
+            tooltip.append("<br><br>");
+        }
+        tooltip.append("</html>");
+
+        JToolTip tip = textPane.createToolTip();
+        tip.setTipText(tooltip.toString());
+
+        Point screenPoint = point;
+        SwingUtilities.convertPointToScreen(screenPoint, textPane);
+
+        Popup popup = PopupFactory.getSharedInstance().getPopup(textPane, tip,
+            screenPoint.x, screenPoint.y + 20);
+        popup.show();
+
+        Timer timer = new Timer(5000, evt -> popup.hide());
+        timer.setRepeats(false);
+        timer.start();
+    }
+
+    public void setOnLineDoubleClickListener(Consumer<Integer> listener) {
+        this.onLineDoubleClick = listener;
     }
 
     private void applyTheme() {
@@ -200,39 +225,41 @@ public class LineNumberedTextPane extends ThemedPanel {
         lineNumberPanel.repaint();
     }
 
-    /**
-     * Get the underlying text pane for styling
-     */
     public JTextPane getTextPane() {
         return textPane;
     }
 
-    /**
-     * Get the line number panel for use as a row header in external scroll pane
-     */
     public LineNumberPanel getLineNumberPanel() {
         return lineNumberPanel;
     }
 
-    /**
-     * Add a comment to a specific line
-     */
-    public void addComment(int lineNumber, String comment) {
-        lineComments.computeIfAbsent(lineNumber, k -> new java.util.ArrayList<>()).add(comment);
+    public void setComments(List<ReviewComment> comments) {
+        lineComments.clear();
+        for (ReviewComment comment : comments) {
+            lineComments.computeIfAbsent(comment.getLineNumber(), k -> new ArrayList<>()).add(comment);
+        }
+        lineNumberPanel.repaint();
     }
 
-    /**
-     * Get comments for a specific line
-     */
-    public List<String> getComments(int lineNumber) {
-        return lineComments.getOrDefault(lineNumber, new java.util.ArrayList<>());
+    public void addCommentForLine(ReviewComment comment) {
+        lineComments.computeIfAbsent(comment.getLineNumber(), k -> new ArrayList<>()).add(comment);
+        lineNumberPanel.repaint();
     }
 
-    /**
-     * Check if a line has comments
-     */
+    public List<ReviewComment> getCommentsForLine(int lineNumber) {
+        return lineComments.getOrDefault(lineNumber, new ArrayList<>());
+    }
+
     public boolean hasComments(int lineNumber) {
-        return lineComments.containsKey(lineNumber) && !lineComments.get(lineNumber).isEmpty();
+        List<ReviewComment> comments = lineComments.get(lineNumber);
+        return comments != null && !comments.isEmpty();
+    }
+
+    public boolean hasUnresolvedComments(int lineNumber) {
+        List<ReviewComment> comments = lineComments.get(lineNumber);
+        if (comments == null) return false;
+
+        return comments.stream().anyMatch(c -> c.needsResolution() && !c.isResolved());
     }
 
     /**
@@ -241,6 +268,7 @@ public class LineNumberedTextPane extends ThemedPanel {
      */
     public class LineNumberPanel extends JPanel {
         private static final int RIGHT_MARGIN = 8;
+        private static final int ICON_SPACE = 20;
 
         LineNumberPanel() {
             setOpaque(true);
@@ -301,7 +329,7 @@ public class LineNumberedTextPane extends ThemedPanel {
                 g2d.setColor(theme.getForegroundColor());
                 g2d.setFont(font);
                 String lineStr = String.valueOf(lineNumber);
-                int numberX = getWidth() - RIGHT_MARGIN - fm.stringWidth(lineStr);
+                int numberX = ICON_SPACE + 2;
                 g2d.drawString(lineStr, numberX, y + 2);
 
                 y += lineHeight;
@@ -316,7 +344,7 @@ public class LineNumberedTextPane extends ThemedPanel {
             String text = textPane.getText();
             int lineCount = text.isEmpty() ? 1 : text.split("\n", -1).length;
             int maxLineWidth = fm.stringWidth(String.valueOf(lineCount));
-            int preferredWidth = maxLineWidth + 20; // Add padding
+            int preferredWidth = ICON_SPACE + maxLineWidth + RIGHT_MARGIN + 5;
 
             if (getPreferredSize().width != preferredWidth) {
                 setPreferredSize(new Dimension(preferredWidth, 0));
@@ -327,7 +355,6 @@ public class LineNumberedTextPane extends ThemedPanel {
         private void drawLineBackground(Graphics2D g2d, int lineNumber, int y, int lineHeight) {
             Theme theme = themeManager.getCurrentTheme();
 
-            // Only draw if the line is visible in the viewport
             if (y < 0 || y > getHeight()) {
                 return;
             }
@@ -343,11 +370,35 @@ public class LineNumberedTextPane extends ThemedPanel {
                 g2d.fillRect(0, y, getWidth() - 1, lineHeight);
             }
 
-            // Draw comment icon if comments exist
             if (hasComments(lineNumber)) {
-                int commentCount = getComments(lineNumber).size();
-                CommentIcon commentIcon = new CommentIcon(12, commentCount);
-                commentIcon.paintIcon(null, g2d, RIGHT_MARGIN + 2, y + (lineHeight - 12) / 2);
+                List<ReviewComment> comments = getCommentsForLine(lineNumber);
+                int commentCount = comments.size();
+
+                Color indicatorColor;
+                if (hasUnresolvedComments(lineNumber)) {
+                    indicatorColor = new Color(255, 152, 0);
+                } else {
+                    indicatorColor = new Color(76, 175, 80);
+                }
+
+                int iconSize = themeManager.scale(12);
+                int iconX = (ICON_SPACE - iconSize) / 2;
+                int iconY = y + (lineHeight - iconSize) / 2;
+
+                g2d.setColor(indicatorColor);
+                g2d.fillOval(iconX, iconY, iconSize, iconSize);
+
+                if (commentCount > 1) {
+                    g2d.setColor(Color.WHITE);
+                    g2d.setFont(new Font("Segoe UI", Font.BOLD, themeManager.scale(8)));
+                    String countStr = String.valueOf(commentCount);
+                    FontMetrics fm = g2d.getFontMetrics();
+                    int textWidth = fm.stringWidth(countStr);
+                    int textHeight = fm.getAscent();
+                    g2d.drawString(countStr,
+                        iconX + (iconSize - textWidth) / 2,
+                        iconY + (iconSize + textHeight) / 2 - 1);
+                }
             }
         }
     }

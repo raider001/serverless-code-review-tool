@@ -130,8 +130,7 @@ public class CommitSelectorPanel extends ThemedPanel {
         private final int TRACK_HEIGHT = themeManager.scale(3);
         private final int MARGIN = themeManager.scale(20);
 
-        private JWindow tooltipWindow;
-        private ThemedPanel tooltipPanel;
+        private ThemedWindow tooltipWindow;
         private ThemedLabel tooltipLabel;
 
         public CommitSliderPanel() {
@@ -140,18 +139,12 @@ public class CommitSelectorPanel extends ThemedPanel {
         }
 
         private void createTooltipWindow() {
-            tooltipWindow = new JWindow();
-            tooltipWindow.setFocusableWindowState(false);
-
-            tooltipPanel = new ThemedPanel(new MigLayout("insets 6", "[]", "[]"));
-            tooltipPanel.setBorder(BorderFactory.createLineBorder(
-                themeManager.getCurrentTheme().getBorderColor(), 1));
+            tooltipWindow = new ThemedWindow();
 
             tooltipLabel = new ThemedLabel();
             tooltipLabel.setFont(new Font("Segoe UI", Font.PLAIN, themeManager.scale(11)));
 
-            tooltipPanel.add(tooltipLabel);
-            tooltipWindow.add(tooltipPanel);
+            tooltipWindow.setContent(tooltipLabel);
         }
 
         private void setupMouseListeners() {
@@ -231,8 +224,7 @@ public class CommitSelectorPanel extends ThemedPanel {
             int tooltipX = locationOnScreen.x + thumbX - tooltipWindow.getWidth() / 2;
             int tooltipY = locationOnScreen.y + thumbY - tooltipWindow.getHeight() - themeManager.scale(10);
 
-            tooltipWindow.setLocation(tooltipX, tooltipY);
-            tooltipWindow.setVisible(true);
+            tooltipWindow.showAt(tooltipX, tooltipY);
         }
 
         private void hideTooltip() {

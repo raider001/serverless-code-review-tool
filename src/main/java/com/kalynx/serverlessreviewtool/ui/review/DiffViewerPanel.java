@@ -430,6 +430,18 @@ public class DiffViewerPanel extends ThemedPanel {
         return currentMode;
     }
 
+    public void setOnLineDoubleClickListener(java.util.function.Consumer<Integer> listener) {
+        leftPane.setOnLineDoubleClickListener(listener);
+        rightPane.setOnLineDoubleClickListener(listener);
+        unifiedPane.setOnLineDoubleClickListener(listener);
+    }
+
+    public void setCommentsForCurrentFile(java.util.List<ReviewComment> comments) {
+        leftPane.setComments(comments);
+        rightPane.setComments(comments);
+        unifiedPane.setComments(comments);
+    }
+
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
