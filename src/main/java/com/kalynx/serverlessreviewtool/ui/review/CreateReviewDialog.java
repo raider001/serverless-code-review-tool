@@ -1,4 +1,6 @@
-package com.kalynx.serverlessreviewtool.ui;
+package com.kalynx.serverlessreviewtool.ui.review;
+
+import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel.ReviewFormDialog;
 
 import java.awt.Component;
 import java.util.ArrayList;

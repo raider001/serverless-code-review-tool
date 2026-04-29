@@ -1,11 +1,11 @@
 package com.kalynx.serverlessreviewtool.ui.mainpanels.reviewselectionpanel.reviewitem;
 
 import com.kalynx.serverlessreviewtool.models.ReviewItem;
+import com.kalynx.serverlessreviewtool.models.ReviewStatus;
 import com.kalynx.serverlessreviewtool.theme.ScalableComponent;
 import com.kalynx.serverlessreviewtool.theme.Theme;
 import com.kalynx.serverlessreviewtool.theme.components.ThemedLabel;
 import com.kalynx.serverlessreviewtool.theme.components.ThemedPanel;
-import com.kalynx.serverlessreviewtool.ui.review.model.ReviewStatus;
 import com.kalynx.serverlessreviewtool.utils.TimeFormatter;
 
 import javax.swing.*;

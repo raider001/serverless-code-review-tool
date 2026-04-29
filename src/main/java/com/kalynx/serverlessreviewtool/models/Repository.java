@@ -1,19 +1,32 @@
 package com.kalynx.serverlessreviewtool.models;
 
-import java.util.Objects;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Repository - Represents a code repository in the system
+ * Repository - Represents a repository in the review
  */
 public class Repository {
     private final String name;
     private final String description;
     private final String url;
+    private final List<Commit> commits;
+    private final List<ReviewFile> files;
 
     public Repository(String name, String description, String url) {
         this.name = name;
         this.description = description;
         this.url = url;
+        this.commits = new ArrayList<>();
+        this.files = new ArrayList<>();
+    }
+
+    public void addCommit(Commit commit) {
+        commits.add(commit);
+    }
+
+    public void addFile(ReviewFile file) {
+        files.add(file);
     }
 
     public String getName() {
@@ -28,26 +41,17 @@ public class Repository {
         return url;
     }
 
+    public List<Commit> getCommits() {
+        return new ArrayList<>(commits);
+    }
+
+    public List<ReviewFile> getFiles() {
+        return new ArrayList<>(files);
+    }
+
     @Override
     public String toString() {
         return name;
     }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        Repository that = (Repository) o;
-        return Objects.equals(name, that.name) &&
-               Objects.equals(description, that.description) &&
-               Objects.equals(url, that.url);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(name, description, url);
-    }
 }
-
-
 

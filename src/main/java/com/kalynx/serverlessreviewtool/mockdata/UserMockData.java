@@ -1,5 +1,6 @@
-package com.kalynx.serverlessreviewtool.managers;
+package com.kalynx.serverlessreviewtool.mockdata;
 
+import com.kalynx.serverlessreviewtool.managers.UserManager;
 import com.kalynx.serverlessreviewtool.models.User;
 
 import java.util.ArrayList;

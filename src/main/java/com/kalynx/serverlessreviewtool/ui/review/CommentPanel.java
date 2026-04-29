@@ -1,9 +1,10 @@
 package com.kalynx.serverlessreviewtool.ui.review;
 
+import com.kalynx.serverlessreviewtool.models.ReviewContext;
+import com.kalynx.serverlessreviewtool.models.*;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 import com.kalynx.serverlessreviewtool.theme.Theme;
 import com.kalynx.serverlessreviewtool.theme.components.*;
-import com.kalynx.serverlessreviewtool.ui.review.model.*;
 
 import javax.swing.*;
 import java.awt.*;

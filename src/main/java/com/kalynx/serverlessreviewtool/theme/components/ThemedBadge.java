@@ -17,13 +17,17 @@ import java.awt.event.MouseEvent;
 public class ThemedBadge extends JPanel {
 
     private final ThemeManager themeManager;
-    private final String text;
+    private String text;
     private boolean hovering = false;
-    private Color   customColor = null;   // null = use blended accent
+    private Color customColor = null;
 
-    private static final int PAD_H        = 10;   // horizontal inner padding
-    private static final int PAD_V        = 4;    // vertical inner padding
-    private static final int CORNER       = 12;   // rounded-corner arc
+    private static final int PAD_H        = 10;
+    private static final int PAD_V        = 4;
+    private static final int CORNER       = 12;
+
+    public ThemedBadge(String text) {
+        this(text, null);
+    }
 
     public ThemedBadge(String text, Runnable onRemove) {
         this.text        = text;
@@ -91,12 +95,20 @@ public class ThemedBadge extends JPanel {
     @Override public Dimension getMaximumSize() { return getPreferredSize(); }
 
     /** Override the pill colour. Pass {@code null} to restore the default blended accent. */
-    public void setCustomColor(Color color) {
+    public ThemedBadge setCustomColor(Color color) {
         this.customColor = color;
         repaint();
+        return this;
     }
 
-    // ── colour helpers ────────────────────────────────────────────────────────
+    /**
+     * Update the badge text
+     */
+    public void setText(String text) {
+        this.text = text;
+        revalidate();
+        repaint();
+    }
 
     private Color blendColor(Color a, Color b, float ratio) {
         float inv = 1f - ratio;

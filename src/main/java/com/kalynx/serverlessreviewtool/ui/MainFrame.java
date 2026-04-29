@@ -1,14 +1,16 @@
 package com.kalynx.serverlessreviewtool.ui;
 
 import com.kalynx.serverlessreviewtool.configuration.SettingsManager;
-import com.kalynx.serverlessreviewtool.managers.RepositoryMockData;
-import com.kalynx.serverlessreviewtool.managers.ReviewItemMockData;
-import com.kalynx.serverlessreviewtool.managers.UserMockData;
+import com.kalynx.serverlessreviewtool.mockdata.RepositoryMockData;
+import com.kalynx.serverlessreviewtool.mockdata.ReviewContextMockData;
+import com.kalynx.serverlessreviewtool.mockdata.ReviewItemMockData;
+import com.kalynx.serverlessreviewtool.mockdata.UserMockData;
 import com.kalynx.serverlessreviewtool.theme.components.QuickButton;
 import com.kalynx.serverlessreviewtool.theme.components.ThemedFrame;
 import com.kalynx.serverlessreviewtool.theme.components.ThemedPanel;
 import com.kalynx.serverlessreviewtool.theme.icons.AppIcon;
 import com.kalynx.serverlessreviewtool.theme.icons.RefreshIcon;
+import com.kalynx.serverlessreviewtool.ui.mainpanels.ReviewPanel;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.ReviewSelectionPanel;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.SettingsPanel;
 
@@ -52,11 +54,10 @@ public class MainFrame extends ThemedFrame {
     private void setupRefreshButton() {
         refreshButton = createRefreshButton();
         refreshButton.addActionListener(e -> {
-            // Refresh all mock data and the review panel
             UserMockData.refreshMockData();
             RepositoryMockData.refreshMockData();
             ReviewItemMockData.refreshMockData();
-            reviewPanel.refresh();
+            ReviewContextMockData.refreshMockData();
         });
         refreshButton.setVisible(true);
         getTitleBar().addActionButton(refreshButton);
@@ -113,10 +114,10 @@ public class MainFrame extends ThemedFrame {
     }
 
     public static void main(String[] args) {
-        // Load mock data at startup (for development/testing)
         UserMockData.loadMockData();
         RepositoryMockData.loadMockData();
         ReviewItemMockData.loadMockData();
+        ReviewContextMockData.loadMockData();
 
         SwingUtilities.invokeLater(() -> {
             MainFrame frame = new MainFrame();

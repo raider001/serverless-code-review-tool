@@ -1,7 +1,8 @@
-package com.kalynx.serverlessreviewtool.managers;
+package com.kalynx.serverlessreviewtool.mockdata;
 
+import com.kalynx.serverlessreviewtool.managers.ReviewItemManager;
 import com.kalynx.serverlessreviewtool.models.ReviewItem;
-import com.kalynx.serverlessreviewtool.ui.review.model.ReviewStatus;
+import com.kalynx.serverlessreviewtool.models.ReviewStatus;
 
 import java.util.ArrayList;
 import java.util.List;

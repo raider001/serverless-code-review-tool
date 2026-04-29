@@ -1,6 +1,5 @@
 package com.kalynx.serverlessreviewtool.models;
 
-import com.kalynx.serverlessreviewtool.ui.review.model.ReviewStatus;
 
 import java.util.Objects;
 

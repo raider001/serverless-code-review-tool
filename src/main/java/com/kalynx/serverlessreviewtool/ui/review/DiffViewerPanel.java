@@ -1,66 +1,41 @@
 package com.kalynx.serverlessreviewtool.ui.review;
 
+import com.kalynx.serverlessreviewtool.models.*;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 import com.kalynx.serverlessreviewtool.theme.Theme;
 import com.kalynx.serverlessreviewtool.theme.components.*;
-import com.kalynx.serverlessreviewtool.ui.review.model.*;
 
 import javax.swing.*;
 import javax.swing.text.*;
 import java.awt.*;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * DiffViewerPanel - Shows file diffs in side-by-side or unified mode
  */
 public class DiffViewerPanel extends ThemedPanel {
 
-    private final ThemeManager themeManager;
-    private DiffViewMode currentMode = DiffViewMode.SIDE_BY_SIDE;
-    private final List<ViewModeListener> listeners;
+    private final ThemeManager themeManager = ThemeManager.getInstance();
 
+    private DiffViewMode currentMode = DiffViewMode.SIDE_BY_SIDE;
     private ThemedPanel contentPanel;
 
-    // Side-by-side components
     private LineNumberedTextPane leftPane;
     private LineNumberedTextPane rightPane;
-
-    // Unified view components
     private LineNumberedTextPane unifiedPane;
 
-    // Current file info
     private ReviewFile currentFile;
     private Commit startCommit;
     private Commit endCommit;
     private Theme lastRenderedTheme;
 
     public DiffViewerPanel() {
-        this.themeManager = ThemeManager.getInstance();
-        this.listeners = new ArrayList<>();
-
         setLayout(new BorderLayout());
-
         initializeComponents();
     }
 
     private void initializeComponents() {
-        // Header with file info
-        ThemedPanel headerPanel = new ThemedPanel();
-        headerPanel.setLayout(new BoxLayout(headerPanel, BoxLayout.X_AXIS));
-        headerPanel.setBorder(BorderFactory.createEmptyBorder(
-            themeManager.scale(5),
-            themeManager.scale(8),
-            themeManager.scale(5),
-            themeManager.scale(8)
-        ));
 
-
-        add(headerPanel, BorderLayout.NORTH);
-
-        // Content panel
-        contentPanel = new ThemedPanel();
-        contentPanel.setLayout(new CardLayout());
+        contentPanel = new ThemedPanel(new CardLayout());
 
         // Create side-by-side view
         createSideBySideView();
@@ -133,17 +108,16 @@ public class DiffViewerPanel extends ThemedPanel {
         CardLayout layout = (CardLayout) contentPanel.getLayout();
         layout.show(contentPanel, currentMode.name());
 
-        // Reload current diff in new mode
         if (currentFile != null) {
             showDiff(currentFile, startCommit, endCommit);
         }
-
-        fireViewModeChanged();
     }
 
     public void setViewMode(DiffViewMode mode) {
-        currentMode = mode;
-        switchViewMode();
+        if (mode != null && mode != currentMode) {
+            currentMode = mode;
+            switchViewMode();
+        }
     }
 
     public void showDiff(ReviewFile file, Commit startCommit, Commit endCommit) {
@@ -456,26 +430,9 @@ public class DiffViewerPanel extends ThemedPanel {
         return currentMode;
     }
 
-    // Listener interface
-    public interface ViewModeListener {
-        void onViewModeChanged(DiffViewMode mode);
-    }
-
-    public void addViewModeListener(ViewModeListener listener) {
-        listeners.add(listener);
-    }
-
-    private void fireViewModeChanged() {
-        for (ViewModeListener listener : listeners) {
-            listener.onViewModeChanged(currentMode);
-        }
-    }
-
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
-        // Re-render the diff if the theme has changed since last render
-        // This is needed because styled text attributes are baked in at render time
         if (currentFile != null && lastRenderedTheme != themeManager.getCurrentTheme()) {
             showDiff(currentFile, startCommit, endCommit);
         }

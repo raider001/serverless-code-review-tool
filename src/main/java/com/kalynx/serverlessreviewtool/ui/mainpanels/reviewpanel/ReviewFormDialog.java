@@ -1,4 +1,4 @@
-package com.kalynx.serverlessreviewtool.ui;
+package com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel;
 
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 import com.kalynx.serverlessreviewtool.theme.components.*;
