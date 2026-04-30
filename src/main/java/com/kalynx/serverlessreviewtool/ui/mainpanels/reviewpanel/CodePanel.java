@@ -120,6 +120,7 @@ public class CodePanel extends ThemedPanel {
             List<com.kalynx.serverlessreviewtool.models.ReviewComment> comments =
                 context.getCommentsForFile(currentFile.getPath());
             diffViewerPanel.setCommentsForCurrentFile(comments);
+            fileNavigationPanel.refreshDisplay();
         }
     }
 

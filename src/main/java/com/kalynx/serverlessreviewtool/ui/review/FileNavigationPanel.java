@@ -9,6 +9,7 @@ import com.kalynx.serverlessreviewtool.theme.components.*;
 import com.kalynx.serverlessreviewtool.theme.icons.FileIcon;
 import com.kalynx.serverlessreviewtool.theme.icons.FolderIcon;
 import com.kalynx.serverlessreviewtool.theme.icons.RepositoryIcon;
+import com.kalynx.serverlessreviewtool.theme.icons.FileCommentIcon;
 
 import javax.swing.*;
 import javax.swing.tree.*;
@@ -28,6 +29,7 @@ public class FileNavigationPanel extends ThemedPanel {
     private ThemedTree fileTree;
     private DefaultTreeModel treeModel;
     private DefaultMutableTreeNode rootNode;
+    private ReviewContext currentReviewContext;
 
     public FileNavigationPanel() {
         setLayout(new BorderLayout());
@@ -62,6 +64,7 @@ public class FileNavigationPanel extends ThemedPanel {
     }
 
     private void onReviewContextChanged(ReviewContext context) {
+        this.currentReviewContext = context;
         if (context != null) {
             buildFileTree(context);
         }
@@ -128,6 +131,13 @@ public class FileNavigationPanel extends ThemedPanel {
         return null;
     }
 
+    public void refreshDisplay() {
+        treeModel.reload();
+        for (int i = 0; i < fileTree.getRowCount(); i++) {
+            fileTree.expandRow(i);
+        }
+    }
+
     // File tree cell renderer
     private class FileTreeCellRenderer extends DefaultTreeCellRenderer {
 
@@ -157,7 +167,28 @@ public class FileNavigationPanel extends ThemedPanel {
             } else if (userObject instanceof ReviewFile) {
                 ReviewFile file = (ReviewFile) userObject;
                 setText(file.getFileName());
-                setIcon(new FileIcon(iconSize));
+
+                // Check for comments on this file
+                Icon fileIcon = new FileIcon(iconSize);
+                if (currentReviewContext != null) {
+                    List<ReviewComment> comments = currentReviewContext.getCommentsForFile(file.getPath());
+                    if (!comments.isEmpty()) {
+                        // Determine if comments need resolution
+                        boolean hasUnresolved = comments.stream()
+                            .anyMatch(c -> c.needsResolution() && !c.isResolved());
+                        boolean hasResolved = comments.stream()
+                            .anyMatch(c -> c.needsResolution() && c.isResolved());
+
+                        Color commentColor = hasUnresolved
+                            ? new Color(255, 152, 0)  // Orange for unresolved
+                            : (hasResolved ? new Color(76, 175, 80) : theme.getAccentColor());  // Green for resolved
+
+                        int commentCount = comments.size();
+                        Icon commentIcon = new FileCommentIcon(10, commentColor, commentCount, false);
+                        fileIcon = new CompositeIcon(fileIcon, commentIcon);
+                    }
+                }
+                setIcon(fileIcon);
 
                 // Color by change type (only when not selected)
                 if (!sel) {
@@ -185,6 +216,36 @@ public class FileNavigationPanel extends ThemedPanel {
             }
 
             return this;
+        }
+    }
+
+    // Composite icon to overlay comment indicator on file icon
+    private static class CompositeIcon implements Icon {
+        private final Icon baseIcon;
+        private final Icon overlayIcon;
+
+        public CompositeIcon(Icon baseIcon, Icon overlayIcon) {
+            this.baseIcon = baseIcon;
+            this.overlayIcon = overlayIcon;
+        }
+
+        @Override
+        public void paintIcon(Component c, Graphics g, int x, int y) {
+            baseIcon.paintIcon(c, g, x, y);
+            // Position overlay in bottom-right corner of base icon
+            int overlayX = x + baseIcon.getIconWidth() - overlayIcon.getIconWidth();
+            int overlayY = y + baseIcon.getIconHeight() - overlayIcon.getIconHeight();
+            overlayIcon.paintIcon(c, g, overlayX, overlayY);
+        }
+
+        @Override
+        public int getIconWidth() {
+            return baseIcon.getIconWidth(); // Same width as base icon
+        }
+
+        @Override
+        public int getIconHeight() {
+            return baseIcon.getIconHeight(); // Same height as base icon
         }
     }
 

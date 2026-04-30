@@ -166,8 +166,9 @@ public class LineNumberedTextPane extends ThemedPanel {
 
     @Override
     protected void paintComponent(Graphics g) {
-        super.paintComponent(g);
         applyTheme();
+        super.paintComponent(g);
+
     }
 
     /**

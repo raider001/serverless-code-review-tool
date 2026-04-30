@@ -26,7 +26,6 @@ public class InlineCommentDialog extends JDialog {
     private ThemedPanel commentsContainer;
     private ThemedTextArea newCommentArea;
     private ThemedButton resolveToggleButton;
-    private ThemedButton codeButton;
     private ThemedPanel headerPanel;
     private boolean conversationNeedsResolution = false;
     private boolean conversationResolved = false;
@@ -106,37 +105,34 @@ public class InlineCommentDialog extends JDialog {
     }
 
     private ThemedPanel createInputPanel() {
-        ThemedPanel panel = new ThemedPanel(new MigLayout("fill, insets 6", "[120!][10!][40!][10!][grow][100!]", "[grow]3[]"));
+        ThemedPanel panel = new ThemedPanel(new MigLayout("", "[grow]", "[grow,fill][]"));
 
         newCommentArea = new ThemedTextArea(3, 40);
         newCommentArea.setLineWrap(true);
         newCommentArea.setWrapStyleWord(true);
         newCommentArea.setToolTipText("Press Ctrl+Enter to submit. Use ```code``` for code snippets. Drag divider above to resize.");
         newCommentArea.setMinimumSize(new Dimension(200, themeManager.scale(70)));
+
         ThemedScrollPane textScrollPane = new ThemedScrollPane(newCommentArea);
-        panel.add(textScrollPane, "grow, span 6, wrap, wmin 200");
+        panel.add(textScrollPane, "cell 0 0, grow, pushy, wmin 200");
+
+
+        ThemedPanel buttonRow = new ThemedPanel(new MigLayout("", "[][][grow]", "[]"));
 
         resolveToggleButton = new ThemedButton("Mark as Needs Resolution");
-        resolveToggleButton.setFont(new Font("Segoe UI", Font.PLAIN, themeManager.scale(10)));
         resolveToggleButton.addActionListener(e -> handleResolveToggle());
-        panel.add(resolveToggleButton);
+        buttonRow.add(resolveToggleButton, "cell 0 0");
 
-        panel.add(new ThemedLabel(""));
-
-        codeButton = new ThemedButton("<>");
-        codeButton.setFont(new Font("Consolas", Font.BOLD, themeManager.scale(11)));
+        ThemedButton codeButton = new ThemedButton("<>");
         codeButton.setToolTipText("Insert code snippet");
         codeButton.addActionListener(e -> handleInsertCode());
-        panel.add(codeButton);
-
-        panel.add(new ThemedLabel(""));
-
-        panel.add(new ThemedLabel(""), "grow");
+        buttonRow.add(codeButton, "cell 1 0");
 
         ThemedButton addButton = new ThemedButton("Add Comment");
-        addButton.setFont(new Font("Segoe UI", Font.BOLD, themeManager.scale(10)));
         addButton.addActionListener(e -> handleAddComment());
-        panel.add(addButton);
+        buttonRow.add(addButton, "cell 2 0, align right");
+
+        panel.add(buttonRow, "cell 0 1");
 
         return panel;
     }
@@ -314,6 +310,8 @@ public class InlineCommentDialog extends JDialog {
         getContentPane().setBackground(theme.getBackgroundColor());
     }
 }
+
+
 
 
 

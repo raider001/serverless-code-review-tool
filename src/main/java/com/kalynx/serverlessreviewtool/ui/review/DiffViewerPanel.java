@@ -443,11 +443,11 @@ public class DiffViewerPanel extends ThemedPanel {
     }
 
     @Override
-    protected void paintComponent(Graphics g) {
-        super.paintComponent(g);
+    public void paint(Graphics g) {
         if (currentFile != null && lastRenderedTheme != themeManager.getCurrentTheme()) {
             showDiff(currentFile, startCommit, endCommit);
         }
+        super.paint(g);
     }
 }
 
