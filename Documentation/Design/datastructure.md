@@ -50,48 +50,42 @@ This document defines the data structures used in the Serverless Code Review Too
 
 ### Refs Namespaces
 
-**Append-Only Structure** - Designed for **ZERO conflicts** (100% conflict-free)
+**Append-Only Stream Structure** - Designed for low-conflict concurrent updates with independent lanes per field
 
 ```
 refs/notes/reviews/{review-id}/
-├── metadata/                             # Decomposed metadata fields
-│   ├── author/                           # Author updates (append-only history)
-│   │   └── {timestamp-microseconds}      # Each update is a new timestamped note
-│   ├── title/                            # Title updates (append-only history)
-│   │   ├── {timestamp-microseconds}      # Original title
-│   │   └── {timestamp-microseconds}      # Updated title (if edited)
-│   ├── description/                      # Description updates (append-only history)
-│   │   ├── {timestamp-microseconds}      # Original description
-│   │   └── {timestamp-microseconds}      # Updated description (if edited)
-│   ├── status/                           # Status updates (append-only history)
-│   │   ├── {timestamp-microseconds}      # Initial status (e.g., "pending")
-│   │   └── {timestamp-microseconds}      # Updated status (e.g., "in_progress", "approved")
-│   ├── commits/                          # Commit list updates (append-only history)
-│   │   ├── {timestamp-microseconds}      # Initial commit list
-│   │   └── {timestamp-microseconds}      # Updated commit list (if modified)
-|   └── reviewStrategy/                   # Review strategy (e.g., "branch, commit")
-|       └── {timestamp-microseconds}      # Initial strategy
-├── reviewers/                            # Individual reviewer notes (conflict-free)
-│   ├── {reviewer-email}/                 # Each reviewer's history
-│   │   ├── {timestamp-microseconds}      # Initial review status
-│   │   └── {timestamp-microseconds}      # Updated status (if changed)
-│   └── {reviewer-email}/                 # Another reviewer
-│       └── {timestamp-microseconds}      # Their review status
-└── comments/                             # All comments
-    ├── {user}_{timestamp-microseconds}   # Individual comment (unique timestamp)
-    ├── {user}_{timestamp-microseconds}   # Another comment
-    └── {user}_{timestamp-microseconds}   # Another comment
+├── metadata/                              # Independent metadata streams (one ref per field)
+│   ├── author                             # NDJSON append stream
+│   ├── title                              # NDJSON append stream
+│   ├── description                        # NDJSON append stream
+│   ├── status                             # NDJSON append stream
+│   ├── commits                            # NDJSON append stream
+│   └── reviewStrategy                     # NDJSON append stream
+├── reviewers                              # NDJSON append stream
+└── comments                               # NDJSON append stream
+
 ```
+
+**Sync Strategy**:
+- Fetch review refs with union merge semantics: `git -c notes.mergeStrategy=union fetch ...`
+- Push review refs normally after local replay/append operations.
 
 ## Data Structures
 
-**Universal JSON Format**: All notes in the system use this consistent structure:
+**Universal Stream Entry Format**: Every appended NDJSON line in a stream uses this structure:
 ```json
 {
-  "editor": "user@example.com",  
-  "data": "<any-data-type>" 
+  "id": "john_2026-04-23T13:00:00.456789Z_0001",
+  "timestamp": "2026-04-23T13:00:00.456789Z",
+  "editor": "user@example.com",
+  "data": "<any-data-type>"
 }
 ```
+
+**Notes**:
+- `id` is unique within a stream and is used for replies/references.
+- `timestamp` is required for deterministic ordering during replay.
+- `data` remains field-specific payload.
 
 
 ## Metadata Notes
@@ -99,11 +93,13 @@ refs/notes/reviews/{review-id}/
 ---
 
 ### Title
-**Storage**: `refs/notes/reviews/{uuid}/metadata/title/{timestamp-microseconds}`
+**Storage**: `refs/notes/reviews/{uuid}/metadata/title`
 
 **Structure**:
 ```json
 {
+  "id": "john_2026-04-23T13:00:00.456789Z_0001",
+  "timestamp": "2026-04-23T13:00:00.456789Z",
   "editor": "john@example.com",
   "data": "Add OAuth2 login flow"
 }
@@ -116,6 +112,8 @@ refs/notes/reviews/{review-id}/
 **Structure**:
 ```json
 {
+  "id": "john_2026-04-23T13:05:00.123456Z_0002",
+  "timestamp": "2026-04-23T13:05:00.123456Z",
   "editor": "john@example.com",
   "data": "Implements OAuth2 with PKCE flow for enhanced security..."
 }
@@ -128,6 +126,8 @@ refs/notes/reviews/{review-id}/
 **Structure**:
 ```json
 {
+  "id": "john_2026-04-23T13:10:00.123456Z_0003",
+  "timestamp": "2026-04-23T13:10:00.123456Z",
   "editor": "john@example.com",
   "data": "pending"
 }
@@ -143,11 +143,13 @@ refs/notes/reviews/{review-id}/
 ---
 
 ### Commits
-**Storage**: `refs/notes/reviews/{uuid}/metadata/commits/{timestamp-microseconds}`
+**Storage**: `refs/notes/reviews/{uuid}/metadata/commits`
 
 **Structure**:
 ```json
 {
+  "id": "john_2026-04-23T13:15:00.123456Z_0004",
+  "timestamp": "2026-04-23T13:15:00.123456Z",
   "editor": "john@example.com",
   "data": [
     "abc123def456789...",
@@ -158,15 +160,17 @@ refs/notes/reviews/{review-id}/
 ```
 
 ### ReviewStrategy
-**Storage**: `refs/notes/reviews/{uuid}/metadata/reviewStrategy/{timestamp-microseconds}`
+**Storage**: `refs/notes/reviews/{uuid}/metadata/reviewStrategy`
 
 Two formats will be supported:
-- `branch,
-- commit`
+- `branch`
+- `commit`
 
 **Branch Structure**:
 ```json
 {
+  "id": "john_2026-04-23T13:20:00.123456Z_0005",
+  "timestamp": "2026-04-23T13:20:00.123456Z",
   "editor": "john@example.com",
   "data": {
     "branchToReview": "feature/new-login",
@@ -178,6 +182,8 @@ Two formats will be supported:
 **Commit Structure**:
 ```json
 {
+  "id": "john_2026-04-23T13:20:00.123456Z_0005",
+  "timestamp": "2026-04-23T13:20:00.123456Z",
   "editor": "john@example.com",
   "data": {
     "commits": [
@@ -195,11 +201,13 @@ Two formats will be supported:
 
 ## Reviewers Notes
 
-**Storage**: `refs/notes/reviews/{uuid}/reviewers/{reviewer-email}/{timestamp-microseconds}`
+**Storage**: `refs/notes/reviews/{uuid}/reviewers`
 
 **Structure**:
 ```json
 {
+  "id": "jane_2026-04-23T16:00:00.234567Z_0002",
+  "timestamp": "2026-04-23T16:00:00.234567Z",
   "editor": "jane@example.com",
   "data": {
     "status": "approved",
@@ -214,15 +222,13 @@ Two formats will be supported:
 - `rejected` - Reviewer rejects the changes
 - `changes_requested` - Reviewer requests modifications
 
-**Example** (with status changes):
+**Example** (append entries in single reviewer stream):
 ```
-refs/notes/reviews/550e8400-.../reviewers/alice@example.com/
-├── 2026-04-23T15:00:00.123456Z   # {"status": "pending", ...}
-└── 2026-04-23T16:00:00.234567Z   # {"status": "approved", ...} (updated)
-
-refs/notes/reviews/550e8400-.../reviewers/bob@example.com/
-├── 2026-04-23T15:30:00.345678Z   # {"status": "pending", ...}
-└── 2026-04-23T17:15:00.456789Z   # {"status": "changes_requested", ...} (updated)
+refs/notes/reviews/550e8400-.../reviewers
+  {"id":"alice_..._0001","timestamp":"2026-04-23T15:00:00.123456Z","editor":"alice@example.com","data":{"status":"pending",...}}
+  {"id":"alice_..._0002","timestamp":"2026-04-23T16:00:00.234567Z","editor":"alice@example.com","data":{"status":"approved",...}}
+  {"id":"bob_..._0001","timestamp":"2026-04-23T15:30:00.345678Z","editor":"bob@example.com","data":{"status":"pending",...}}
+  {"id":"bob_..._0002","timestamp":"2026-04-23T17:15:00.456789Z","editor":"bob@example.com","data":{"status":"changes_requested",...}}
 ```
 ---
 
@@ -232,11 +238,13 @@ refs/notes/reviews/550e8400-.../reviewers/bob@example.com/
 
 **Purpose**: Comments and discussions on specific parts of the code
 
-**Storage**: `refs/notes/reviews/{review-id}/comments/{user}_{timestamp-microseconds}`
+**Storage**: `refs/notes/reviews/{review-id}/comments`
 
 **Structure**:
 ```json
 {
+  "id": "john_2026-04-23T13:00:00.456789Z_0001",
+  "timestamp": "2026-04-23T13:00:00.456789Z",
   "editor": "john@example.com",
   "data": {
     "text": "Consider adding null check here",
@@ -247,7 +255,7 @@ refs/notes/reviews/550e8400-.../reviewers/bob@example.com/
       "line_end": 45,
       "code_snippet": "if user.id:"
     },
-    "reply_to": "janesmith_2026-04-23T13:00:00.456789Z",
+    "reply_to": "janesmith_2026-04-23T13:00:00.456789Z_0001",
     "resolved": false,
     "type": "suggestion"
   }
@@ -259,19 +267,19 @@ refs/notes/reviews/550e8400-.../reviewers/bob@example.com/
 ## Summary
 
 **Storage Paths**:
-- Author: `refs/notes/reviews/{uuid}/metadata/author/{timestamp}`
-- Title: `refs/notes/reviews/{uuid}/metadata/title/{timestamp}`
-- Description: `refs/notes/reviews/{uuid}/metadata/description/{timestamp}`
-- Status: `refs/notes/reviews/{uuid}/metadata/status/{timestamp}`
-- Commits: `refs/notes/reviews/{uuid}/metadata/commits/{timestamp}`
-- Reviewers: `refs/notes/reviews/{uuid}/reviewers/{email}/{timestamp}`
-- Comments: `refs/notes/reviews/{uuid}/comments/{user}_{timestamp}`
+- Author: `refs/notes/reviews/{uuid}/metadata/author`
+- Title: `refs/notes/reviews/{uuid}/metadata/title`
+- Description: `refs/notes/reviews/{uuid}/metadata/description`
+- Status: `refs/notes/reviews/{uuid}/metadata/status`
+- Commits: `refs/notes/reviews/{uuid}/metadata/commits`
+- Reviewers: `refs/notes/reviews/{uuid}/reviewers`
+- Comments: `refs/notes/reviews/{uuid}/comments`
 
 **Design Philosophy**:
 - **Structure IS the data**: The hierarchical path provides context
-- **JSON for content only**: Minimal `{"editor": "...", "data": ...}` payload
-- **Never update, always append**: Immutable history eliminates conflicts
-- **Timestamps for ordering**: Microsecond precision ensures uniqueness
+- **Independent stream per field**: Metadata, reviewer status, and comments are isolated lanes
+- **Never update semantics, append entries**: New line entries preserve full history
+- **Deterministic replay**: `timestamp` and `id` provide stable ordering and references
 - **Editor for accountability**: Every change tracked to source
 
 ## References

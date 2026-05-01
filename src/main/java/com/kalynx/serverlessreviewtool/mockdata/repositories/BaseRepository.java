@@ -4,8 +4,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
 
 public abstract class BaseRepository {
 
@@ -23,21 +21,39 @@ public abstract class BaseRepository {
 
         Process process = pb.start();
 
+        StringBuilder output = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
             String line;
             while ((line = reader.readLine()) != null) {
+                output.append(line).append("\n");
             }
         }
 
         int exitCode = process.waitFor();
         if (exitCode != 0) {
-            throw new IOException("Git command failed with exit code " + exitCode + ": " + String.join(" ", command));
+            String errorMsg = "Git command failed with exit code " + exitCode + ": " + String.join(" ", command);
+            if (output.length() > 0) {
+                errorMsg += "\nOutput: " + output.toString();
+            }
+            throw new IOException(errorMsg);
         }
     }
 
     protected static void commitFile(Path repoPath, String filePath, String commitMessage) throws IOException, InterruptedException {
         executeGitCommand(repoPath, "git", "add", filePath);
-        executeGitCommand(repoPath, "git", "commit", "-m", commitMessage);
+
+        // Check if there are changes to commit
+        ProcessBuilder pb = new ProcessBuilder("git", "diff", "--cached", "--quiet");
+        pb.directory(repoPath.toFile());
+        Process process = pb.start();
+        int exitCode = process.waitFor();
+
+        // If exitCode is 0, there are no changes; if 1, there are changes
+        if (exitCode == 1) {
+            executeGitCommand(repoPath, "git", "commit", "-m", commitMessage);
+        } else {
+            System.out.println("    Skipping commit (no changes): " + commitMessage);
+        }
     }
 }
 

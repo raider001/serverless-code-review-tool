@@ -1,17 +1,16 @@
 package com.kalynx.serverlessreviewtool.git;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class GitImpl implements Git {
 
@@ -55,7 +54,7 @@ public class GitImpl implements Git {
             }
 
             existing.add(entryJson);
-            Files.write(tempFile, String.join("\n", existing).getBytes(StandardCharsets.UTF_8));
+            Files.writeString(tempFile, String.join("\n", existing));
 
             executeSync(repoPath, "git", "hash-object", "-w", tempFile.toString());
 

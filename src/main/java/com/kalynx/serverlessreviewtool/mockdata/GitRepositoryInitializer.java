@@ -53,16 +53,71 @@ public class GitRepositoryInitializer {
     }
 
     private static void deleteDirectory(Path path) throws IOException {
-        if (Files.exists(path)) {
-            Files.walk(path)
-                .sorted((a, b) -> b.compareTo(a))
-                .forEach(p -> {
+        if (!Files.exists(path)) {
+            return;
+        }
+
+        // Run git gc to close file handles before deletion
+        try {
+            Path[] repoDirs = Files.list(path)
+                .filter(Files::isDirectory)
+                .toArray(Path[]::new);
+
+            for (Path repoDir : repoDirs) {
+                Path gitDir = repoDir.resolve(".git");
+                if (Files.exists(gitDir)) {
                     try {
-                        Files.delete(p);
-                    } catch (IOException e) {
-                        System.err.println("Failed to delete: " + p + " - " + e.getMessage());
+                        // Try to clean up git processes
+                        ProcessBuilder pb = new ProcessBuilder("git", "gc", "--prune=now");
+                        pb.directory(repoDir.toFile());
+                        pb.redirectErrorStream(true);
+                        Process process = pb.start();
+                        process.waitFor();
+                    } catch (Exception ignored) {
+                        // Git gc is optional, continue if it fails
                     }
-                });
+                }
+            }
+        } catch (Exception ignored) {
+            // Continue with deletion even if gc fails
+        }
+
+        // Give Windows a moment to release file handles
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException ignored) {
+        }
+
+        // Delete directory with retry logic
+        try (var stream = Files.walk(path)) {
+            stream.sorted((a, b) -> b.compareTo(a))
+                .forEach(p -> deleteWithRetry(p, 3));
+        }
+    }
+
+    private static void deleteWithRetry(Path path, int maxRetries) {
+        for (int i = 0; i < maxRetries; i++) {
+            try {
+                // Make file writable before deletion (Windows)
+                if (Files.exists(path) && !Files.isDirectory(path)) {
+                    path.toFile().setWritable(true);
+                }
+                Files.delete(path);
+                return; // Success
+            } catch (IOException e) {
+                if (i == maxRetries - 1) {
+                    // Last retry failed
+                    System.err.println("Failed to delete after " + maxRetries + " attempts: " + path);
+                    // Try to mark for deletion on exit as last resort
+                    path.toFile().deleteOnExit();
+                } else {
+                    // Wait before retry
+                    try {
+                        Thread.sleep(50L * (i + 1)); // Increasing delay
+                    } catch (InterruptedException ignored) {
+                    }
+                }
+            }
         }
     }
 }
