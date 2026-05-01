@@ -11,7 +11,7 @@ import java.util.List;
  * ReviewItemMockData - Provides mock review data for development and testing
  * Populates the ReviewItemManager with sample reviews
  */
-public class ReviewItemMockData {
+public class ReviewItemMockData_Old {
 
     /**
      * Load mock review data into the ReviewItemManager

@@ -1,10 +1,10 @@
 package com.kalynx.serverlessreviewtool.ui;
 
 import com.kalynx.serverlessreviewtool.configuration.SettingsManager;
-import com.kalynx.serverlessreviewtool.mockdata.RepositoryMockData;
-import com.kalynx.serverlessreviewtool.mockdata.ReviewContextMockData;
-import com.kalynx.serverlessreviewtool.mockdata.ReviewItemMockData;
-import com.kalynx.serverlessreviewtool.mockdata.UserMockData;
+import com.kalynx.serverlessreviewtool.mockdata.RepositoryMockData_Old;
+import com.kalynx.serverlessreviewtool.mockdata.ReviewContextMockData_Old;
+import com.kalynx.serverlessreviewtool.mockdata.ReviewItemMockData_Old;
+import com.kalynx.serverlessreviewtool.mockdata.UserMockData_Old;
 import com.kalynx.serverlessreviewtool.theme.components.QuickButton;
 import com.kalynx.serverlessreviewtool.theme.components.ThemedFrame;
 import com.kalynx.serverlessreviewtool.theme.components.ThemedPanel;
@@ -54,10 +54,10 @@ public class MainFrame extends ThemedFrame {
     private void setupRefreshButton() {
         refreshButton = createRefreshButton();
         refreshButton.addActionListener(e -> {
-            UserMockData.refreshMockData();
-            RepositoryMockData.refreshMockData();
-            ReviewItemMockData.refreshMockData();
-            ReviewContextMockData.refreshMockData();
+            UserMockData_Old.refreshMockData();
+            RepositoryMockData_Old.refreshMockData();
+            ReviewItemMockData_Old.refreshMockData();
+            ReviewContextMockData_Old.refreshMockData();
         });
         refreshButton.setVisible(true);
         getTitleBar().addActionButton(refreshButton);
@@ -114,10 +114,10 @@ public class MainFrame extends ThemedFrame {
     }
 
     public static void main(String[] args) {
-        UserMockData.loadMockData();
-        RepositoryMockData.loadMockData();
-        ReviewItemMockData.loadMockData();
-        ReviewContextMockData.loadMockData();
+        UserMockData_Old.loadMockData();
+        RepositoryMockData_Old.loadMockData();
+        ReviewItemMockData_Old.loadMockData();
+        ReviewContextMockData_Old.loadMockData();
 
         SwingUtilities.invokeLater(() -> {
             MainFrame frame = new MainFrame();

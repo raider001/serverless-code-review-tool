@@ -14,7 +14,7 @@ import java.util.List;
  * ReviewContextMockData - Provides mock review context data for development and testing
  * Populates the ReviewContextManager with a sample review
  */
-public class ReviewContextMockData {
+public class ReviewContextMockData_Old {
 
     public static void loadMockData() {
         ReviewContext mockReview = createMockReviewContext();

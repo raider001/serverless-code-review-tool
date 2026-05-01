@@ -1,6 +1,7 @@
 package com.kalynx.serverlessreviewtool.ui.mainpanels;
 
 import com.kalynx.serverlessreviewtool.managers.ReviewContextManager;
+import com.kalynx.serverlessreviewtool.mockdata.RepositoryMockData_Old;
 import com.kalynx.serverlessreviewtool.models.ReviewContext;
 import com.kalynx.serverlessreviewtool.models.*;
 import com.kalynx.serverlessreviewtool.theme.components.*;
@@ -42,7 +43,7 @@ public class ReviewPanel extends ThemedPanel {
         reviewers.add(new ReviewerInfo("Bob Martin"));
         reviewers.add(new ReviewerInfo("Carlos Rivera"));
 
-        List<Repository> repositories = com.kalynx.serverlessreviewtool.mockdata.RepositoryMockData.createDetailedRepositories();
+        List<Repository> repositories = RepositoryMockData_Old.createDetailedRepositories();
 
         List<ReviewComment> comments = createSampleComments();
 
