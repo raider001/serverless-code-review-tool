@@ -17,14 +17,14 @@ public class ReviewFormValidator {
         }
 
         if (models.mode.getValue() == ReviewFormModels.ReviewMode.BRANCH) {
-            if (models.branchName.getValue() == null || models.branchName.getValue().trim().isEmpty()) {
+            if (models.selectedBranchModel.getValue() == null || models.selectedBranchModel.getValue().trim().isEmpty()) {
                 errors.add("Please enter a branch name to review");
             }
-            if (models.reviewAgainstBranch.getValue() == null || models.reviewAgainstBranch.getValue().trim().isEmpty()) {
+            if (models.selectedBaseBranchModel.getValue() == null || models.selectedBaseBranchModel.getValue().trim().isEmpty()) {
                 errors.add("Please select a branch to review against");
             }
         } else {
-            if (models.selectedCommits.getValue() == null || models.selectedCommits.getValue().isEmpty()) {
+            if (models.selectedCommitsModel.getValue() == null || models.selectedCommitsModel.getValue().isEmpty()) {
                 errors.add("Please select at least one commit");
             }
         }

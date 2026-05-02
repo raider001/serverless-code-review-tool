@@ -12,11 +12,10 @@ public class ReviewFormModels {
     public final ComponentModel<String> summary = new ComponentModel<>();
     public final ComponentModel<ReviewMode> mode = new ComponentModel<>();
 
-    public final ComponentModel<String> branchName = new ComponentModel<>();
-    public final ComponentModel<String> reviewAgainstBranch = new ComponentModel<>();
-
+    public final ComponentModel<String> selectedBranchModel = new ComponentModel<>();
+    public final ComponentModel<String> selectedBaseBranchModel = new ComponentModel<>();
     public final ComponentModel<String> commitBranchFilter = new ComponentModel<>();
-    public final ComponentModel<List<String>> selectedCommits = new ComponentModel<>();
+    public final ComponentModel<List<String>> selectedCommitsModel = new ComponentModel<>();
 
     public final ComponentModel<List<String>> selectedRepositories = new ComponentModel<>();
     public final ComponentModel<List<String>> selectedReviewers = new ComponentModel<>();
@@ -24,7 +23,6 @@ public class ReviewFormModels {
     public final ComponentModel<List<String>> availableRepositories = new ComponentModel<>();
     public final ComponentModel<List<String>> availableReviewers = new ComponentModel<>();
     public final ComponentModel<List<String>> availableBranches = new ComponentModel<>();
-    public final ComponentModel<List<String>> availableCommits = new ComponentModel<>();
 
     public ReviewFormModels() {
     }
@@ -34,10 +32,10 @@ public class ReviewFormModels {
         author.setValue("");
         summary.setValue("");
         mode.setValue(ReviewMode.BRANCH);
-        branchName.setValue("");
-        reviewAgainstBranch.setValue("main");
+        selectedBranchModel.setValue("");
+        selectedBaseBranchModel.setValue("main");
         commitBranchFilter.setValue("All Branches");
-        selectedCommits.setValue(new ArrayList<>());
+        selectedCommitsModel.setValue(new ArrayList<>());
         selectedRepositories.setValue(new ArrayList<>());
         selectedReviewers.setValue(new ArrayList<>());
     }

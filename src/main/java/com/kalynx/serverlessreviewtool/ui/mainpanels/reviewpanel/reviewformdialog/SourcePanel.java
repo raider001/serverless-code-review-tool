@@ -19,6 +19,9 @@ public class SourcePanel extends ThemedPanel {
 
     private final Git git;
     private final ComponentModel<List<String>> selectedRepositoriesModel;
+    private final ComponentModel<String> selectedBranchModel;
+    private final ComponentModel<String> selectedBaseBranchModel;
+    private final ComponentModel<List<String>> selectedCommitsModel;
     private final ThemedPanel modeSpecificPanel;
     private final ThemedSearchableComboBox branchNameField;
     private final ThemedSearchableComboBox reviewAgainstBranchCombo;
@@ -28,9 +31,15 @@ public class SourcePanel extends ThemedPanel {
 
     public SourcePanel(ComponentModel<List<String>> availableBranchesModel,
                       ComponentModel<List<String>> selectedRepositoriesModel,
+                      ComponentModel<String> selectedBranchModel,
+                      ComponentModel<String> selectedBaseBranchModel,
+                      ComponentModel<List<String>> selectedCommitsModel,
                       Git git) {
         this.git = git;
         this.selectedRepositoriesModel = selectedRepositoriesModel;
+        this.selectedBranchModel = selectedBranchModel;
+        this.selectedBaseBranchModel = selectedBaseBranchModel;
+        this.selectedCommitsModel = selectedCommitsModel;
 
         setLayout(new MigLayout("fill, insets 10 12 12 12", "[grow,fill]", "[grow,fill]"));
         setBorder(ThemedTitledBorder.create("Source"));
@@ -64,7 +73,27 @@ public class SourcePanel extends ThemedPanel {
     }
 
     private void setupListeners() {
+        branchNameField.addActionListener(e -> {
+            Object selected = branchNameField.getSelectedItem();
+            if (selected != null) {
+                selectedBranchModel.setValue(selected.toString());
+            }
+        });
+
+        reviewAgainstBranchCombo.addActionListener(e -> {
+            Object selected = reviewAgainstBranchCombo.getSelectedItem();
+            if (selected != null) {
+                selectedBaseBranchModel.setValue(selected.toString());
+            }
+        });
+
         commitBranchFilterCombo.addActionListener(e -> loadCommitsForSelectedBranch());
+
+        commitSelectionList.addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                selectedCommitsModel.setValue(new ArrayList<>(commitSelectionList.getSelectedValuesList()));
+            }
+        });
 
         selectedRepositoriesModel.addChangeListener(ignored -> SwingUtilities.invokeLater(this::loadCommitsForSelectedBranch));
     }

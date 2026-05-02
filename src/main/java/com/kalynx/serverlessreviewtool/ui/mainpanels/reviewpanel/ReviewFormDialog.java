@@ -53,6 +53,9 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
         this.sourcePanel = new SourcePanel(
             models.availableBranches,
             models.selectedRepositories,
+            models.selectedBranchModel,
+            models.selectedBaseBranchModel,
+            models.selectedCommitsModel,
             git
         );
         this.repositoriesPanel = new RepositoriesPanel(
@@ -217,7 +220,7 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
     }
 
     private void warn(String msg) {
-        JOptionPane.showMessageDialog(this, msg, "Validation Error", JOptionPane.WARNING_MESSAGE);
+        ThemedOptionPane.showWarning(this, msg);
     }
 
     private void printReviewFormModels() {
@@ -226,6 +229,10 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
         System.out.println("Author: " + models.author.getValue());
         System.out.println("Summary: " + models.summary.getValue());
         System.out.println("Mode: " + models.mode.getValue());
+        System.out.println("Selected Branch: " + models.selectedBranchModel.getValue());
+        System.out.println("Selected Base Branch: " + models.selectedBaseBranchModel.getValue());
+        System.out.println("Commit Branch Filter: " + models.commitBranchFilter.getValue());
+        System.out.println("Selected Commits: " + models.selectedCommitsModel.getValue());
         System.out.println("Available Branches: " + models.availableBranches.getValue());
         System.out.println("Selected Repositories: " + models.selectedRepositories.getValue());
         System.out.println("Available Repositories: " + models.availableRepositories.getValue());
