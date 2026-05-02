@@ -4,6 +4,8 @@ import com.kalynx.serverlessreviewtool.mockdata.repositories.javabackend.UserSer
 import com.kalynx.serverlessreviewtool.mockdata.repositories.javabackend.AuthControllerFileMock;
 import com.kalynx.serverlessreviewtool.mockdata.repositories.javabackend.DatabaseConfigFileMock;
 import com.kalynx.serverlessreviewtool.mockdata.repositories.javabackend.UserRepositoryFileMock;
+import com.kalynx.serverlessreviewtool.mockdata.repositories.javabackend.branches.FeatureAuthBranch;
+import com.kalynx.serverlessreviewtool.mockdata.repositories.javabackend.branches.BugfixSecurityBranch;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -34,6 +36,10 @@ public class JavaBackendRepository extends BaseRepository {
         System.out.println("  Adding review notes...");
         addReviewNotes(repoPath);
 
+        System.out.println("  Creating feature branches...");
+        FeatureAuthBranch.create(repoPath);
+        BugfixSecurityBranch.create(repoPath);
+
         System.out.println("  Java Backend repository created at: " + repoPath);
     }
 
@@ -50,7 +56,7 @@ public class JavaBackendRepository extends BaseRepository {
             "{\"status\":\"approved\",\"timestamp\":\"2026-01-16T14:30:00Z\"}");
     }
 
-    private static void createInitialStructure(Path repoPath) throws IOException, InterruptedException {
+    protected static void createInitialStructure(Path repoPath) throws IOException, InterruptedException {
         Files.createDirectories(repoPath.resolve("src/main/java/com/example/service"));
         Files.createDirectories(repoPath.resolve("src/main/java/com/example/controller"));
         Files.createDirectories(repoPath.resolve("src/main/java/com/example/config"));

@@ -6,7 +6,6 @@ import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
 import com.kalynx.serverlessreviewtool.managers.ReviewContextManager;
 import com.kalynx.serverlessreviewtool.managers.ReviewItemManager;
 import com.kalynx.serverlessreviewtool.managers.UserManager;
-import com.kalynx.serverlessreviewtool.mockdata.RepositoryMockData_Old;
 import com.kalynx.serverlessreviewtool.mockdata.ReviewContextMockData_Old;
 import com.kalynx.serverlessreviewtool.mockdata.ReviewItemMockData_Old;
 import com.kalynx.serverlessreviewtool.mockdata.UserMockData_Old;
@@ -18,8 +17,8 @@ import com.kalynx.serverlessreviewtool.theme.icons.RefreshIcon;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.ReviewPanel;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.ReviewSelectionPanel;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.SettingsPanel;
+import com.kalynx.serverlessreviewtool.ui.models.reviewpanel.reviewformdialog.ReviewFormModels;
 
-import javax.swing.*;
 import java.awt.*;
 
 /**
@@ -33,6 +32,7 @@ public class MainFrame extends ThemedFrame {
     private final RepositoryManager repositoryManager;
     private final ReviewItemManager reviewItemManager;
     private final ReviewContextManager reviewContextManager;
+    private final ReviewFormModels reviewFormModels;
 
     private ReviewSelectionPanel reviewSelectionPanel;
     private ReviewPanel reviewPanel;
@@ -46,7 +46,8 @@ public class MainFrame extends ThemedFrame {
             UserManager userManager,
             RepositoryManager repositoryManager,
             ReviewItemManager reviewItemManager,
-            ReviewContextManager reviewContextManager) {
+            ReviewContextManager reviewContextManager,
+            ReviewFormModels reviewFormModels) {
         super("Serverless Review Tool",
               settingsManager.getSettings().getWindow().getDefaultWidth(),
               settingsManager.getSettings().getWindow().getDefaultHeight());
@@ -55,6 +56,7 @@ public class MainFrame extends ThemedFrame {
         this.repositoryManager = repositoryManager;
         this.reviewItemManager = reviewItemManager;
         this.reviewContextManager = reviewContextManager;
+        this.reviewFormModels = reviewFormModels;
         setApplicationIcon(AppIcon.createIconImages());
         initializePanels();
         setupMenuItems();
@@ -67,7 +69,6 @@ public class MainFrame extends ThemedFrame {
         QuickButton refreshButton = createRefreshButton();
         refreshButton.addActionListener(ignored -> {
             UserMockData_Old.refreshMockData(userManager);
-            RepositoryMockData_Old.refreshMockData(repositoryManager);
             ReviewItemMockData_Old.refreshMockData(reviewItemManager);
             ReviewContextMockData_Old.refreshMockData(reviewContextManager);
         });
@@ -82,8 +83,8 @@ public class MainFrame extends ThemedFrame {
     }
 
     private void initializePanels() {
-        reviewSelectionPanel = new ReviewSelectionPanel(repositoryManager, reviewItemManager);
-        reviewPanel = new ReviewPanel(reviewContextManager, repositoryManager, userManager);
+        reviewSelectionPanel = new ReviewSelectionPanel(repositoryManager, reviewItemManager, reviewFormModels);
+        reviewPanel = new ReviewPanel(reviewContextManager, repositoryManager, userManager, reviewFormModels);
         settingsPanel = new SettingsPanel(settingsManager);
         helpPanel = new HelpPanel();
     }

@@ -13,6 +13,7 @@ import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedLa
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedMenuItem;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPopupMenu;
+import com.kalynx.serverlessreviewtool.ui.models.reviewpanel.reviewformdialog.ReviewFormModels;
 import com.kalynx.serverlessreviewtool.ui.review.EditReviewDialog;
 import net.miginfocom.swing.MigLayout;
 
@@ -20,9 +21,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.util.List;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
 /**
  * Panel displaying the header information for a code review context.
@@ -33,8 +32,7 @@ import java.util.stream.Collectors;
 public class ReviewDetailPanel extends ThemedPanel {
 
     private final ReviewContextManager reviewContextManager;
-    private final RepositoryManager repositoryManager;
-    private final UserManager userManager;
+    private final ReviewFormModels reviewFormModels;
 
     private final ThemedBadge headerStatusBadge = new ThemedBadge("Status").setCustomColor(Color.DARK_GRAY);
     private final ThemedLabel titleLabel = new ThemedLabel("");
@@ -46,10 +44,9 @@ public class ReviewDetailPanel extends ThemedPanel {
 
     private final ThemedPanel reviewerPanel = new ThemedPanel();
 
-    public ReviewDetailPanel(ReviewContextManager reviewContextManager, RepositoryManager repositoryManager, UserManager userManager) {
+    public ReviewDetailPanel(ReviewContextManager reviewContextManager, RepositoryManager repositoryManager, UserManager userManager, ReviewFormModels reviewFormModels) {
         this.reviewContextManager = reviewContextManager;
-        this.repositoryManager = repositoryManager;
-        this.userManager = userManager;
+        this.reviewFormModels = reviewFormModels;
         configureLayout();
         configureReviewContextListeners();
         setupListeners();
@@ -147,19 +144,10 @@ public class ReviewDetailPanel extends ThemedPanel {
         ReviewContext context = reviewContextManager.getReviewContext();
         if (context == null) return;
 
-        List<String> allRepositories = repositoryManager.getRepositories().stream()
-            .map(com.kalynx.serverlessreviewtool.models.Repository::getName)
-            .collect(Collectors.toList());
-
-        List<String> allReviewers = userManager.getUsers().stream()
-            .map(com.kalynx.serverlessreviewtool.models.User::getName)
-            .collect(Collectors.toList());
-
         EditReviewDialog dialog = new EditReviewDialog(
             SwingUtilities.getWindowAncestor(this),
             context,
-            allRepositories,
-            allReviewers
+            reviewFormModels
         );
         dialog.setVisible(true);
 

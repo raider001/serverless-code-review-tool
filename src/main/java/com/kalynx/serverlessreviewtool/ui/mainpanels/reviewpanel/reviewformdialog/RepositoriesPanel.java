@@ -1,5 +1,6 @@
 package com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel.reviewformdialog;
 
+import com.kalynx.serverlessreviewtool.swingextensions.ComponentModel;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.*;
 import net.miginfocom.swing.MigLayout;
 
@@ -14,7 +15,7 @@ public class RepositoriesPanel extends ThemedPanel {
     private final ThemedPanel badgesPanel;
     private final List<String> selectedRepositories;
 
-    public RepositoriesPanel(List<String> availableRepositories) {
+    public RepositoriesPanel(ComponentModel<List<String>> availableRepositoriesModel) {
         this.selectedRepositories = new ArrayList<>();
 
         setLayout(new MigLayout(
@@ -36,7 +37,8 @@ public class RepositoriesPanel extends ThemedPanel {
         badgeScroll.setBorder(BorderFactory.createEmptyBorder());
         add(badgeScroll, "growx, span, wrap");
 
-        repositorySelector = new ThemedSearchableComboBox(availableRepositories);
+        repositorySelector = new ThemedSearchableComboBox(new ArrayList<>());
+        repositorySelector.bindTo(availableRepositoriesModel);
         repositorySelector.setToolTipText("Search to add repositories…");
         repositorySelector.setOnApply(item -> {
             if (item != null && !item.trim().isEmpty()) {

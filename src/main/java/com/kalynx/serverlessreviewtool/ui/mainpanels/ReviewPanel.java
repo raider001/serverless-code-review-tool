@@ -3,15 +3,16 @@ package com.kalynx.serverlessreviewtool.ui.mainpanels;
 import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
 import com.kalynx.serverlessreviewtool.managers.ReviewContextManager;
 import com.kalynx.serverlessreviewtool.managers.UserManager;
-import com.kalynx.serverlessreviewtool.mockdata.RepositoryMockData_Old;
 import com.kalynx.serverlessreviewtool.models.ReviewContext;
 import com.kalynx.serverlessreviewtool.models.*;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel.CodePanel;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel.RejectApprovePanel;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel.ReviewDetailPanel;
+import com.kalynx.serverlessreviewtool.ui.models.reviewpanel.reviewformdialog.ReviewFormModels;
 import net.miginfocom.swing.MigLayout;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -21,14 +22,16 @@ import java.util.List;
 public class ReviewPanel extends ThemedPanel {
 
     private final ReviewContextManager reviewContextManager;
+    private final RepositoryManager repositoryManager;
 
     private final ReviewDetailPanel reviewDetailPanel;
     private final CodePanel codePanel;
     private final RejectApprovePanel rejectApprovePanel = new RejectApprovePanel();
 
-    public ReviewPanel(ReviewContextManager reviewContextManager, RepositoryManager repositoryManager, UserManager userManager) {
+    public ReviewPanel(ReviewContextManager reviewContextManager, RepositoryManager repositoryManager, UserManager userManager, ReviewFormModels reviewFormModels) {
         this.reviewContextManager = reviewContextManager;
-        this.reviewDetailPanel = new ReviewDetailPanel(reviewContextManager, repositoryManager, userManager);
+        this.repositoryManager = repositoryManager;
+        this.reviewDetailPanel = new ReviewDetailPanel(reviewContextManager, repositoryManager, userManager, reviewFormModels);
         this.codePanel = new CodePanel(reviewContextManager);
         initializeSampleReviewContext();
         configureLayout();
@@ -43,12 +46,13 @@ public class ReviewPanel extends ThemedPanel {
     }
 
     private void initializeSampleReviewContext() {
-        List<ReviewerInfo> reviewers = new java.util.ArrayList<>();
+        List<ReviewerInfo> reviewers = new ArrayList<>();
         reviewers.add(new ReviewerInfo("Alice Chen"));
         reviewers.add(new ReviewerInfo("Bob Martin"));
         reviewers.add(new ReviewerInfo("Carlos Rivera"));
 
-        List<Repository> repositories = RepositoryMockData_Old.createDetailedRepositories();
+        // TODO: Wire up to use actual repositories from a review context once review creation is fully integrated
+        List<Repository> repositories = repositoryManager.getRepositories();
 
         List<ReviewComment> comments = createSampleComments();
 

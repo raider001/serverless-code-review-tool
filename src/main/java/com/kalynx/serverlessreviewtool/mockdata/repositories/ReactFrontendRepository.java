@@ -4,6 +4,8 @@ import com.kalynx.serverlessreviewtool.mockdata.repositories.reactfrontend.AppFi
 import com.kalynx.serverlessreviewtool.mockdata.repositories.reactfrontend.LoginFormFileMock;
 import com.kalynx.serverlessreviewtool.mockdata.repositories.reactfrontend.UserListFileMock;
 import com.kalynx.serverlessreviewtool.mockdata.repositories.reactfrontend.ApiFileMock;
+import com.kalynx.serverlessreviewtool.mockdata.repositories.reactfrontend.branches.FeatureThemingBranch;
+import com.kalynx.serverlessreviewtool.mockdata.repositories.reactfrontend.branches.PerformanceOptimizationBranch;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -31,10 +33,14 @@ public class ReactFrontendRepository extends BaseRepository {
         System.out.println("  Creating api.ts with incremental commits...");
         ApiFileMock.create(repoPath);
 
+        System.out.println("  Creating feature branches...");
+        FeatureThemingBranch.create(repoPath);
+        PerformanceOptimizationBranch.create(repoPath);
+
         System.out.println("  React Frontend repository created at: " + repoPath);
     }
 
-    private static void createInitialStructure(Path repoPath) throws IOException, InterruptedException {
+    protected static void createInitialStructure(Path repoPath) throws IOException, InterruptedException {
         Files.createDirectories(repoPath.resolve("src/components"));
         Files.createDirectories(repoPath.resolve("src/services"));
         Files.createDirectories(repoPath.resolve("src/utils"));

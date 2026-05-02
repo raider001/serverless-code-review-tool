@@ -8,6 +8,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.*;
 
 public class GitRepositoryInitializer {
     private static final Path MOCK_BASE_PATH = Paths.get(System.getProperty("user.home"), ".serverless-review-tool", "mock-repos");
@@ -17,11 +20,15 @@ public class GitRepositoryInitializer {
             System.out.println("Initializing mock Git repositories...");
             System.out.println("Base path: " + MOCK_BASE_PATH);
 
+            long startTime = System.currentTimeMillis();
+
             cleanupExistingRepositories();
             createMockRepositories();
 
+            long elapsedTime = System.currentTimeMillis() - startTime;
             System.out.println("\nMock repositories created successfully!");
             System.out.println("Location: " + MOCK_BASE_PATH);
+            System.out.println("Time taken: " + (elapsedTime / 1000.0) + " seconds");
         } catch (Exception e) {
             System.err.println("Failed to initialize mock repositories: " + e.getMessage());
             e.printStackTrace();
@@ -42,14 +49,46 @@ public class GitRepositoryInitializer {
     }
 
     private static void createMockRepositories() throws Exception {
-        System.out.println("\nCreating Java Backend repository...");
-        JavaBackendRepository.create(MOCK_BASE_PATH);
+        ExecutorService executor = Executors.newFixedThreadPool(3);
+        List<Future<String>> futures = new ArrayList<>();
 
-        System.out.println("\nCreating Python API repository...");
-        PythonApiRepository.create(MOCK_BASE_PATH);
+        System.out.println("\nCreating repositories in parallel...");
 
-        System.out.println("\nCreating React Frontend repository...");
-        ReactFrontendRepository.create(MOCK_BASE_PATH);
+        futures.add(executor.submit(() -> {
+            System.out.println("Creating Java Backend repository...");
+            JavaBackendRepository.create(MOCK_BASE_PATH);
+            return "Java Backend";
+        }));
+
+        futures.add(executor.submit(() -> {
+            System.out.println("Creating Python API repository...");
+            PythonApiRepository.create(MOCK_BASE_PATH);
+            return "Python API";
+        }));
+
+        futures.add(executor.submit(() -> {
+            System.out.println("Creating React Frontend repository...");
+            ReactFrontendRepository.create(MOCK_BASE_PATH);
+            return "React Frontend";
+        }));
+
+        executor.shutdown();
+
+        try {
+            for (Future<String> future : futures) {
+                String repoName = future.get();
+                System.out.println("  ✓ " + repoName + " repository completed");
+            }
+
+            if (!executor.awaitTermination(5, TimeUnit.MINUTES)) {
+                System.err.println("Repository creation timed out");
+                executor.shutdownNow();
+            }
+        } catch (InterruptedException | ExecutionException e) {
+            System.err.println("Error during parallel repository creation: " + e.getMessage());
+            executor.shutdownNow();
+            throw new Exception("Failed to create repositories", e);
+        }
     }
 
     private static void deleteDirectory(Path path) throws IOException {

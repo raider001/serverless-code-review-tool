@@ -4,6 +4,8 @@ import com.kalynx.serverlessreviewtool.mockdata.repositories.pythonapi.AppFileMo
 import com.kalynx.serverlessreviewtool.mockdata.repositories.pythonapi.ModelsFileMock;
 import com.kalynx.serverlessreviewtool.mockdata.repositories.pythonapi.AuthFileMock;
 import com.kalynx.serverlessreviewtool.mockdata.repositories.pythonapi.DatabaseFileMock;
+import com.kalynx.serverlessreviewtool.mockdata.repositories.pythonapi.branches.FeatureLoggingBranch;
+import com.kalynx.serverlessreviewtool.mockdata.repositories.pythonapi.branches.RefactorDatabaseBranch;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -31,10 +33,14 @@ public class PythonApiRepository extends BaseRepository {
         System.out.println("  Creating database.py with incremental commits...");
         DatabaseFileMock.create(repoPath);
 
+        System.out.println("  Creating feature branches...");
+        FeatureLoggingBranch.create(repoPath);
+        RefactorDatabaseBranch.create(repoPath);
+
         System.out.println("  Python API repository created at: " + repoPath);
     }
 
-    private static void createInitialStructure(Path repoPath) throws IOException, InterruptedException {
+    protected static void createInitialStructure(Path repoPath) throws IOException, InterruptedException {
         Files.createDirectories(repoPath.resolve("app"));
         Files.createDirectories(repoPath.resolve("app/models"));
         Files.createDirectories(repoPath.resolve("app/routes"));

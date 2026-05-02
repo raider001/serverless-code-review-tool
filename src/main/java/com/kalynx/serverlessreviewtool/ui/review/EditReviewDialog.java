@@ -4,6 +4,7 @@ import com.kalynx.serverlessreviewtool.models.ReviewContext;
 import com.kalynx.serverlessreviewtool.models.Repository;
 import com.kalynx.serverlessreviewtool.models.ReviewerInfo;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel.ReviewFormDialog;
+import com.kalynx.serverlessreviewtool.ui.models.reviewpanel.reviewformdialog.ReviewFormModels;
 
 import javax.swing.*;
 import java.awt.Component;
@@ -19,9 +20,8 @@ public class EditReviewDialog extends ReviewFormDialog {
 
     public EditReviewDialog(Component parent,
                             ReviewContext context,
-                            List<String> allRepositories,
-                            List<String> allReviewers) {
-        super(parent, "Edit Code Review", allRepositories, allReviewers);
+                            ReviewFormModels models) {
+        super(parent, "Edit Code Review", models);
         this.originalContext = context;
         prePopulate(context);
     }

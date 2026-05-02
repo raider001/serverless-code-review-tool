@@ -45,4 +45,36 @@ public interface Git {
      * @return future that completes when push finishes
      */
     CompletableFuture<Void> pushNotes(String repository, List<String> notes);
+
+    /**
+     * List all branches in the repository.
+     *
+     * @param repository local repository name
+     * @return future containing list of branch names
+     */
+    CompletableFuture<List<String>> listBranches(String repository);
+
+    /**
+     * List commits for a specific branch or ref.
+     * Returns commits in format: "hash|author|date|message"
+     *
+     * @param repository local repository name
+     * @param ref branch name or commit reference (e.g., "main", "HEAD~10")
+     * @param maxCount maximum number of commits to return
+     * @return future containing list of commit info strings
+     */
+    CompletableFuture<List<String>> listCommits(String repository, String ref, int maxCount);
+
+    /**
+     * List files changed between two commits.
+     * Returns files in format: "status path" (e.g., "M src/Main.java", "A newfile.txt")
+     *
+     * @param repository local repository name
+     * @param fromCommit starting commit hash or ref
+     * @param toCommit ending commit hash or ref
+     * @return future containing list of changed files with status
+     */
+    CompletableFuture<List<String>> listChangedFiles(String repository, String fromCommit, String toCommit);
 }
+
+

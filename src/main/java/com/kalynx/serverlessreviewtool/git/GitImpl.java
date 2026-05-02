@@ -266,5 +266,36 @@ public class GitImpl implements Git {
             }
         }
     }
+
+    @Override
+    public CompletableFuture<List<String>> listBranches(String repository) {
+        Path repoPath = gitLocalPath.resolve(repository);
+        return executeAsync(repoPath, "git", "branch", "-r", "--format=%(refname:short)")
+            .thenApply(output -> Arrays.stream(output.split("\n"))
+                .map(String::trim)
+                .filter(line -> !line.isEmpty())
+                .map(line -> line.replace("origin/", ""))
+                .distinct()
+                .collect(Collectors.toList()));
+    }
+
+    @Override
+    public CompletableFuture<List<String>> listCommits(String repository, String ref, int maxCount) {
+        Path repoPath = gitLocalPath.resolve(repository);
+        String format = "%H|%an|%ai|%s";
+        return executeAsync(repoPath, "git", "log", ref, "--format=" + format, "-n", String.valueOf(maxCount))
+            .thenApply(output -> Arrays.stream(output.split("\n"))
+                .filter(line -> !line.trim().isEmpty())
+                .collect(Collectors.toList()));
+    }
+
+    @Override
+    public CompletableFuture<List<String>> listChangedFiles(String repository, String fromCommit, String toCommit) {
+        Path repoPath = gitLocalPath.resolve(repository);
+        return executeAsync(repoPath, "git", "diff", "--name-status", fromCommit, toCommit)
+            .thenApply(output -> Arrays.stream(output.split("\n"))
+                .filter(line -> !line.trim().isEmpty())
+                .collect(Collectors.toList()));
+    }
 }
 

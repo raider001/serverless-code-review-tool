@@ -4,6 +4,7 @@ import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
 import com.kalynx.serverlessreviewtool.managers.ReviewItemManager;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedButton;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
+import com.kalynx.serverlessreviewtool.ui.models.reviewpanel.reviewformdialog.ReviewFormModels;
 import com.kalynx.serverlessreviewtool.ui.review.CreateReviewDialog;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewselectionpanel.FilterPanel;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewselectionpanel.ReviewListPanel;
@@ -18,10 +19,12 @@ public class ReviewSelectionPanel extends ThemedPanel {
 
     private final ReviewListPanel listPanel;
     private final FilterPanel filterPanel;
+    private final ReviewFormModels reviewFormModels;
 
     private final ThemedButton createReviewButton = new ThemedButton("Create Review");
 
-    public ReviewSelectionPanel(RepositoryManager repositoryManager, ReviewItemManager reviewItemManager) {
+    public ReviewSelectionPanel(RepositoryManager repositoryManager, ReviewItemManager reviewItemManager, ReviewFormModels reviewFormModels) {
+        this.reviewFormModels = reviewFormModels;
         this.listPanel = new ReviewListPanel(reviewItemManager);
         this.filterPanel = new FilterPanel(repositoryManager).addFilterEventListener(listPanel::filterLists);
         configureLayout();
@@ -45,17 +48,7 @@ public class ReviewSelectionPanel extends ThemedPanel {
      * Handle create review button click
      */
     private void onCreateReview() {
-        // Get list of available repositories (in real app, fetch from data source)
-        java.util.List<String> availableRepositories = java.util.Arrays.asList(
-            "frontend-app", "backend-api", "mobile-app", "shared-lib"
-        );
-
-        // Get list of available reviewers (in real app, fetch from data source)
-        java.util.List<String> availableReviewers = java.util.Arrays.asList(
-            "John Doe", "Jane Smith", "Bob Johnson", "Eve Anderson", "Michael Scott", "Sarah Connor", "James Bond", "Tony Stark"
-        );
-
-        CreateReviewDialog dialog = new CreateReviewDialog(SwingUtilities.getWindowAncestor(this), availableRepositories, availableReviewers);
+        CreateReviewDialog dialog = new CreateReviewDialog(SwingUtilities.getWindowAncestor(this), reviewFormModels);
         dialog.setVisible(true);
 
         if (dialog.isConfirmed()) {

@@ -3,6 +3,7 @@ package com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.*;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel.reviewformdialog.*;
+import com.kalynx.serverlessreviewtool.ui.models.reviewpanel.reviewformdialog.ReviewFormModels;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;
@@ -17,6 +18,7 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
     private static final int INSET = 16;
 
     protected final ThemeManager themeManager;
+    protected final ReviewFormModels models;
     protected boolean confirmed = false;
 
     protected final ReviewDetailsPanel detailsPanel;
@@ -26,15 +28,15 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
 
     protected ReviewFormDialog(Component parent,
                                 String dialogTitle,
-                                List<String> availableRepositories,
-                                List<String> availableReviewers) {
+                                ReviewFormModels models) {
         super(parent, dialogTitle);
         this.themeManager = ThemeManager.getInstance();
+        this.models = models;
 
         this.detailsPanel = new ReviewDetailsPanel();
         this.sourcePanel = new SourcePanel();
-        this.repositoriesPanel = new RepositoriesPanel(availableRepositories);
-        this.reviewersPanel = new ReviewersPanel(availableReviewers);
+        this.repositoriesPanel = new RepositoriesPanel(models.availableRepositories);
+        this.reviewersPanel = new ReviewersPanel(models.availableReviewers.getValue());
 
         setDialogSize(themeManager.scale(DIALOG_W), themeManager.scale(DIALOG_H));
         setUserResizable(true);

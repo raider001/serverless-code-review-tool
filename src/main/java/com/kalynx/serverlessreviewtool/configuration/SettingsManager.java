@@ -2,6 +2,7 @@ package com.kalynx.serverlessreviewtool.configuration;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,11 +23,12 @@ public class SettingsManager {
 
     private final Gson gson;
     private final Path settingsFile;
+    private final RepositoryManager repositoryManager;
     private AppSettings currentSettings;
 
-    public SettingsManager() {
+    public SettingsManager(RepositoryManager repositoryManager) {
         this.gson = new GsonBuilder().setPrettyPrinting().create();
-
+        this.repositoryManager = repositoryManager;
         // Store settings in user home directory
         String userHome = System.getProperty("user.home");
         Path appDir = Paths.get(userHome, ".serverless-review-tool");
@@ -65,6 +67,7 @@ public class SettingsManager {
 
         try (FileReader reader = new FileReader(file)) {
             AppSettings settings = gson.fromJson(reader, AppSettings.class);
+            repositoryManager.updateRepositories(settings.getRepositories());
             System.out.println("Loaded settings from: " + settingsFile);
             return settings != null ? settings : new AppSettings();
         } catch (Exception e) {
@@ -91,6 +94,7 @@ public class SettingsManager {
     public void updateSettings(AppSettings settings) {
         this.currentSettings = settings;
         saveSettings();
+        repositoryManager.updateRepositories(settings.getRepositories());
     }
 
     /**

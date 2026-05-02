@@ -88,5 +88,36 @@ public abstract class BaseRepository {
 
         return output.toString().trim();
     }
+
+    protected static void createBranch(Path repoPath, String branchName) throws IOException, InterruptedException {
+        executeGitCommand(repoPath, "git", "branch", branchName);
+    }
+
+    protected static void checkoutBranch(Path repoPath, String branchName) throws IOException, InterruptedException {
+        executeGitCommand(repoPath, "git", "checkout", branchName);
+    }
+
+    protected static void createAndCheckoutBranch(Path repoPath, String branchName) throws IOException, InterruptedException {
+        executeGitCommand(repoPath, "git", "checkout", "-b", branchName);
+    }
+
+    protected static void checkoutMain(Path repoPath) throws IOException, InterruptedException {
+        try {
+            executeGitCommand(repoPath, "git", "checkout", "main");
+        } catch (IOException e) {
+            executeGitCommand(repoPath, "git", "checkout", "master");
+        }
+    }
+
+    protected static void createInitialStructure(Path repoPath) throws IOException, InterruptedException {
+        Path srcDir = repoPath.resolve("src");
+        Files.createDirectories(srcDir);
+
+        Path readmePath = repoPath.resolve("README.md");
+        Files.writeString(readmePath, "# " + repoPath.getFileName() + "\n\nMock repository for testing.\n");
+        commitFile(repoPath, "README.md", "Initial commit");
+
+        executeGitCommand(repoPath, "git", "branch", "-M", "main");
+    }
 }
 
