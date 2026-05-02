@@ -16,6 +16,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 public class Main {
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
@@ -37,8 +39,11 @@ public class Main {
             ReviewItemManager reviewItemManager = di.inject(ReviewItemManager.class);
             ReviewContextManager reviewContextManager = di.inject(ReviewContextManager.class);
 
-            // Register Git service
-            di.inject(Git.class, GitImpl.class);
+            // Create and register Git service
+            String userHome = System.getProperty("user.home");
+            Path gitLocalPath = Paths.get(userHome, ".serverless-review-tool", "repositories");
+            GitImpl gitImpl = new GitImpl(gitLocalPath);
+            di.add(Git.class, gitImpl);
 
             // Register UI models
             di.inject(ReviewFormModels.class);
