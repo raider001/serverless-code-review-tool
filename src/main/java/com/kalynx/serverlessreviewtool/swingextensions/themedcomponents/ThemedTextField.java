@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.swingextensions.themedcomponents;
 
+import com.kalynx.serverlessreviewtool.swingextensions.BindingLifecycleHelper;
+import com.kalynx.serverlessreviewtool.swingextensions.ComponentModel;
 import com.kalynx.serverlessreviewtool.theme.Theme;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 import com.kalynx.serverlessreviewtool.utils.Validator;
@@ -12,17 +14,16 @@ import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.util.function.Consumer;
 
-/**
- * A JTextField that automatically applies and updates theme colors
- * Colors are queried on-demand during paint for automatic theme updates
- */
 public class ThemedTextField extends JTextField {
-    
+
     protected final ThemeManager themeManager;
     private boolean isValid = true;
     private Validator validator = null;
     private Consumer<String> onValidValueSaved = null;
     private ThemedValidationOverlay validationOverlay = null;
+
+    private ComponentModel<String> model;
+    private BindingLifecycleHelper.TextBinding textBinding;
 
     public ThemedTextField() {
         this(0);
@@ -178,5 +179,31 @@ public class ThemedTextField extends JTextField {
     public boolean isValid() {
         return isValid;
     }
-}
 
+    public void bindTo(ComponentModel<String> model) {
+        unbind();
+        this.model = model;
+
+        textBinding = BindingLifecycleHelper.setupTextBinding(
+            model,
+            this::getText,
+            this::setText,
+            getDocument()
+        );
+
+        BindingLifecycleHelper.setupAutoUnbind(this, this::unbind);
+    }
+
+    public void unbind() {
+        if (textBinding != null) {
+            BindingLifecycleHelper.unbindText(
+                model,
+                textBinding.modelChangeListener,
+                getDocument(),
+                textBinding.modelSyncListener
+            );
+        }
+        model = null;
+        textBinding = null;
+    }
+}

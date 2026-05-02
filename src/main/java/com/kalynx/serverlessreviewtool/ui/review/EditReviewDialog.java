@@ -33,26 +33,19 @@ public class EditReviewDialog extends ReviewFormDialog {
     protected void onFormSubmit() { confirmed = true; dispose(); }
 
     private void prePopulate(ReviewContext ctx) {
-        titleField.setText(ctx.title);
-        authorField.setText(ctx.author);
-        summaryArea.setText(ctx.summary);
+        detailsPanel.setTitle(ctx.title);
+        detailsPanel.setAuthor(ctx.author);
+        detailsPanel.setSummary(ctx.summary);
 
-        selectedRepositories.clear();
-        selectedRepositories.addAll(
-            ctx.repositories.stream()
-                .map(Repository::getName)
-                .collect(Collectors.toList())
-        );
+        List<String> repoNames = ctx.repositories.stream()
+            .map(Repository::getName)
+            .collect(Collectors.toList());
+        repositoriesPanel.setSelectedRepositories(repoNames);
 
-        selectedReviewers.clear();
-        selectedReviewers.addAll(
-            ctx.reviewers.stream()
-                .map(ReviewerInfo::getName)
-                .collect(Collectors.toList())
-        );
-
-        updateRepositoryBadges();
-        updateReviewerBadges();
+        List<String> reviewerNames = ctx.reviewers.stream()
+            .map(ReviewerInfo::getName)
+            .collect(Collectors.toList());
+        reviewersPanel.setSelectedReviewers(reviewerNames);
     }
 
     public ReviewContext getUpdatedContext() {

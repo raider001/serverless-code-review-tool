@@ -1,17 +1,22 @@
 package com.kalynx.serverlessreviewtool.swingextensions.themedcomponents;
 
+import com.kalynx.serverlessreviewtool.swingextensions.BindingLifecycleHelper;
+import com.kalynx.serverlessreviewtool.swingextensions.ComponentModel;
 import com.kalynx.serverlessreviewtool.theme.Theme;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 
 import javax.swing.*;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import java.awt.*;
+import java.util.function.Consumer;
 
-/**
- * ThemedTextArea - A theme-aware multi-line text area
- */
 public class ThemedTextArea extends JTextArea {
 
     private final ThemeManager themeManager;
+
+    private ComponentModel<String> model;
+    private BindingLifecycleHelper.TextBinding textBinding;
 
     public ThemedTextArea() {
         this(0, 0);
@@ -47,6 +52,37 @@ public class ThemedTextArea extends JTextArea {
             setSelectedTextColor(Color.WHITE);
         }
         super.paintComponent(g);
+    }
+
+    public void bindTo(ComponentModel<String> model) {
+        unbind();
+        this.model = model;
+
+        textBinding = BindingLifecycleHelper.setupTextBinding(
+            model,
+            this::getText,
+            this::setText,
+            getDocument()
+        );
+
+        BindingLifecycleHelper.setupAutoUnbind(this, this::unbind);
+    }
+
+    public void unbind() {
+        if (textBinding != null) {
+            BindingLifecycleHelper.unbindText(
+                model,
+                textBinding.modelChangeListener,
+                getDocument(),
+                textBinding.modelSyncListener
+            );
+        }
+        model = null;
+        textBinding = null;
+    }
+
+    public boolean isBound() {
+        return model != null;
     }
 }
 
