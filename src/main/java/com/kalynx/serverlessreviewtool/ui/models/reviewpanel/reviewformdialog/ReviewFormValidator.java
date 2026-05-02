@@ -58,7 +58,7 @@ public class ReviewFormValidator {
         }
 
         public String getFirstError() {
-            return errors.isEmpty() ? "" : errors.get(0);
+            return errors.isEmpty() ? "" : errors.getFirst();
         }
 
         public String getAllErrors() {

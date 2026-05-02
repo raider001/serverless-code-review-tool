@@ -88,9 +88,8 @@ public class BindingLifecycleHelper {
         if (optionsModel != null) {
             updateComboBoxOptions(comboBox, optionsModel.getValue());
 
-            binding.optionsChangeListener = options -> {
+            binding.optionsChangeListener = options ->
                 updateComboBoxOptions(comboBox, options);
-            };
             optionsModel.addChangeListener(binding.optionsChangeListener);
         }
 
@@ -104,7 +103,7 @@ public class BindingLifecycleHelper {
             };
             valueModel.addChangeListener(binding.valueChangeListener);
 
-            binding.selectionListener = e -> {
+            binding.selectionListener = ignored -> {
                 @SuppressWarnings("unchecked")
                 T selected = (T) comboBox.getSelectedItem();
                 valueModel.setValue(selected);
@@ -155,9 +154,8 @@ public class BindingLifecycleHelper {
         };
         model.addChangeListener(binding.modelChangeListener);
 
-        binding.itemListener = e -> {
+        binding.itemListener = ignored ->
             model.setValue(checkBox.isSelected());
-        };
         checkBox.addItemListener(binding.itemListener);
 
         return binding;
@@ -199,7 +197,7 @@ public class BindingLifecycleHelper {
         };
         model.addChangeListener(binding.modelChangeListener);
 
-        binding.actionListener = e -> {
+        binding.actionListener = ignored -> {
             if (radioButton.isSelected()) {
                 model.setValue(valueWhenSelected);
             }

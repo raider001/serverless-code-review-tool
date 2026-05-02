@@ -33,8 +33,8 @@ public abstract class BaseRepository {
         int exitCode = process.waitFor();
         if (exitCode != 0) {
             String errorMsg = "Git command failed with exit code " + exitCode + ": " + String.join(" ", command);
-            if (output.length() > 0) {
-                errorMsg += "\nOutput: " + output.toString();
+            if (!output.isEmpty()) {
+                errorMsg += "\nOutput: " + output;
             }
             throw new IOException(errorMsg);
         }

@@ -46,7 +46,7 @@ public class CommitSelectorPanel extends ThemedPanel {
         ThemedLabel viewLabel = new ThemedLabel("View:");
         viewModeComboBox = new ThemedComboBox<>(DiffViewMode.values());
         viewModeComboBox.setSelectedItem(DiffViewMode.SIDE_BY_SIDE);
-        viewModeComboBox.addActionListener(e -> onViewModeChanged());
+        viewModeComboBox.addActionListener(ignored -> onViewModeChanged());
 
         add(viewLabel);
         add(viewModeComboBox, "w 120!");
@@ -58,7 +58,7 @@ public class CommitSelectorPanel extends ThemedPanel {
 
     private void onReviewContextChanged(ReviewContext context) {
         if (context != null && !context.getRepositories().isEmpty()) {
-            Repository firstRepo = context.getRepositories().get(0);
+            Repository firstRepo = context.getRepositories().getFirst();
             loadCommitsForRepository(firstRepo);
         }
     }
@@ -79,7 +79,7 @@ public class CommitSelectorPanel extends ThemedPanel {
         if (!commits.isEmpty()) {
             commitSliderPanel.setStartIndex(0);
             commitSliderPanel.setEndIndex(commits.size() - 1);
-            fireCommitRangeChanged(commits.get(0), commits.get(commits.size() - 1));
+            fireCommitRangeChanged(commits.getFirst(), commits.getLast());
         }
     }
 

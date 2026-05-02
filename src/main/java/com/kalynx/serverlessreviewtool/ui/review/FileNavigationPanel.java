@@ -50,10 +50,9 @@ public class FileNavigationPanel extends ThemedPanel {
         fileTree.setShowsRootHandles(true);
         fileTree.setCellRenderer(new FileTreeCellRenderer());
 
-        fileTree.addTreeSelectionListener(e -> {
+        fileTree.addTreeSelectionListener(ignored -> {
             DefaultMutableTreeNode selectedNode = (DefaultMutableTreeNode) fileTree.getLastSelectedPathComponent();
-            if (selectedNode != null && selectedNode.getUserObject() instanceof ReviewFile) {
-                ReviewFile file = (ReviewFile) selectedNode.getUserObject();
+            if (selectedNode != null && selectedNode.getUserObject() instanceof ReviewFile file) {
                 fireFileSelected(file);
             }
         });
@@ -100,8 +99,7 @@ public class FileNavigationPanel extends ThemedPanel {
         // Create directory nodes
         for (int i = 0; i < pathParts.length - 1; i++) {
             String dirName = pathParts[i];
-            DefaultMutableTreeNode dirNode = findOrCreateChildNode(currentNode, dirName);
-            currentNode = dirNode;
+            currentNode = findOrCreateChildNode(currentNode, dirName);
         }
 
         // Add file node
@@ -162,13 +160,11 @@ public class FileNavigationPanel extends ThemedPanel {
 
             int iconSize = 16; // Standard icon size for tree items
 
-            if (userObject instanceof Repository) {
-                Repository repo = (Repository) userObject;
+            if (userObject instanceof Repository repo) {
                 setText(repo.getName());
                 setFont(getFont().deriveFont(Font.BOLD));
                 setIcon(new RepositoryIcon(iconSize));
-            } else if (userObject instanceof ReviewFile) {
-                ReviewFile file = (ReviewFile) userObject;
+            } else if (userObject instanceof ReviewFile file) {
                 setText(file.getFileName());
 
                 // Check for comments on this file
@@ -210,7 +206,7 @@ public class FileNavigationPanel extends ThemedPanel {
                             break;
                     }
                 }
-            } else if (userObject instanceof String) {
+            } else if (userObject instanceof String dirName) {
                 // It's a folder
                 setText(value.toString());
                 setIcon(new FolderIcon(iconSize));

@@ -47,7 +47,7 @@ public class RepositoriesPanel extends ThemedPanel {
 
         ThemedButton addButton = new ThemedButton("Add");
         addButton.setPreferredSize(new Dimension(themeManager.scale(70), themeManager.scale(28)));
-        addButton.addActionListener(e -> {
+        addButton.addActionListener(ignored -> {
             Object selected = repositorySelector.getSelectedItem();
             if (selected != null && !selected.toString().trim().isEmpty()) {
                 addRepository(selected.toString());

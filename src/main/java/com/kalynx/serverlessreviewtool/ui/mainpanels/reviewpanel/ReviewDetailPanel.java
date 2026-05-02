@@ -75,7 +75,7 @@ public class ReviewDetailPanel extends ThemedPanel {
         reviewContextManager.addListener(context -> setLabelText(summaryLabel, () -> context.summary));
         reviewContextManager.addListener(this::updateStatusBadge);
         reviewContextManager.addListener(this::updateReviewers);
-        reviewContextManager.addListener(context -> updateButtonStates());
+        reviewContextManager.addListener(ignored -> updateButtonStates());
     }
 
     private void updateReviewers(ReviewContext context) {
@@ -100,7 +100,7 @@ public class ReviewDetailPanel extends ThemedPanel {
                 ThemedPopupMenu menu = new ThemedPopupMenu();
                 for (ReviewerStatus status : ReviewerStatus.values()) {
                     ThemedMenuItem item = new ThemedMenuItem(status.getDisplayName());
-                    item.addActionListener(evt -> {
+                    item.addActionListener(ignored -> {
                         reviewer.setStatus(status);
                         reviewContextManager.setReviewContext(reviewContextManager.getReviewContext());
                     });
@@ -139,8 +139,8 @@ public class ReviewDetailPanel extends ThemedPanel {
 
 
     private void setupListeners() {
-        editReviewButton.addActionListener(e -> handleEditReview());
-        closeReviewButton.addActionListener(e -> handleCloseReview());
+        editReviewButton.addActionListener(ignored -> handleEditReview());
+        closeReviewButton.addActionListener(ignored -> handleCloseReview());
     }
 
     private void handleEditReview() {
