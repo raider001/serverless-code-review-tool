@@ -100,7 +100,6 @@ public class ReviewItemMockData_Old {
 
     public static void refreshMockData(ReviewItemManager reviewItemManager) {
         loadMockData(reviewItemManager);
-        System.out.println("Mock review data refreshed");
     }
 }
 
