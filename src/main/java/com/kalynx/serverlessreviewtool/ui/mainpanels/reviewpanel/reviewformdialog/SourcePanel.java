@@ -1,5 +1,6 @@
 package com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel.reviewformdialog;
 
+import com.kalynx.serverlessreviewtool.swingextensions.ComponentModel;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.*;
 import net.miginfocom.swing.MigLayout;
 
@@ -14,28 +15,29 @@ public class SourcePanel extends ThemedPanel {
     private static final int FIELD_H = 28;
 
     private final ThemedPanel modeSpecificPanel;
-    private final ThemedTextField branchNameField;
+    private final ThemedSearchableComboBox branchNameField;
     private final ThemedSearchableComboBox reviewAgainstBranchCombo;
     private final ThemedSearchableComboBox commitBranchFilterCombo;
     private final ThemedList<String> commitSelectionList;
 
-    public SourcePanel() {
+    public SourcePanel(ComponentModel<List<String>> availableBranchesModel) {
         setLayout(new MigLayout("fill, insets 10 12 12 12", "[grow,fill]", "[grow,fill]"));
         setBorder(ThemedTitledBorder.create("Source"));
 
-        branchNameField = new ThemedTextField(20);
-        branchNameField.setToolTipText("Enter the branch name to review");
+        branchNameField = new ThemedSearchableComboBox(new ArrayList<>());
+        branchNameField.setToolTipText("Search for a branch to review");
         branchNameField.setPreferredSize(new Dimension(0, themeManager.scale(FIELD_H)));
+        branchNameField.bindTo(availableBranchesModel);
 
-        reviewAgainstBranchCombo = new ThemedSearchableComboBox(
-            List.of("main", "develop", "staging", "release/v1.0"));
+        reviewAgainstBranchCombo = new ThemedSearchableComboBox(new ArrayList<>());
         reviewAgainstBranchCombo.setToolTipText("Search for a branch to review against");
         reviewAgainstBranchCombo.setPreferredSize(new Dimension(0, themeManager.scale(FIELD_H)));
+        reviewAgainstBranchCombo.bindTo(availableBranchesModel);
 
-        commitBranchFilterCombo = new ThemedSearchableComboBox(
-            List.of("All Branches", "main", "develop", "feature/auth", "feature/ui", "release/v1.0"));
+        commitBranchFilterCombo = new ThemedSearchableComboBox(new ArrayList<>());
         commitBranchFilterCombo.setToolTipText("Search for a branch to filter commits");
         commitBranchFilterCombo.setPreferredSize(new Dimension(0, themeManager.scale(FIELD_H)));
+        commitBranchFilterCombo.bindTo(availableBranchesModel);
 
         DefaultListModel<String> commitListModel = new DefaultListModel<>();
         for (String c : new String[]{
@@ -110,7 +112,8 @@ public class SourcePanel extends ThemedPanel {
     }
 
     public String getBranchName() {
-        return branchNameField.getText();
+        Object selected = branchNameField.getSelectedItem();
+        return selected != null ? selected.toString() : "";
     }
 
     public String getReviewAgainstBranch() {
@@ -130,7 +133,7 @@ public class SourcePanel extends ThemedPanel {
     }
 
     public void setBranchName(String branchName) {
-        branchNameField.setText(branchName);
+        branchNameField.setSelectedItem(branchName);
     }
 
     public void setReviewAgainstBranch(String branch) {

@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel;
 
+import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
+import com.kalynx.serverlessreviewtool.models.Repository;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.*;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel.reviewformdialog.*;
@@ -8,7 +10,9 @@ import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public abstract class ReviewFormDialog extends ThemedPopupDialog {
 
@@ -19,6 +23,7 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
 
     protected final ThemeManager themeManager;
     protected final ReviewFormModels models;
+    protected final RepositoryManager repositoryManager;
     protected boolean confirmed = false;
 
     protected final ReviewDetailsPanel detailsPanel;
@@ -28,10 +33,12 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
 
     protected ReviewFormDialog(Component parent,
                                 String dialogTitle,
-                                ReviewFormModels models) {
+                                ReviewFormModels models,
+                                RepositoryManager repositoryManager) {
         super(parent, dialogTitle);
         this.themeManager = ThemeManager.getInstance();
         this.models = models;
+        this.repositoryManager = repositoryManager;
 
         this.detailsPanel = new ReviewDetailsPanel(
             models.title,
@@ -39,7 +46,7 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
             models.summary,
             models.mode
         );
-        this.sourcePanel = new SourcePanel();
+        this.sourcePanel = new SourcePanel(models.availableBranches);
         this.repositoriesPanel = new RepositoriesPanel(
             models.availableRepositories,
             models.selectedRepositories
@@ -64,18 +71,17 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
         }
     }
 
-
     private void configureLayout() {
         ThemedPanel content = (ThemedPanel) getContentPanel();
         content.setLayout(new MigLayout(
             "fill, insets " + INSET + ", gap " + GAP + " " + GAP,
             "[grow]",
-            "[]" + GAP + "[]" + GAP + "[grow,fill]" + GAP + "[]"
+            "[]" + GAP + "[]" + GAP + "[]" + GAP + "[]"
         ));
 
         content.add(detailsPanel, "grow, wrap");
-        content.add(sourcePanel, "grow, wrap");
         content.add(createSelectionSection(), "grow, wrap");
+        content.add(sourcePanel, "grow, wrap");
         content.add(createFooter(), "growx");
 
         sourcePanel.updateMode(detailsPanel.isBranchMode());
@@ -83,6 +89,56 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
 
     private void setupListeners() {
         detailsPanel.setOnModeChangeListener(() -> sourcePanel.updateMode(detailsPanel.isBranchMode()));
+
+        models.selectedRepositories.addChangeListener(this::updateAvailableBranches);
+        updateAvailableBranches(models.selectedRepositories.getValue());
+    }
+
+    private void updateAvailableBranches(List<String> selectedRepoNames) {
+        if (selectedRepoNames == null || selectedRepoNames.isEmpty()) {
+            models.availableBranches.setValue(new ArrayList<>());
+            return;
+        }
+
+        List<Repository> allRepos = repositoryManager.getRepositories();
+        List<Repository> selectedRepos = selectedRepoNames.stream()
+            .map(name -> findRepositoryByName(allRepos, name))
+            .filter(repo -> repo != null)
+            .collect(Collectors.toList());
+
+        if (selectedRepos.isEmpty()) {
+            models.availableBranches.setValue(new ArrayList<>());
+            return;
+        }
+
+        List<String> commonBranches = findCommonBranches(selectedRepos);
+        models.availableBranches.setValue(commonBranches);
+    }
+
+    private Repository findRepositoryByName(List<Repository> repositories, String name) {
+        return repositories.stream()
+            .filter(repo -> repo.getName().equals(name))
+            .findFirst()
+            .orElse(null);
+    }
+
+    private List<String> findCommonBranches(List<Repository> repositories) {
+        if (repositories.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        if (repositories.size() == 1) {
+            return new ArrayList<>(repositories.get(0).getBranches());
+        }
+
+        List<String> commonBranches = new ArrayList<>(repositories.get(0).getBranches());
+
+        for (int i = 1; i < repositories.size(); i++) {
+            List<String> repoBranches = repositories.get(i).getBranches();
+            commonBranches.retainAll(repoBranches);
+        }
+
+        return commonBranches;
     }
 
     private ThemedPanel createSelectionSection() {

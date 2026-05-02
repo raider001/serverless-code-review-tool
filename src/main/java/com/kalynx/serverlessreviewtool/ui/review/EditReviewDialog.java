@@ -1,5 +1,6 @@
 package com.kalynx.serverlessreviewtool.ui.review;
 
+import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
 import com.kalynx.serverlessreviewtool.models.ReviewContext;
 import com.kalynx.serverlessreviewtool.models.Repository;
 import com.kalynx.serverlessreviewtool.models.ReviewerInfo;
@@ -20,8 +21,9 @@ public class EditReviewDialog extends ReviewFormDialog {
 
     public EditReviewDialog(Component parent,
                             ReviewContext context,
-                            ReviewFormModels models) {
-        super(parent, "Edit Code Review", models);
+                            ReviewFormModels models,
+                            RepositoryManager repositoryManager) {
+        super(parent, "Edit Code Review", models, repositoryManager);
         this.originalContext = context;
         populateModelsFromContext(context);
     }

@@ -207,25 +207,49 @@ public class GitImpl implements Git {
 
     private CompletableFuture<Void> fetchNotes(Path repository) {
         return executeAsync(repository, "git", "fetch", ORIGIN, "refs/notes/*:refs/notes/*")
-            .thenCompose(ignored -> mergeNotes(repository))
+            .thenCompose(ignored -> mergeAllNotes(repository))
             .exceptionally(ex -> {
                 if (ex.getMessage() != null && ex.getMessage().contains("Couldn't find remote ref")) {
                     return null;
                 }
-                throw new RuntimeException(ex);
+                System.err.println("Warning: Failed to fetch notes: " + ex.getMessage());
+                return null;
             });
     }
 
-    private CompletableFuture<Void> mergeNotes(Path repository) {
-        return executeAsync(repository, "git", "notes", "merge", "-s", "union", "refs/notes/commits")
-            .thenApply(ignored -> (Void) null)
-            .exceptionally(ex -> {
-                if (ex.getMessage() != null && 
-                    (ex.getMessage().contains("No notes to merge") || 
-                     ex.getMessage().contains("Already up to date"))) {
-                    return null;
+    private CompletableFuture<Void> mergeAllNotes(Path repository) {
+        return executeAsync(repository, "git", "for-each-ref", "--format=%(refname)", "refs/notes/")
+            .thenCompose(output -> {
+                List<String> noteRefs = Arrays.stream(output.split("\n"))
+                    .map(String::trim)
+                    .filter(line -> !line.isEmpty())
+                    .collect(Collectors.toList());
+
+                if (noteRefs.isEmpty()) {
+                    return CompletableFuture.completedFuture((Void) null);
                 }
-                return null;
+
+                List<CompletableFuture<Void>> mergeFutures = noteRefs.stream()
+                    .map(ref -> executeAsync(repository, "git", "notes", "--ref=" + ref, "merge", "-s", "union", "origin/" + ref)
+                        .thenApply(ignored -> (Void) null)
+                        .exceptionally(mergeEx -> {
+                            String msg = mergeEx.getMessage();
+                            if (msg != null && (msg.contains("No notes to merge") ||
+                                               msg.contains("Already up to date") ||
+                                               msg.contains("not found"))) {
+                                return null;
+                            }
+                            System.err.println("Warning: Failed to merge notes for " + ref + ": " + msg);
+                            return null;
+                        }))
+                    .toList();
+
+                return CompletableFuture.allOf(mergeFutures.toArray(new CompletableFuture[0]))
+                    .thenApply(ignored -> (Void) null);
+            })
+            .exceptionally(ex -> {
+                System.err.println("Warning: Failed to list note refs: " + ex.getMessage());
+                return (Void) null;
             });
     }
 

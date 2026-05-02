@@ -13,6 +13,7 @@ import com.kalynx.serverlessreviewtool.ui.review.*;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -106,7 +107,7 @@ public class CodePanel extends ThemedPanel {
 
         Repository repository = findRepositoryForFile(file);
         if (repository != null) {
-            commitSelectorPanel.loadCommitsForRepository(repository);
+            commitSelectorPanel.loadCommits(new ArrayList<>());
         }
 
         Commit startCommit = commitSelectorPanel.getStartCommit();

@@ -20,11 +20,13 @@ public class ReviewSelectionPanel extends ThemedPanel {
     private final ReviewListPanel listPanel;
     private final FilterPanel filterPanel;
     private final ReviewFormModels reviewFormModels;
+    private final RepositoryManager repositoryManager;
 
     private final ThemedButton createReviewButton = new ThemedButton("Create Review");
 
     public ReviewSelectionPanel(RepositoryManager repositoryManager, ReviewItemManager reviewItemManager, ReviewFormModels reviewFormModels) {
         this.reviewFormModels = reviewFormModels;
+        this.repositoryManager = repositoryManager;
         this.listPanel = new ReviewListPanel(reviewItemManager);
         this.filterPanel = new FilterPanel(repositoryManager).addFilterEventListener(listPanel::filterLists);
         configureLayout();
@@ -48,7 +50,11 @@ public class ReviewSelectionPanel extends ThemedPanel {
      * Handle create review button click
      */
     private void onCreateReview() {
-        CreateReviewDialog dialog = new CreateReviewDialog(SwingUtilities.getWindowAncestor(this), reviewFormModels);
+        CreateReviewDialog dialog = new CreateReviewDialog(
+            SwingUtilities.getWindowAncestor(this),
+            reviewFormModels,
+            repositoryManager
+        );
         dialog.setVisible(true);
         // TODO - Implement me when needed.
     }

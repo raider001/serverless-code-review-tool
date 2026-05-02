@@ -38,7 +38,6 @@ public class RepositoryManager {
         repositoryLoader.loadRepositories(configs)
             .thenAccept(loadedRepos -> {
                 this.repositories = loadedRepos;
-                updateReviewFormModels();
                 notifyListeners();
             })
             .exceptionally(ex -> {
@@ -60,12 +59,6 @@ public class RepositoryManager {
         listeners.remove(listener);
     }
 
-    private void updateReviewFormModels() {
-        List<String> repoNames = repositories.stream()
-            .map(Repository::getName)
-            .collect(Collectors.toList());
-        reviewFormModels.availableRepositories.setValue(repoNames);
-    }
 
     public void notifyListeners() {
         listeners.forEach(listener -> listener.accept(List.copyOf(repositories)));

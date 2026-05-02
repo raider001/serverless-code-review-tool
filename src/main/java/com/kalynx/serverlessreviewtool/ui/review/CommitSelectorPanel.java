@@ -63,7 +63,7 @@ public class CommitSelectorPanel extends ThemedPanel {
     private void onReviewContextChanged(ReviewContext context) {
         if (context != null && !context.getRepositories().isEmpty()) {
             Repository firstRepo = context.getRepositories().getFirst();
-            loadCommitsForRepository(firstRepo);
+            loadCommits(new ArrayList<>());
         }
     }
 
@@ -74,10 +74,11 @@ public class CommitSelectorPanel extends ThemedPanel {
         }
     }
 
-    public void loadCommitsForRepository(Repository repository) {
-        if (repository == null) return;
+    public void loadCommits(List<Commit> commits) {
+        if (commits == null) {
+            commits = new ArrayList<>();
+        }
 
-        List<Commit> commits = repository.getCommits();
         commitSliderPanel.setCommits(commits);
 
         if (!commits.isEmpty()) {

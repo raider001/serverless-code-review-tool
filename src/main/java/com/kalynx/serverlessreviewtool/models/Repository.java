@@ -3,30 +3,28 @@ package com.kalynx.serverlessreviewtool.models;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Repository - Represents a repository in the review
- */
 public class Repository {
     private final String name;
     private final String description;
     private final String url;
-    private final List<Commit> commits;
     private final List<ReviewFile> files;
+    private final List<String> branches;
 
     public Repository(String name, String description, String url) {
         this.name = name;
         this.description = description;
         this.url = url;
-        this.commits = new ArrayList<>();
         this.files = new ArrayList<>();
-    }
-
-    public void addCommit(Commit commit) {
-        commits.add(commit);
+        this.branches = new ArrayList<>();
     }
 
     public void addFile(ReviewFile file) {
         files.add(file);
+    }
+
+    public void setBranches(List<String> branches) {
+        this.branches.clear();
+        this.branches.addAll(branches);
     }
 
     public String getName() {
@@ -41,12 +39,12 @@ public class Repository {
         return url;
     }
 
-    public List<Commit> getCommits() {
-        return new ArrayList<>(commits);
-    }
-
     public List<ReviewFile> getFiles() {
         return new ArrayList<>(files);
+    }
+
+    public List<String> getBranches() {
+        return new ArrayList<>(branches);
     }
 
     @Override
