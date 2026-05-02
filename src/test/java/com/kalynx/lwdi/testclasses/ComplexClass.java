@@ -5,7 +5,7 @@ import com.kalynx.lwdi.DI;
 public class ComplexClass {
 
     @DI
-    public ComplexClass(SimpleClassWithAnnotation clz1, SimpleClassWithoutAnnotation clz2) {
+    public ComplexClass(SimpleClassWithAnnotation ignored1, SimpleClassWithoutAnnotation ignored2) {
 
     }
 }

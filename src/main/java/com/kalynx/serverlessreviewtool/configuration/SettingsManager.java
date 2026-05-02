@@ -2,6 +2,8 @@ package com.kalynx.serverlessreviewtool.configuration;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileReader;
@@ -16,6 +18,7 @@ import java.nio.file.Paths;
  * Handles JSON persistence with proper error handling and logging
  */
 public class SettingsManager {
+    private static final Logger logger = LoggerFactory.getLogger(SettingsManager.class);
 
     private final Gson gson;
     private final Path settingsFile;
@@ -76,10 +79,9 @@ public class SettingsManager {
     public void saveSettings() {
         try (FileWriter writer = new FileWriter(settingsFile.toFile())) {
             gson.toJson(currentSettings, writer);
-            System.out.println("Saved settings to: " + settingsFile);
+            logger.info("Saved settings to: {}", settingsFile);
         } catch (IOException e) {
-            System.err.println("Failed to save settings: " + e.getMessage());
-            e.printStackTrace();
+            logger.error("Failed to save settings: {}", e.getMessage(), e);
         }
     }
 

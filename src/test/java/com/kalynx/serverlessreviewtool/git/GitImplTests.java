@@ -270,7 +270,7 @@ public class GitImplTests {
 
         git.cloneRepository(remoteUrl).get(30, java.util.concurrent.TimeUnit.SECONDS);
 
-        String testCommit = addTestCommitToRemote(mockRepo, "test-file.txt", "Test content for pull");
+        addTestCommitToRemote(mockRepo, "test-file.txt", "Test content for pull");
 
         CompletableFuture<Void> result = git.pull(repoName);
 
@@ -325,7 +325,7 @@ public class GitImplTests {
         git.cloneRepository(remoteUrl).get(30, java.util.concurrent.TimeUnit.SECONDS);
         git.fetch(repoName).get(10, java.util.concurrent.TimeUnit.SECONDS);
 
-        String testCommit = addTestCommitToRemote(mockRepo, "additional-file.txt", "Additional content");
+        addTestCommitToRemote(mockRepo, "additional-file.txt", "Additional content");
 
         CompletableFuture<Void> pullResult = git.pull(repoName);
 
@@ -349,8 +349,8 @@ public class GitImplTests {
         git.cloneRepository(url1).get(30, java.util.concurrent.TimeUnit.SECONDS);
         git.cloneRepository(url2).get(30, java.util.concurrent.TimeUnit.SECONDS);
 
-        String commit1 = addTestCommitToRemote(mockRepo1, "repo1-test.txt", "Repo 1 content");
-        String commit2 = addTestCommitToRemote(mockRepo2, "repo2-test.txt", "Repo 2 content");
+        addTestCommitToRemote(mockRepo1, "repo1-test.txt", "Repo 1 content");
+        addTestCommitToRemote(mockRepo2, "repo2-test.txt", "Repo 2 content");
 
         CompletableFuture<Void> pull1 = git.pull(repo1);
         CompletableFuture<Void> pull2 = git.pull(repo2);
@@ -372,7 +372,7 @@ public class GitImplTests {
 
         git.cloneRepository(remoteUrl).get(30, java.util.concurrent.TimeUnit.SECONDS);
 
-        String testCommit = addTestCommitToRemote(mockRepo, "conflict-test.txt", "Remote content");
+        addTestCommitToRemote(mockRepo, "conflict-test.txt", "Remote content");
 
         CompletableFuture<Void> result = git.pull(repoName);
 
@@ -736,7 +736,7 @@ public class GitImplTests {
         git.cloneRepository(remoteUrl).get(30, java.util.concurrent.TimeUnit.SECONDS);
 
         Path clonedRepo = testRepoPath.resolve(repoName);
-        String mergeStrategy = getGitConfig(clonedRepo, "notes.mergeStrategy");
+        String mergeStrategy = getGitConfig(clonedRepo);
 
         assertEquals("union", mergeStrategy.trim(), "Notes merge strategy should be set to union");
     }
@@ -897,8 +897,8 @@ public class GitImplTests {
         removeRefFromLocal(remotePath, ref);
     }
 
-    private String getGitConfig(Path repoPath, String configKey) throws Exception {
-        ProcessBuilder pb = new ProcessBuilder("git", "config", "--get", configKey);
+    private String getGitConfig(Path repoPath) throws Exception {
+        ProcessBuilder pb = new ProcessBuilder("git", "config", "--get", "notes.mergeStrategy");
         pb.directory(repoPath.toFile());
         pb.redirectErrorStream(true);
 

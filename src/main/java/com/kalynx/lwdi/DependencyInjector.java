@@ -1,11 +1,15 @@
 package com.kalynx.lwdi;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 import java.util.stream.Collectors;
 
 public class DependencyInjector {
+    private static final Logger logger = LoggerFactory.getLogger(DependencyInjector.class);
     private final Map<Class<?>, Object> registeredClasses = new HashMap<>();
 
     public <T> T add(T obj) throws AlreadyAddedException {
@@ -77,7 +81,7 @@ public class DependencyInjector {
             return selectedCtor.newInstance(params);
 
         } catch (InstantiationException|IllegalAccessException|InvocationTargetException e) {
-            e.printStackTrace();
+            logger.error("Failed to instantiate class {}: {}", clz.getName(), e.getMessage(), e);
             return null;
         }
     }

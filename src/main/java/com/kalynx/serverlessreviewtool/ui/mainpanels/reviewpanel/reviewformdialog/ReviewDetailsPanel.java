@@ -83,8 +83,8 @@ public class ReviewDetailsPanel extends ThemedPanel {
     }
 
     public void setOnModeChangeListener(Runnable listener) {
-        branchModeRadio.addActionListener(e -> listener.run());
-        commitModeRadio.addActionListener(e -> listener.run());
+        branchModeRadio.addActionListener(ignored -> listener.run());
+        commitModeRadio.addActionListener(ignored -> listener.run());
     }
 
     public boolean isBranchMode() {

@@ -82,7 +82,7 @@ public class DependencyInjectorTests {
     }
 
     @Test
-    public void inject_moreThanOneConstructorWithDIAnnotation_dependencyInjectionExceptionThrown() throws DependencyInjectionException {
+    public void inject_moreThanOneConstructorWithDIAnnotation_dependencyInjectionExceptionThrown() {
         DependencyInjector dependencyInjector = new DependencyInjector();
         Assertions.assertThrows(DIAnnotationException.class, () -> dependencyInjector.inject(SimpleClassWithMultipleDiAnnotation.class));
     }

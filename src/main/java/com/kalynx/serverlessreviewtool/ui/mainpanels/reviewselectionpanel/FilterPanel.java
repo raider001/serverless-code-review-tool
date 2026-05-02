@@ -61,7 +61,7 @@ public class FilterPanel extends ThemedPanel {
         titleFilterTextField.getDocument().addDocumentListener(textFieldListener);
         authorFilterTextField.getDocument().addDocumentListener(textFieldListener);
 
-        repositories.addActionListener(e -> debounceTimer.trigger());
+        repositories.addActionListener(ignored -> debounceTimer.trigger());
     }
 
     private void configureLayout() {
@@ -85,7 +85,7 @@ public class FilterPanel extends ThemedPanel {
     }
 
     private void setupRepositoryListener() {
-        repositoryManager.addListener(repos -> loadRepositories());
+        repositoryManager.addListener(ignored -> loadRepositories());
     }
 
     private void loadRepositories() {

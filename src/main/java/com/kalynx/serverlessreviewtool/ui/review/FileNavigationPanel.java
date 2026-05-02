@@ -206,7 +206,7 @@ public class FileNavigationPanel extends ThemedPanel {
                             break;
                     }
                 }
-            } else if (userObject instanceof String dirName) {
+            } else if (userObject instanceof String) {
                 // It's a folder
                 setText(value.toString());
                 setIcon(new FolderIcon(iconSize));

@@ -12,11 +12,15 @@ import com.kalynx.serverlessreviewtool.mockdata.ReviewItemMockData_Old;
 import com.kalynx.serverlessreviewtool.mockdata.UserMockData_Old;
 import com.kalynx.serverlessreviewtool.ui.MainFrame;
 import com.kalynx.serverlessreviewtool.ui.models.reviewpanel.reviewformdialog.ReviewFormModels;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 
 public class Main {
-    public static void main(String[] args) {
+    private static final Logger logger = LoggerFactory.getLogger(Main.class);
+
+    public static void main(String[] ignored) {
         System.out.println("ServerlessReviewTool - Java Application");
         System.out.println("Launching application...");
 
@@ -51,15 +55,13 @@ public class Main {
                     MainFrame frame = di.inject(MainFrame.class);
                     frame.setVisible(true);
                 } catch (Exception e) {
-                    System.err.println("Failed to create MainFrame: " + e.getMessage());
-                    e.printStackTrace();
+                    logger.error("Failed to create MainFrame: {}", e.getMessage(), e);
                     System.exit(1);
                 }
             });
 
         } catch (Exception e) {
-            System.err.println("Failed to initialize application: " + e.getMessage());
-            e.printStackTrace();
+            logger.error("Failed to initialize application: {}", e.getMessage(), e);
             System.exit(1);
         }
     }

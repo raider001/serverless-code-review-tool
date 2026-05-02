@@ -41,7 +41,7 @@ public class ReviewItemMockData_Old {
         // Demonstrate: 1 hour 20 minutes ago
         reviews.add(new ReviewItem(
             "Add unit tests for user service", "You", "backend-api",
-            ReviewStatus.COMPLETED, baseTime - (1L * 60 * 60 * 1000 + 20L * 60 * 1000)));
+            ReviewStatus.COMPLETED, baseTime - (60 * 60 * 1000 + 20L * 60 * 1000)));
 
         // Demonstrate: Last updated (15 days = 2+ weeks ago)
         reviews.add(new ReviewItem(
@@ -67,7 +67,7 @@ public class ReviewItemMockData_Old {
         // Demonstrate: 1 day ago
         reviews.add(new ReviewItem(
             "Fix memory leak in image processing", "Bob Johnson", "mobile-app",
-            ReviewStatus.OPEN, baseTime - (1L * 24 * 60 * 60 * 1000)));
+            ReviewStatus.OPEN, baseTime - (24 * 60 * 60 * 1000)));
 
         // Demonstrate: 45 minutes ago
         reviews.add(new ReviewItem(

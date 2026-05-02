@@ -10,7 +10,7 @@ public class SimpleClassWithMultipleDiAnnotation {
     }
 
     @DI
-    public SimpleClassWithMultipleDiAnnotation(SimpleClassWithoutAnnotation a) {
+    public SimpleClassWithMultipleDiAnnotation(SimpleClassWithoutAnnotation ignored) {
 
     }
 }

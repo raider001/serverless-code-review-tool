@@ -1,7 +1,6 @@
 package com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel.reviewformdialog;
 
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.*;
-import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;
@@ -48,7 +47,7 @@ public class ReviewersPanel extends ThemedPanel {
 
         ThemedButton addButton = new ThemedButton("Add");
         addButton.setPreferredSize(new Dimension(themeManager.scale(70), themeManager.scale(28)));
-        addButton.addActionListener(e -> {
+        addButton.addActionListener(ignored -> {
             Object selected = reviewerSelector.getSelectedItem();
             if (selected != null && !selected.toString().trim().isEmpty()) {
                 addReviewer(selected.toString());
