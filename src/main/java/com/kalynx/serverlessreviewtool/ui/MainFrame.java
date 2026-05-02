@@ -2,6 +2,7 @@ package com.kalynx.serverlessreviewtool.ui;
 
 import com.kalynx.lwdi.DI;
 import com.kalynx.serverlessreviewtool.configuration.SettingsManager;
+import com.kalynx.serverlessreviewtool.git.Git;
 import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
 import com.kalynx.serverlessreviewtool.managers.ReviewContextManager;
 import com.kalynx.serverlessreviewtool.managers.ReviewItemManager;
@@ -33,6 +34,7 @@ public class MainFrame extends ThemedFrame {
     private final ReviewItemManager reviewItemManager;
     private final ReviewContextManager reviewContextManager;
     private final ReviewFormModels reviewFormModels;
+    private final Git git;
 
     private ReviewSelectionPanel reviewSelectionPanel;
     private ReviewPanel reviewPanel;
@@ -47,7 +49,8 @@ public class MainFrame extends ThemedFrame {
             RepositoryManager repositoryManager,
             ReviewItemManager reviewItemManager,
             ReviewContextManager reviewContextManager,
-            ReviewFormModels reviewFormModels) {
+            ReviewFormModels reviewFormModels,
+            Git git) {
         super("Serverless Review Tool",
               settingsManager.getSettings().getWindow().getDefaultWidth(),
               settingsManager.getSettings().getWindow().getDefaultHeight());
@@ -57,6 +60,7 @@ public class MainFrame extends ThemedFrame {
         this.reviewItemManager = reviewItemManager;
         this.reviewContextManager = reviewContextManager;
         this.reviewFormModels = reviewFormModels;
+        this.git = git;
         setApplicationIcon(AppIcon.createIconImages());
         initializePanels();
         setupMenuItems();
@@ -83,8 +87,8 @@ public class MainFrame extends ThemedFrame {
     }
 
     private void initializePanels() {
-        reviewSelectionPanel = new ReviewSelectionPanel(repositoryManager, reviewItemManager, reviewFormModels);
-        reviewPanel = new ReviewPanel(reviewContextManager, repositoryManager, userManager, reviewFormModels);
+        reviewSelectionPanel = new ReviewSelectionPanel(repositoryManager, reviewItemManager, reviewFormModels, git);
+        reviewPanel = new ReviewPanel(reviewContextManager, repositoryManager, userManager, reviewFormModels, git);
         settingsPanel = new SettingsPanel(settingsManager);
         helpPanel = new HelpPanel();
     }

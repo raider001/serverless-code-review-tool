@@ -1,5 +1,6 @@
 package com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel;
 
+import com.kalynx.serverlessreviewtool.git.Git;
 import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
 import com.kalynx.serverlessreviewtool.models.Repository;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.*;
@@ -24,6 +25,7 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
     protected final ThemeManager themeManager;
     protected final ReviewFormModels models;
     protected final RepositoryManager repositoryManager;
+    protected final Git git;
     protected boolean confirmed = false;
 
     protected final ReviewDetailsPanel detailsPanel;
@@ -34,11 +36,13 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
     protected ReviewFormDialog(Component parent,
                                 String dialogTitle,
                                 ReviewFormModels models,
-                                RepositoryManager repositoryManager) {
+                                RepositoryManager repositoryManager,
+                                Git git) {
         super(parent, dialogTitle);
         this.themeManager = ThemeManager.getInstance();
         this.models = models;
         this.repositoryManager = repositoryManager;
+        this.git = git;
 
         this.detailsPanel = new ReviewDetailsPanel(
             models.title,
@@ -46,7 +50,11 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
             models.summary,
             models.mode
         );
-        this.sourcePanel = new SourcePanel(models.availableBranches);
+        this.sourcePanel = new SourcePanel(
+            models.availableBranches,
+            models.selectedRepositories,
+            git
+        );
         this.repositoriesPanel = new RepositoriesPanel(
             models.availableRepositories,
             models.selectedRepositories
@@ -90,7 +98,7 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
     private void setupListeners() {
         detailsPanel.setOnModeChangeListener(() -> sourcePanel.updateMode(detailsPanel.isBranchMode()));
 
-        models.selectedRepositories.addChangeListener(this::updateAvailableBranches);
+        models.selectedRepositories.addChangeListener(repos -> SwingUtilities.invokeLater(() -> updateAvailableBranches(repos)));
         updateAvailableBranches(models.selectedRepositories.getValue());
     }
 
@@ -179,6 +187,8 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
 
 
     private void handleSubmit() {
+        printReviewFormModels();
+
         if (detailsPanel.getTitle().trim().isEmpty()) {
             warn("Please enter a title for the review");
             return;
@@ -208,6 +218,20 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
 
     private void warn(String msg) {
         JOptionPane.showMessageDialog(this, msg, "Validation Error", JOptionPane.WARNING_MESSAGE);
+    }
+
+    private void printReviewFormModels() {
+        System.out.println("=== ReviewFormModels Values ===");
+        System.out.println("Title: " + models.title.getValue());
+        System.out.println("Author: " + models.author.getValue());
+        System.out.println("Summary: " + models.summary.getValue());
+        System.out.println("Mode: " + models.mode.getValue());
+        System.out.println("Available Branches: " + models.availableBranches.getValue());
+        System.out.println("Selected Repositories: " + models.selectedRepositories.getValue());
+        System.out.println("Available Repositories: " + models.availableRepositories.getValue());
+        System.out.println("Selected Reviewers: " + models.selectedReviewers.getValue());
+        System.out.println("Available Reviewers: " + models.availableReviewers.getValue());
+        System.out.println("===============================");
     }
 
     public boolean isConfirmed() {

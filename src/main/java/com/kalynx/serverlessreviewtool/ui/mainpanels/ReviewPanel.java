@@ -1,5 +1,6 @@
 package com.kalynx.serverlessreviewtool.ui.mainpanels;
 
+import com.kalynx.serverlessreviewtool.git.Git;
 import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
 import com.kalynx.serverlessreviewtool.managers.ReviewContextManager;
 import com.kalynx.serverlessreviewtool.managers.UserManager;
@@ -28,10 +29,14 @@ public class ReviewPanel extends ThemedPanel {
     private final CodePanel codePanel;
     private final RejectApprovePanel rejectApprovePanel = new RejectApprovePanel();
 
-    public ReviewPanel(ReviewContextManager reviewContextManager, RepositoryManager repositoryManager, UserManager userManager, ReviewFormModels reviewFormModels) {
+    public ReviewPanel(ReviewContextManager reviewContextManager,
+                      RepositoryManager repositoryManager,
+                      UserManager userManager,
+                      ReviewFormModels reviewFormModels,
+                      Git git) {
         this.reviewContextManager = reviewContextManager;
         this.repositoryManager = repositoryManager;
-        this.reviewDetailPanel = new ReviewDetailPanel(reviewContextManager, reviewFormModels, repositoryManager);
+        this.reviewDetailPanel = new ReviewDetailPanel(reviewContextManager, reviewFormModels, repositoryManager, git);
         this.codePanel = new CodePanel(reviewContextManager);
         initializeSampleReviewContext();
         configureLayout();

@@ -54,7 +54,7 @@ public class RepositoriesPanel extends ThemedPanel {
     private void setupBindings() {
         repositorySelector.bindTo(availableRepositoriesModel);
 
-        selectedRepositoriesModel.addChangeListener(ignored -> updateBadges());
+        selectedRepositoriesModel.addChangeListener(ignored -> SwingUtilities.invokeLater(this::updateBadges));
 
         updateBadges();
 

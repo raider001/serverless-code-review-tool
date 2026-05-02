@@ -1,5 +1,6 @@
 package com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel;
 
+import com.kalynx.serverlessreviewtool.git.Git;
 import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
 import com.kalynx.serverlessreviewtool.managers.ReviewContextManager;
 import com.kalynx.serverlessreviewtool.models.ReviewContext;
@@ -33,6 +34,7 @@ public class ReviewDetailPanel extends ThemedPanel {
     private final ReviewContextManager reviewContextManager;
     private final ReviewFormModels reviewFormModels;
     private final RepositoryManager repositoryManager;
+    private final Git git;
 
     private final ThemedBadge headerStatusBadge = new ThemedBadge("Status").setCustomColor(Color.DARK_GRAY);
     private final ThemedLabel titleLabel = new ThemedLabel("");
@@ -46,10 +48,12 @@ public class ReviewDetailPanel extends ThemedPanel {
 
     public ReviewDetailPanel(ReviewContextManager reviewContextManager,
                             ReviewFormModels reviewFormModels,
-                            RepositoryManager repositoryManager) {
+                            RepositoryManager repositoryManager,
+                            Git git) {
         this.reviewContextManager = reviewContextManager;
         this.reviewFormModels = reviewFormModels;
         this.repositoryManager = repositoryManager;
+        this.git = git;
         configureLayout();
         configureReviewContextListeners();
         setupListeners();
@@ -70,9 +74,9 @@ public class ReviewDetailPanel extends ThemedPanel {
     }
 
     private void configureReviewContextListeners() {
-        reviewContextManager.addListener(context -> setLabelText(titleLabel, () -> context.title));
-        reviewContextManager.addListener(context -> setLabelText(authorLabel, () -> context.author));
-        reviewContextManager.addListener(context -> setLabelText(summaryLabel, () -> context.summary));
+        reviewContextManager.addListener(context -> setLabelText(titleLabel, () -> context == null ? "" : context.title));
+        reviewContextManager.addListener(context -> setLabelText(authorLabel, () -> context == null ? "" : context.author));
+        reviewContextManager.addListener(context -> setLabelText(summaryLabel, () -> context == null ? "" : context.summary));
         reviewContextManager.addListener(this::updateStatusBadge);
         reviewContextManager.addListener(this::updateReviewers);
         reviewContextManager.addListener(ignored -> updateButtonStates());
@@ -151,7 +155,8 @@ public class ReviewDetailPanel extends ThemedPanel {
             SwingUtilities.getWindowAncestor(this),
             context,
             reviewFormModels,
-            repositoryManager
+            repositoryManager,
+            git
         );
         dialog.setVisible(true);
 

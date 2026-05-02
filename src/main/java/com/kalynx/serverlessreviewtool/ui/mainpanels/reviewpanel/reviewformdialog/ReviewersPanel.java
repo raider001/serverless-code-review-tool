@@ -54,7 +54,7 @@ public class ReviewersPanel extends ThemedPanel {
     private void setupBindings() {
         reviewerSelector.bindTo(availableReviewersModel);
 
-        selectedReviewersModel.addChangeListener(ignored -> updateBadges());
+        selectedReviewersModel.addChangeListener(ignored -> SwingUtilities.invokeLater(this::updateBadges));
 
         updateBadges();
 

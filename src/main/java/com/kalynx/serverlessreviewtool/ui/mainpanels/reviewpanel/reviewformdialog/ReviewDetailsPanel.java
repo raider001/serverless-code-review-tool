@@ -65,31 +65,39 @@ public class ReviewDetailsPanel extends ThemedPanel {
                               ComponentModel<String> summaryModel,
                               ComponentModel<ReviewFormModels.ReviewMode> modeModel) {
         titleModel.addChangeListener(value -> {
-            updatingFromModel = true;
-            titleField.setText(value != null ? value : "");
-            updatingFromModel = false;
+            SwingUtilities.invokeLater(() -> {
+                updatingFromModel = true;
+                titleField.setText(value != null ? value : "");
+                updatingFromModel = false;
+            });
         });
 
         authorModel.addChangeListener(value -> {
-            updatingFromModel = true;
-            authorField.setText(value != null ? value : "");
-            updatingFromModel = false;
+            SwingUtilities.invokeLater(() -> {
+                updatingFromModel = true;
+                authorField.setText(value != null ? value : "");
+                updatingFromModel = false;
+            });
         });
 
         summaryModel.addChangeListener(value -> {
-            updatingFromModel = true;
-            summaryArea.setText(value != null ? value : "");
-            updatingFromModel = false;
+            SwingUtilities.invokeLater(() -> {
+                updatingFromModel = true;
+                summaryArea.setText(value != null ? value : "");
+                updatingFromModel = false;
+            });
         });
 
         modeModel.addChangeListener(mode -> {
-            updatingFromModel = true;
-            if (mode == ReviewFormModels.ReviewMode.BRANCH) {
-                branchModeRadio.setSelected(true);
-            } else {
-                commitModeRadio.setSelected(true);
-            }
-            updatingFromModel = false;
+            SwingUtilities.invokeLater(() -> {
+                updatingFromModel = true;
+                if (mode == ReviewFormModels.ReviewMode.BRANCH) {
+                    branchModeRadio.setSelected(true);
+                } else {
+                    commitModeRadio.setSelected(true);
+                }
+                updatingFromModel = false;
+            });
         });
 
         titleField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {

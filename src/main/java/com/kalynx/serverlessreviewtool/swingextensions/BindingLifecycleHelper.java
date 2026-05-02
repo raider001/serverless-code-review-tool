@@ -41,10 +41,12 @@ public class BindingLifecycleHelper {
         setText.accept(model.getValue() != null ? model.getValue() : "");
 
         binding.modelChangeListener = value -> {
-            String newValue = value != null ? value : "";
-            if (!getText.get().equals(newValue)) {
-                setText.accept(newValue);
-            }
+            SwingUtilities.invokeLater(() -> {
+                String newValue = value != null ? value : "";
+                if (!getText.get().equals(newValue)) {
+                    setText.accept(newValue);
+                }
+            });
         };
         model.addChangeListener(binding.modelChangeListener);
 
@@ -88,8 +90,10 @@ public class BindingLifecycleHelper {
         if (optionsModel != null) {
             updateComboBoxOptions(comboBox, optionsModel.getValue());
 
-            binding.optionsChangeListener = options ->
-                updateComboBoxOptions(comboBox, options);
+            binding.optionsChangeListener = options -> {
+                SwingUtilities.invokeLater(() ->
+                    updateComboBoxOptions(comboBox, options));
+            };
             optionsModel.addChangeListener(binding.optionsChangeListener);
         }
 
@@ -97,9 +101,11 @@ public class BindingLifecycleHelper {
             comboBox.setSelectedItem(valueModel.getValue());
 
             binding.valueChangeListener = value -> {
-                if (!areEqual(comboBox.getSelectedItem(), value)) {
-                    comboBox.setSelectedItem(value);
-                }
+                SwingUtilities.invokeLater(() -> {
+                    if (!areEqual(comboBox.getSelectedItem(), value)) {
+                        comboBox.setSelectedItem(value);
+                    }
+                });
             };
             valueModel.addChangeListener(binding.valueChangeListener);
 
@@ -147,10 +153,12 @@ public class BindingLifecycleHelper {
         checkBox.setSelected(model.getValue() != null ? model.getValue() : false);
 
         binding.modelChangeListener = value -> {
-            boolean newValue = value != null ? value : false;
-            if (checkBox.isSelected() != newValue) {
-                checkBox.setSelected(newValue);
-            }
+            SwingUtilities.invokeLater(() -> {
+                boolean newValue = value != null ? value : false;
+                if (checkBox.isSelected() != newValue) {
+                    checkBox.setSelected(newValue);
+                }
+            });
         };
         model.addChangeListener(binding.modelChangeListener);
 
@@ -190,10 +198,12 @@ public class BindingLifecycleHelper {
         radioButton.setSelected(areEqual(model.getValue(), valueWhenSelected));
 
         binding.modelChangeListener = value -> {
-            boolean shouldBeSelected = areEqual(value, valueWhenSelected);
-            if (radioButton.isSelected() != shouldBeSelected) {
-                radioButton.setSelected(shouldBeSelected);
-            }
+            SwingUtilities.invokeLater(() -> {
+                boolean shouldBeSelected = areEqual(value, valueWhenSelected);
+                if (radioButton.isSelected() != shouldBeSelected) {
+                    radioButton.setSelected(shouldBeSelected);
+                }
+            });
         };
         model.addChangeListener(binding.modelChangeListener);
 
@@ -254,14 +264,16 @@ public class BindingLifecycleHelper {
         BadgeListBinding binding = new BadgeListBinding();
 
         binding.listChangeListener = items -> {
-            badgePanel.removeAll();
-            if (items != null) {
-                for (String item : items) {
-                    badgePanel.add(badgeFactory.apply(item));
+            SwingUtilities.invokeLater(() -> {
+                badgePanel.removeAll();
+                if (items != null) {
+                    for (String item : items) {
+                        badgePanel.add(badgeFactory.apply(item));
+                    }
                 }
-            }
-            badgePanel.revalidate();
-            badgePanel.repaint();
+                badgePanel.revalidate();
+                badgePanel.repaint();
+            });
         };
         listModel.addChangeListener(binding.listChangeListener);
 

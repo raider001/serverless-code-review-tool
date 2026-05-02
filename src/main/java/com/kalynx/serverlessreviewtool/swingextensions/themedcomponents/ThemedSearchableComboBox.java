@@ -211,7 +211,7 @@ public class ThemedSearchableComboBox extends JComboBox<String> {
 
         optionsChangeListener = options -> {
             if (options != null) {
-                setValues(options);
+                SwingUtilities.invokeLater(() -> setValues(options));
             }
         };
         optionsModel.addChangeListener(optionsChangeListener);

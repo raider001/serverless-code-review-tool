@@ -1,5 +1,6 @@
 package com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel.reviewformdialog;
 
+import com.kalynx.serverlessreviewtool.git.Git;
 import com.kalynx.serverlessreviewtool.swingextensions.ComponentModel;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.*;
 import net.miginfocom.swing.MigLayout;
@@ -8,19 +9,29 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 public class SourcePanel extends ThemedPanel {
 
     private static final int GAP = 12;
     private static final int FIELD_H = 28;
 
+    private final Git git;
+    private final ComponentModel<List<String>> selectedRepositoriesModel;
     private final ThemedPanel modeSpecificPanel;
     private final ThemedSearchableComboBox branchNameField;
     private final ThemedSearchableComboBox reviewAgainstBranchCombo;
     private final ThemedSearchableComboBox commitBranchFilterCombo;
     private final ThemedList<String> commitSelectionList;
+    private final DefaultListModel<String> commitListModel;
 
-    public SourcePanel(ComponentModel<List<String>> availableBranchesModel) {
+    public SourcePanel(ComponentModel<List<String>> availableBranchesModel,
+                      ComponentModel<List<String>> selectedRepositoriesModel,
+                      Git git) {
+        this.git = git;
+        this.selectedRepositoriesModel = selectedRepositoriesModel;
+
         setLayout(new MigLayout("fill, insets 10 12 12 12", "[grow,fill]", "[grow,fill]"));
         setBorder(ThemedTitledBorder.create("Source"));
 
@@ -39,16 +50,7 @@ public class SourcePanel extends ThemedPanel {
         commitBranchFilterCombo.setPreferredSize(new Dimension(0, themeManager.scale(FIELD_H)));
         commitBranchFilterCombo.bindTo(availableBranchesModel);
 
-        DefaultListModel<String> commitListModel = new DefaultListModel<>();
-        for (String c : new String[]{
-            "abc1234 - Fix authentication issue",
-            "def5678 - Add dark mode support",
-            "ghi9012 - Update dependencies",
-            "jkl3456 - Refactor UI components",
-            "mno7890 - Optimize database queries"}) {
-            commitListModel.addElement(c);
-        }
-
+        commitListModel = new DefaultListModel<>();
         commitSelectionList = new ThemedList<>(commitListModel);
         commitSelectionList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         commitSelectionList.setVisibleRowCount(4);
@@ -57,6 +59,62 @@ public class SourcePanel extends ThemedPanel {
         modeSpecificPanel.setLayout(new MigLayout("fill, insets 0", "[grow,fill]", "[grow,fill]"));
 
         add(modeSpecificPanel, "grow");
+
+        setupListeners();
+    }
+
+    private void setupListeners() {
+        commitBranchFilterCombo.addActionListener(e -> loadCommitsForSelectedBranch());
+
+        selectedRepositoriesModel.addChangeListener(ignored -> SwingUtilities.invokeLater(this::loadCommitsForSelectedBranch));
+    }
+
+    private void loadCommitsForSelectedBranch() {
+        Object selectedBranch = commitBranchFilterCombo.getSelectedItem();
+        List<String> selectedRepos = selectedRepositoriesModel.getValue();
+
+        if (selectedBranch == null || selectedRepos == null || selectedRepos.isEmpty()) {
+            commitListModel.clear();
+            return;
+        }
+
+        String branch = selectedBranch.toString();
+        if (branch.equals("All Branches")) {
+            commitListModel.clear();
+            return;
+        }
+
+        loadCommitsFromRepositories(selectedRepos, branch);
+    }
+
+    private void loadCommitsFromRepositories(List<String> repositories, String branch) {
+        commitListModel.clear();
+
+        List<CompletableFuture<List<String>>> commitFutures = repositories.stream()
+            .map(repo -> git.listCommits(repo, "origin/" + branch, 50)
+                .exceptionally(ex -> {
+                    System.err.println("Failed to load commits for " + repo + " on branch " + branch + ": " + ex.getMessage());
+                    return new ArrayList<>();
+                }))
+            .collect(Collectors.toList());
+
+        CompletableFuture.allOf(commitFutures.toArray(new CompletableFuture[0]))
+            .thenApply(ignored -> commitFutures.stream()
+                .map(CompletableFuture::join)
+                .flatMap(List::stream)
+                .distinct()
+                .sorted()
+                .collect(Collectors.toList()))
+            .thenAccept(commits -> SwingUtilities.invokeLater(() -> {
+                commitListModel.clear();
+                for (String commit : commits) {
+                    commitListModel.addElement(commit);
+                }
+            }))
+            .exceptionally(ex -> {
+                System.err.println("Failed to load commits: " + ex.getMessage());
+                return null;
+            });
     }
 
     public void updateMode(boolean branchMode) {
