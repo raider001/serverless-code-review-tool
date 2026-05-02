@@ -15,8 +15,8 @@ public class SourcePanel extends ThemedPanel {
 
     private final ThemedPanel modeSpecificPanel;
     private final ThemedTextField branchNameField;
-    private final ThemedComboBox<String> reviewAgainstBranchCombo;
-    private final ThemedComboBox<String> commitBranchFilterCombo;
+    private final ThemedSearchableComboBox reviewAgainstBranchCombo;
+    private final ThemedSearchableComboBox commitBranchFilterCombo;
     private final ThemedList<String> commitSelectionList;
 
     public SourcePanel() {
@@ -27,12 +27,14 @@ public class SourcePanel extends ThemedPanel {
         branchNameField.setToolTipText("Enter the branch name to review");
         branchNameField.setPreferredSize(new Dimension(0, themeManager.scale(FIELD_H)));
 
-        reviewAgainstBranchCombo = new ThemedComboBox<>(
-            new String[]{"main", "develop", "staging", "release/v1.0"});
+        reviewAgainstBranchCombo = new ThemedSearchableComboBox(
+            List.of("main", "develop", "staging", "release/v1.0"));
+        reviewAgainstBranchCombo.setToolTipText("Search for a branch to review against");
         reviewAgainstBranchCombo.setPreferredSize(new Dimension(0, themeManager.scale(FIELD_H)));
 
-        commitBranchFilterCombo = new ThemedComboBox<>(
-            new String[]{"All Branches", "main", "develop", "feature/auth", "feature/ui", "release/v1.0"});
+        commitBranchFilterCombo = new ThemedSearchableComboBox(
+            List.of("All Branches", "main", "develop", "feature/auth", "feature/ui", "release/v1.0"));
+        commitBranchFilterCombo.setToolTipText("Search for a branch to filter commits");
         commitBranchFilterCombo.setPreferredSize(new Dimension(0, themeManager.scale(FIELD_H)));
 
         DefaultListModel<String> commitListModel = new DefaultListModel<>();

@@ -1,6 +1,7 @@
 package com.kalynx.serverlessreviewtool.managers;
 
 import com.kalynx.serverlessreviewtool.models.User;
+import com.kalynx.serverlessreviewtool.ui.models.reviewpanel.reviewformdialog.ReviewFormModels;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -18,7 +19,7 @@ public class UserManager {
 
     private final Set<Consumer<List<User>>> listeners = new HashSet<>();
 
-    public UserManager() {
+    public UserManager(ReviewFormModels reviewFormModels) {
     }
 
     public void updateUsers(List<User> users) {
@@ -31,7 +32,9 @@ public class UserManager {
     }
 
     public void addListener(Consumer<List<User>> listener) {
+
         listeners.add(listener);
+        listener.accept(List.copyOf(users));
     }
 
     public void removeListener(Consumer<List<User>> listener) {

@@ -27,7 +27,6 @@ public class ReviewFormModels {
     public final ComponentModel<List<String>> availableCommits = new ComponentModel<>();
 
     public ReviewFormModels() {
-        initializeDefaults();
     }
 
     private void initializeDefaults() {
@@ -41,8 +40,6 @@ public class ReviewFormModels {
         selectedCommits.setValue(new ArrayList<>());
         selectedRepositories.setValue(new ArrayList<>());
         selectedReviewers.setValue(new ArrayList<>());
-        availableBranches.setValue(new ArrayList<>());
-        availableCommits.setValue(new ArrayList<>());
     }
 
     public void clear() {

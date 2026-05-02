@@ -141,7 +141,8 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
             return;
         }
 
-        if (!reviewersPanel.hasSelection()) {
+        List<String> reviewers = models.selectedReviewers.getValue();
+        if (reviewers == null || reviewers.isEmpty()) {
             warn("Please select at least one reviewer");
             return;
         }
@@ -191,10 +192,6 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
 
     public String getSelectedBranchFilter() {
         return sourcePanel.getSelectedBranchFilter();
-    }
-
-    public List<String> getSelectedReviewers() {
-        return reviewersPanel.getSelectedReviewers();
     }
 
     protected abstract String getSubmitButtonLabel();

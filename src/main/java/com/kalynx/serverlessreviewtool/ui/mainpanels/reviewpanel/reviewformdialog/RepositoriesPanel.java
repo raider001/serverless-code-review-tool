@@ -1,5 +1,6 @@
 package com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel.reviewformdialog;
 
+import com.kalynx.serverlessreviewtool.swingextensions.BindingLifecycleHelper;
 import com.kalynx.serverlessreviewtool.swingextensions.ComponentModel;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.*;
 import net.miginfocom.swing.MigLayout;
@@ -53,13 +54,13 @@ public class RepositoriesPanel extends ThemedPanel {
     private void setupBindings() {
         repositorySelector.bindTo(availableRepositoriesModel);
 
-        selectedRepositoriesModel.addChangeListener(repos -> updateBadges());
+        selectedRepositoriesModel.addChangeListener(ignored -> updateBadges());
 
         updateBadges();
 
         repositorySelector.setOnApply(item -> {
             if (item != null && !item.trim().isEmpty()) {
-                addRepository(item);
+                BindingLifecycleHelper.addToBadgeList(selectedRepositoriesModel, item);
                 repositorySelector.setSelectedIndex(-1);
             }
         });
@@ -67,31 +68,10 @@ public class RepositoriesPanel extends ThemedPanel {
         addButton.addActionListener(ignored -> {
             Object selected = repositorySelector.getSelectedItem();
             if (selected != null && !selected.toString().trim().isEmpty()) {
-                addRepository(selected.toString());
+                BindingLifecycleHelper.addToBadgeList(selectedRepositoriesModel, selected.toString());
                 repositorySelector.setSelectedIndex(-1);
             }
         });
-    }
-
-    private void addRepository(String repository) {
-        List<String> current = selectedRepositoriesModel.getValue();
-        if (current == null) {
-            current = new ArrayList<>();
-        }
-        if (!current.contains(repository)) {
-            List<String> updated = new ArrayList<>(current);
-            updated.add(repository);
-            selectedRepositoriesModel.setValue(updated);
-        }
-    }
-
-    private void removeRepository(String repository) {
-        List<String> current = selectedRepositoriesModel.getValue();
-        if (current != null) {
-            List<String> updated = new ArrayList<>(current);
-            updated.remove(repository);
-            selectedRepositoriesModel.setValue(updated);
-        }
     }
 
     private void updateBadges() {
@@ -99,7 +79,8 @@ public class RepositoriesPanel extends ThemedPanel {
         List<String> selected = selectedRepositoriesModel.getValue();
         if (selected != null) {
             for (String item : selected) {
-                badgesPanel.add(new ThemedBadge(item, () -> removeRepository(item)));
+                badgesPanel.add(new ThemedBadge(item, () ->
+                    BindingLifecycleHelper.removeFromBadgeList(selectedRepositoriesModel, item)));
             }
         }
         badgesPanel.revalidate();
