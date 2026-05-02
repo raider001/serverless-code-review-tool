@@ -17,6 +17,8 @@ import java.awt.*;
  * Uses themed components for consistent styling
  */
 public class RepositoryConfigDialog extends ThemedPopupDialog {
+    private static final long serialVersionUID = 1L;
+    
     private final ThemedTextField nameField;
     private final ThemedTextField urlField;
     private final ThemedSpinner intervalSpinner;

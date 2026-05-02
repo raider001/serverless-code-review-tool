@@ -13,8 +13,10 @@ import java.awt.event.KeyEvent;
  * Uses ThemedPopupDialog and theme components for consistent styling
  */
 public class CommentPopup extends ThemedPopupDialog {
-    private final JTextArea commentTextArea;
-    private ActionListener submitCallback;
+    private static final long serialVersionUID = 1L;
+    
+    private transient final JTextArea commentTextArea;
+    private transient ActionListener submitCallback;
 
     public CommentPopup(Component parent, String initialText) {
         super(parent, "Add Comment");

@@ -4,6 +4,7 @@ package com.kalynx.serverlessreviewtool.git;
  * GitException indicates a git operation has failed.
  */
 public class GitException extends Exception {
+    private static final long serialVersionUID = 1L;
 
     /**
      * Creates a GitException with a message.

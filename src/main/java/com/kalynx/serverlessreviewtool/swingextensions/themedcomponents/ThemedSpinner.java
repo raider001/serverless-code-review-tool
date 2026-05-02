@@ -12,7 +12,9 @@ import java.awt.*;
  * Uses a custom UI similar to ThemedComboBox for seamless theme integration
  */
 public class ThemedSpinner extends JSpinner {
-    private final ThemeManager themeManager;
+    private static final long serialVersionUID = 1L;
+    
+    private transient final ThemeManager themeManager;
 
     public ThemedSpinner() {
         super();

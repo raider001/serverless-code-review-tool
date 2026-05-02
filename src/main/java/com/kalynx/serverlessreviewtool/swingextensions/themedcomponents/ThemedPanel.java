@@ -12,8 +12,9 @@ import java.awt.*;
  * Colors are queried on-demand during paint for automatic theme updates
  */
 public class ThemedPanel extends JPanel {
+    private static final long serialVersionUID = 1L;
     
-    protected final ThemeManager themeManager;
+    protected transient final ThemeManager themeManager;
     
     public ThemedPanel() {
         super();

@@ -23,15 +23,16 @@ import java.util.List;
  * FileNavigationPanel - Tree view for navigating files across multiple repositories
  */
 public class FileNavigationPanel extends ThemedPanel {
+    private static final long serialVersionUID = 1L;
 
-    private final ReviewContextManager reviewContextManager;
-    private final ThemeManager themeManager = ThemeManager.getInstance();
-    private final List<FileSelectionListener> listeners = new ArrayList<>();
+    private transient final ReviewContextManager reviewContextManager;
+    private transient final ThemeManager themeManager = ThemeManager.getInstance();
+    private transient final List<FileSelectionListener> listeners = new ArrayList<>();
 
     private ThemedTree fileTree;
     private DefaultTreeModel treeModel;
     private DefaultMutableTreeNode rootNode;
-    private ReviewContext currentReviewContext;
+    private transient ReviewContext currentReviewContext;
 
     public FileNavigationPanel(ReviewContextManager reviewContextManager) {
         this.reviewContextManager = reviewContextManager;
@@ -141,6 +142,7 @@ public class FileNavigationPanel extends ThemedPanel {
 
     // File tree cell renderer
     private class FileTreeCellRenderer extends DefaultTreeCellRenderer {
+        private static final long serialVersionUID = 1L;
 
         @Override
         public Component getTreeCellRendererComponent(JTree tree, Object value, boolean sel, boolean expanded,

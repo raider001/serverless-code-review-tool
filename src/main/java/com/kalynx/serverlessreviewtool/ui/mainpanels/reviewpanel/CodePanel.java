@@ -18,15 +18,16 @@ import java.util.List;
  * Displays the code review interface with commit comparison, file diffs, and inline comment management
  */
 public class CodePanel extends ThemedPanel {
+    private static final long serialVersionUID = 1L;
 
-    private final ReviewContextManager reviewContextManager;
+    private transient final ReviewContextManager reviewContextManager;
 
     private final CommitSelectorPanel commitSelectorPanel;
     private final FileNavigationPanel fileNavigationPanel;
     private final DiffViewerPanel diffViewerPanel = new DiffViewerPanel();
     private final ThemedSplitPane fileAndDiffSplitPane = new ThemedSplitPane(JSplitPane.HORIZONTAL_SPLIT);
 
-    private ReviewFile currentFile;
+    private transient ReviewFile currentFile;
 
     public CodePanel(ReviewContextManager reviewContextManager) {
         this.reviewContextManager = reviewContextManager;

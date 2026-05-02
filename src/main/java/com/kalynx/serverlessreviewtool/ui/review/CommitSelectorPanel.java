@@ -22,14 +22,15 @@ import java.util.List;
  * with commit hashes displayed above as notches
  */
 public class CommitSelectorPanel extends ThemedPanel {
+    private static final long serialVersionUID = 1L;
 
-    private final ReviewContextManager reviewContextManager;
+    private transient final ReviewContextManager reviewContextManager;
 
     private ThemedComboBox<DiffViewMode> viewModeComboBox;
     private CommitSliderPanel commitSliderPanel;
 
-    private final List<CommitRangeListener> commitRangeListeners = new ArrayList<>();
-    private final List<ViewModeListener> viewModeListeners = new ArrayList<>();
+    private transient final List<CommitRangeListener> commitRangeListeners = new ArrayList<>();
+    private transient final List<ViewModeListener> viewModeListeners = new ArrayList<>();
 
     public CommitSelectorPanel(ReviewContextManager reviewContextManager) {
         this.reviewContextManager = reviewContextManager;
@@ -125,7 +126,9 @@ public class CommitSelectorPanel extends ThemedPanel {
      * Custom slider panel with two thumbs for selecting commit range
      */
     private class CommitSliderPanel extends ThemedPanel {
-        private List<Commit> commits = new ArrayList<>();
+        private static final long serialVersionUID = 1L;
+
+        private transient List<Commit> commits = new ArrayList<>();
         private int startIndex = 0;
         private int endIndex = 0;
         private int dragThumb = -1;

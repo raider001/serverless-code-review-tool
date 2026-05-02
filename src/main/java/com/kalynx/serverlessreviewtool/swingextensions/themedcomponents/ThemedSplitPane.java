@@ -13,8 +13,9 @@ import javax.swing.plaf.basic.BasicSplitPaneUI;
  * ThemedSplitPane - A modern, theme-aware split pane component with styled divider
  */
 public class ThemedSplitPane extends JSplitPane {
+    private static final long serialVersionUID = 1L;
 
-    private final ThemeManager themeManager;
+    private transient final ThemeManager themeManager;
 
     public ThemedSplitPane(int orientation) {
         super(orientation);

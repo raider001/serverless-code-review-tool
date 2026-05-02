@@ -13,14 +13,15 @@ import java.awt.event.MouseEvent;
  * Provides navigation options and settings
  */
 public class SlideOutMenu extends ThemedPanel {
+    private static final long serialVersionUID = 1L;
 
-    private final ThemeManager themeManager;
+    private transient final ThemeManager themeManager;
     private final JFrame parentFrame;
     private final int menuWidth;
     private boolean isOpen = false;
-    private Timer animationTimer;
+    private transient Timer animationTimer;
     private int currentX;
-    private final int animationSpeed = 20; // pixels per frame
+    private final int animationSpeed = 20;
     private ThemedPanel overlayPanel;
     private final ThemedPanel menuContentPanel;
 

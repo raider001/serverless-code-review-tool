@@ -10,6 +10,7 @@ import java.awt.*;
  * This shows the simplicity of creating new application windows
  */
 public class ExampleForm extends ThemedFrame {
+    private static final long serialVersionUID = 1L;
 
     public ExampleForm() {
         super("Example Application Form", 800, 600);

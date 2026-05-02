@@ -14,8 +14,9 @@ import java.util.Vector;
  * ThemedTree - A theme-aware JTree component with automatic theme color updates
  */
 public class ThemedTree extends JTree {
+    private static final long serialVersionUID = 1L;
 
-    private final ThemeManager themeManager;
+    private transient final ThemeManager themeManager;
 
     public ThemedTree() {
         super();

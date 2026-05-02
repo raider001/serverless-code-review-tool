@@ -11,8 +11,9 @@ import java.awt.*;
  * A themed confirmation dialog with custom title bar
  */
 public class ThemedConfirmDialog extends JDialog {
+    private static final long serialVersionUID = 1L;
     
-    private final ThemeManager themeManager = ThemeManager.getInstance();
+    private transient final ThemeManager themeManager = ThemeManager.getInstance();
     private boolean confirmed = false;
     
     public ThemedConfirmDialog(Window owner, String title, String message, boolean messageOnly) {

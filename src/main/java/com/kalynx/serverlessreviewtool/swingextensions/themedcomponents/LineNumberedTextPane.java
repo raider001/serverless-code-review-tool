@@ -22,8 +22,9 @@ import java.util.function.Consumer;
  * This component should be wrapped in a scroll pane by the parent container
  */
 public class LineNumberedTextPane extends ThemedPanel {
+    private static final long serialVersionUID = 1L;
 
-    private final ThemeManager themeManager;
+    private transient final ThemeManager themeManager;
     private final ThemedTextPane textPane;
     private final LineNumberPanel lineNumberPanel;
 
@@ -31,12 +32,12 @@ public class LineNumberedTextPane extends ThemedPanel {
     private static final int FONT_SIZE_BASE = 14;
     private final int scaledFontSize;
 
-    private final Set<Integer> addedLines = new HashSet<>();
-    private final Set<Integer> removedLines = new HashSet<>();
-    private final Set<Integer> modifiedLines = new HashSet<>();
-    private final Map<Integer, List<ReviewComment>> lineComments = new HashMap<>();
+    private transient final Set<Integer> addedLines = new HashSet<>();
+    private transient final Set<Integer> removedLines = new HashSet<>();
+    private transient final Set<Integer> modifiedLines = new HashSet<>();
+    private transient final Map<Integer, List<ReviewComment>> lineComments = new HashMap<>();
 
-    private Consumer<Integer> onLineDoubleClick;
+    private transient Consumer<Integer> onLineDoubleClick;
 
     public LineNumberedTextPane() {
         this.themeManager = ThemeManager.getInstance();
@@ -267,6 +268,7 @@ public class LineNumberedTextPane extends ThemedPanel {
      * Visible for use as a row header in external scroll panes
      */
     public class LineNumberPanel extends JPanel {
+        private static final long serialVersionUID = 1L;
         private static final int RIGHT_MARGIN = 8;
         private static final int ICON_SPACE = 20;
 

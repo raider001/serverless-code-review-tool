@@ -12,10 +12,12 @@ import java.awt.*;
  * ThemedCheckBox - A theme-aware checkbox component
  */
 public class ThemedCheckBox extends JCheckBox {
-    private final ThemeManager themeManager;
+    private static final long serialVersionUID = 1L;
 
-    private ComponentModel<Boolean> model;
-    private BindingLifecycleHelper.CheckBoxBinding binding;
+    private transient final ThemeManager themeManager;
+
+    private transient ComponentModel<Boolean> model;
+    private transient BindingLifecycleHelper.CheckBoxBinding binding;
 
     public ThemedCheckBox(String text) {
         super(text);

@@ -16,8 +16,9 @@ import java.awt.*;
  * DiffViewerPanel - Shows file diffs in side-by-side or unified mode
  */
 public class DiffViewerPanel extends ThemedPanel {
+    private static final long serialVersionUID = 1L;
 
-    private final ThemeManager themeManager = ThemeManager.getInstance();
+    private transient final ThemeManager themeManager = ThemeManager.getInstance();
 
     private DiffViewMode currentMode = DiffViewMode.SIDE_BY_SIDE;
     private ThemedPanel contentPanel;
@@ -26,10 +27,10 @@ public class DiffViewerPanel extends ThemedPanel {
     private LineNumberedTextPane rightPane;
     private LineNumberedTextPane unifiedPane;
 
-    private ReviewFile currentFile;
-    private Commit startCommit;
-    private Commit endCommit;
-    private Theme lastRenderedTheme;
+    private transient ReviewFile currentFile;
+    private transient Commit startCommit;
+    private transient Commit endCommit;
+    private transient Theme lastRenderedTheme;
 
     public DiffViewerPanel() {
         setLayout(new BorderLayout());

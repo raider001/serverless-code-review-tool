@@ -15,15 +15,16 @@ import java.awt.event.FocusEvent;
 import java.util.function.Consumer;
 
 public class ThemedTextField extends JTextField {
+    private static final long serialVersionUID = 1L;
 
-    protected final ThemeManager themeManager;
+    protected transient final ThemeManager themeManager;
     private boolean isValid = true;
-    private Validator validator = null;
-    private Consumer<String> onValidValueSaved = null;
-    private ThemedValidationOverlay validationOverlay = null;
+    private transient Validator validator = null;
+    private transient Consumer<String> onValidValueSaved = null;
+    private transient ThemedValidationOverlay validationOverlay = null;
 
-    private ComponentModel<String> model;
-    private BindingLifecycleHelper.TextBinding textBinding;
+    private transient ComponentModel<String> model;
+    private transient BindingLifecycleHelper.TextBinding textBinding;
 
     public ThemedTextField() {
         this(0);

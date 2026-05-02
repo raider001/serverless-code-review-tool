@@ -11,8 +11,9 @@ import java.awt.*;
  * Useful for tooltips, popups, and floating windows
  */
 public class ThemedWindow extends JWindow {
+    private static final long serialVersionUID = 1L;
 
-    private final ThemeManager themeManager = ThemeManager.getInstance();
+    private transient final ThemeManager themeManager = ThemeManager.getInstance();
     private final ThemedPanel contentPanel;
 
     public ThemedWindow() {

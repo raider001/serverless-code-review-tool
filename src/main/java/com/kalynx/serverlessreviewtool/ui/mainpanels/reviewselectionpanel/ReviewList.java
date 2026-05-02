@@ -7,6 +7,7 @@ import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewselectionpanel.review
 import java.util.List;
 
 public class ReviewList extends ThemedList<ReviewItem> {
+    private static final long serialVersionUID = 1L;
 
     public ReviewList() {
         super(new ReviewItemFilterableModel());
@@ -23,6 +24,7 @@ public class ReviewList extends ThemedList<ReviewItem> {
     }
 
     private static class ReviewItemFilterableModel extends FilterableDefaultListModel<ReviewItem> {
+        private static final long serialVersionUID = 1L;
 
         public ReviewItemFilterableModel() {
             super(ReviewItemFilterableModel::matchesFilters);

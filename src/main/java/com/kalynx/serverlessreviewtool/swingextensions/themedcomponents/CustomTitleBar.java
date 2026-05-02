@@ -16,8 +16,9 @@ import java.awt.event.MouseMotionAdapter;
  * Replaces the OS-supplied window decoration
  */
 public class CustomTitleBar extends ThemedPanel {
+    private static final long serialVersionUID = 1L;
 
-    private final ThemeManager themeManager;
+    private transient final ThemeManager themeManager;
     private final JLabel titleLabel;
     private final QuickButton themeToggleBtn;
     private ThemedPanel buttonPanel;

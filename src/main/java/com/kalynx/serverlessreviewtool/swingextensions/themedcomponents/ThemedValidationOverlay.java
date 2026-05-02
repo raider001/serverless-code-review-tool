@@ -13,8 +13,9 @@ import java.awt.event.HierarchyEvent;
  * This overlay floats above the layout without affecting positioning of other components
  */
 public class ThemedValidationOverlay extends JPanel {
+    private static final long serialVersionUID = 1L;
 
-    private final ThemeManager themeManager;
+    private transient final ThemeManager themeManager;
     private final JLabel errorLabel;
     private final JComponent targetComponent;
 

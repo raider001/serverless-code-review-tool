@@ -16,12 +16,13 @@ import java.util.Vector;
  * Provides clean, automatic theme integration
  */
 public class ThemedComboBox<T> extends JComboBox<T> {
+    private static final long serialVersionUID = 1L;
 
-    private final ThemeManager themeManager;
+    private transient final ThemeManager themeManager;
 
-    private ComponentModel<T> valueModel;
-    private ComponentModel<List<T>> optionsModel;
-    private BindingLifecycleHelper.ComboBoxBinding<T> binding;
+    private transient ComponentModel<T> valueModel;
+    private transient ComponentModel<List<T>> optionsModel;
+    private transient BindingLifecycleHelper.ComboBoxBinding<T> binding;
 
     public ThemedComboBox() {
         super();
@@ -160,6 +161,8 @@ public class ThemedComboBox<T> extends JComboBox<T> {
      * Simple themed renderer for dropdown items
      */
     private class ThemedComboBoxRenderer extends DefaultListCellRenderer {
+        private static final long serialVersionUID = 1L;
+
         @Override
         public Component getListCellRendererComponent(JList<?> list, Object value,
                                                       int index, boolean isSelected, boolean cellHasFocus) {

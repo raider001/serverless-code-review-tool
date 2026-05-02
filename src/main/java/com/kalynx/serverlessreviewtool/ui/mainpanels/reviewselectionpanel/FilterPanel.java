@@ -15,10 +15,11 @@ import javax.swing.event.DocumentListener;
 import java.util.*;
 
 public class FilterPanel extends ThemedPanel {
+    private static final long serialVersionUID = 1L;
 
-    private final Set<SetOnFilterEvent> filterEventListeners = new HashSet<>();
-    private DebounceTimer debounceTimer;
-    private final RepositoryManager repositoryManager;
+    private transient final Set<SetOnFilterEvent> filterEventListeners = new HashSet<>();
+    private transient DebounceTimer debounceTimer;
+    private transient final RepositoryManager repositoryManager;
 
     private final ThemedLabel titleLabel = new ThemedLabel("Title:")
             .setThemedToolTipText("Filter reviews by title");

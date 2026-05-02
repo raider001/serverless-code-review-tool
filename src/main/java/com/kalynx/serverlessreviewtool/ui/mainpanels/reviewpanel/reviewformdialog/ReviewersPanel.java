@@ -9,10 +9,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ReviewersPanel extends ThemedPanel {
+    private static final long serialVersionUID = 1L;
 
-    private final ThemedSearchableComboBox reviewerSelector;
+    private transient final ThemedSearchableComboBox reviewerSelector;
     private final ThemedPanel badgesPanel;
-    private final List<String> selectedReviewers;
+    private transient final List<String> selectedReviewers;
 
     public ReviewersPanel(List<String> availableReviewers) {
         this.selectedReviewers = new ArrayList<>();

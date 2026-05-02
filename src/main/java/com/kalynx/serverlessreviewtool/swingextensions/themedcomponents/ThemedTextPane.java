@@ -10,8 +10,9 @@ import java.awt.*;
  * ThemedTextPane - A theme-aware styled text pane for code/diff viewing
  */
 public class ThemedTextPane extends JTextPane {
+    private static final long serialVersionUID = 1L;
 
-    private final ThemeManager themeManager;
+    private transient final ThemeManager themeManager;
 
     public ThemedTextPane() {
         super();

@@ -6,9 +6,10 @@ import java.util.Vector;
 import java.util.function.Consumer;
 
 public class SearchableCombobox<T> extends JComboBox<T> {
+    private static final long serialVersionUID = 1L;
 
     private final Vector<T> myVector = new Vector<T>();
-    private final ComboListener<T> comboListener;
+    private transient final ComboListener<T> comboListener;
 
     public SearchableCombobox() {
         setModel(new DefaultComboBoxModel<>(myVector));

@@ -13,8 +13,9 @@ import java.awt.*;
  * Extend this class to create application forms with consistent UI elements
  */
 public class ThemedFrame extends JFrame {
+    private static final long serialVersionUID = 1L;
 
-    protected final ThemeManager themeManager;
+    protected transient final ThemeManager themeManager;
     protected CustomTitleBar titleBar;
     protected ThemedPanel windowPanel;
     protected ThemedPanel contentPanel;

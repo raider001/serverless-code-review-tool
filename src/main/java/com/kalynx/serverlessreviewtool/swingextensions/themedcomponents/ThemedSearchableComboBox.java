@@ -14,13 +14,14 @@ import java.util.Vector;
 import java.util.function.Consumer;
 
 public class ThemedSearchableComboBox extends JComboBox<String> {
+    private static final long serialVersionUID = 1L;
 
-    private final ThemeManager themeManager;
+    private transient final ThemeManager themeManager;
     private final Vector<String> myVector = new Vector<>();
-    private final ComboListener<String> comboListener;
+    private transient final ComboListener<String> comboListener;
 
-    private ComponentModel<List<String>> optionsModel;
-    private Consumer<List<String>> optionsChangeListener;
+    private transient ComponentModel<List<String>> optionsModel;
+    private transient Consumer<List<String>> optionsChangeListener;
 
     public ThemedSearchableComboBox(List<String> items) {
         super();
@@ -158,6 +159,8 @@ public class ThemedSearchableComboBox extends JComboBox<String> {
     }
 
     private class ThemedComboBoxRenderer extends DefaultListCellRenderer {
+        private static final long serialVersionUID = 1L;
+
         @Override
         public Component getListCellRendererComponent(JList<?> list, Object value,
                                                       int index, boolean isSelected, boolean cellHasFocus) {

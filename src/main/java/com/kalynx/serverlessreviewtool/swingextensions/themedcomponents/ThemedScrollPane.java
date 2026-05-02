@@ -11,8 +11,9 @@ import java.awt.*;
  * Colors are queried on-demand for automatic theme updates
  */
 public class ThemedScrollPane extends JScrollPane {
+    private static final long serialVersionUID = 1L;
 
-    protected final ThemeManager themeManager;
+    protected transient final ThemeManager themeManager;
 
 
     public ThemedScrollPane() {

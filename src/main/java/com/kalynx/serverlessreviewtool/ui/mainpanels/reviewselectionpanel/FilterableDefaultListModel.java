@@ -12,12 +12,13 @@ import java.util.List;
  * @param <E> The type of elements in this list model
  */
 public class FilterableDefaultListModel<E> extends DefaultListModel<E> {
+    private static final long serialVersionUID = 1L;
 
-    private final List<E> allItems = new ArrayList<>();
+    private transient final List<E> allItems = new ArrayList<>();
     private String titleFilter = "";
     private String authorFilter = "";
-    private List<String> repositoryFilter = new ArrayList<>();
-    private final FilterPredicate<E> filterPredicate;
+    private transient List<String> repositoryFilter = new ArrayList<>();
+    private transient final FilterPredicate<E> filterPredicate;
 
     /**
      * Create a filterable list model with a custom filter predicate

@@ -12,7 +12,9 @@ import java.awt.*;
  * showing to enable drag-edge resizing via WindowResizeHandler.
  */
 public class ThemedPopupDialog extends JDialog {
-    private final ThemeManager themeManager;
+    private static final long serialVersionUID = 1L;
+
+    private transient final ThemeManager themeManager;
     private final JPanel contentPanel;
     private final JPanel mainPanel;
 

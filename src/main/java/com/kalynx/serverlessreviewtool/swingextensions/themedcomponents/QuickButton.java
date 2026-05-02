@@ -13,9 +13,10 @@ import java.awt.*;
  * Icons are injected from the icons package for separation of concerns
  */
 public class QuickButton extends JButton {
+    private static final long serialVersionUID = 1L;
 
-    private final ThemeManager themeManager;
-    private IconPainter customIconPainter;
+    private transient final ThemeManager themeManager;
+    private transient IconPainter customIconPainter;
     private boolean useAccentHover = false;
 
     // Only store custom hover colors if explicitly set
