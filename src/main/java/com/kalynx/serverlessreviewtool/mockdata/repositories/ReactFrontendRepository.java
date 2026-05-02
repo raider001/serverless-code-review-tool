@@ -52,15 +52,17 @@ public class ReactFrontendRepository extends BaseRepository {
         executeGitCommand(repoPath, "git", "commit", "-m", "Initial commit: Add README");
 
         Path packageJson = repoPath.resolve("package.json");
-        String packageContent = "{\n" +
-            "  \"name\": \"react-frontend-app\",\n" +
-            "  \"version\": \"1.0.0\",\n" +
-            "  \"dependencies\": {\n" +
-            "    \"react\": \"^18.2.0\",\n" +
-            "    \"react-dom\": \"^18.2.0\",\n" +
-            "    \"typescript\": \"^5.0.0\"\n" +
-            "  }\n" +
-            "}\n";
+        String packageContent = """
+            {
+              "name": "react-frontend-app",
+              "version": "1.0.0",
+              "dependencies": {
+                "react": "^18.2.0",
+                "react-dom": "^18.2.0",
+                "typescript": "^5.0.0"
+              }
+            }
+            """;
         Files.writeString(packageJson, packageContent);
         executeGitCommand(repoPath, "git", "add", "package.json");
         executeGitCommand(repoPath, "git", "commit", "-m", "Add package.json with dependencies");

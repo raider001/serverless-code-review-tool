@@ -31,7 +31,7 @@ public class ReviewPanel extends ThemedPanel {
     public ReviewPanel(ReviewContextManager reviewContextManager, RepositoryManager repositoryManager, UserManager userManager, ReviewFormModels reviewFormModels) {
         this.reviewContextManager = reviewContextManager;
         this.repositoryManager = repositoryManager;
-        this.reviewDetailPanel = new ReviewDetailPanel(reviewContextManager, repositoryManager, userManager, reviewFormModels);
+        this.reviewDetailPanel = new ReviewDetailPanel(reviewContextManager, reviewFormModels);
         this.codePanel = new CodePanel(reviewContextManager);
         initializeSampleReviewContext();
         configureLayout();

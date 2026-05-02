@@ -11,44 +11,46 @@ public class RefactorDatabaseBranch extends BaseRepository {
         createAndCheckoutBranch(repoPath, "refactor/async-database");
 
         Path dbFile = repoPath.resolve("src/database_async.py");
-        Files.writeString(dbFile,
-            "import asyncio\n" +
-            "import asyncpg\n" +
-            "\n" +
-            "class AsyncDatabase:\n" +
-            "    async def connect(self, connection_string):\n" +
-            "        self.pool = await asyncpg.create_pool(connection_string)\n" +
-            "    \n" +
-            "    async def execute(self, query, *params):\n" +
-            "        async with self.pool.acquire() as conn:\n" +
-            "            return await conn.execute(query, *params)\n");
+        Files.writeString(dbFile, """
+            import asyncio
+            import asyncpg
+
+            class AsyncDatabase:
+                async def connect(self, connection_string):
+                    self.pool = await asyncpg.create_pool(connection_string)
+
+                async def execute(self, query, *params):
+                    async with self.pool.acquire() as conn:
+                        return await conn.execute(query, *params)
+            """);
         commitFile(repoPath, "src/database_async.py", "refactor: Add async database connection pool");
 
-        Files.writeString(dbFile,
-            "import asyncio\n" +
-            "import asyncpg\n" +
-            "from contextlib import asynccontextmanager\n" +
-            "\n" +
-            "class AsyncDatabase:\n" +
-            "    def __init__(self):\n" +
-            "        self.pool = None\n" +
-            "    \n" +
-            "    async def connect(self, connection_string, min_size=10, max_size=20):\n" +
-            "        self.pool = await asyncpg.create_pool(\n" +
-            "            connection_string,\n" +
-            "            min_size=min_size,\n" +
-            "            max_size=max_size\n" +
-            "        )\n" +
-            "    \n" +
-            "    @asynccontextmanager\n" +
-            "    async def transaction(self):\n" +
-            "        async with self.pool.acquire() as conn:\n" +
-            "            async with conn.transaction():\n" +
-            "                yield conn\n" +
-            "    \n" +
-            "    async def execute(self, query, *params):\n" +
-            "        async with self.pool.acquire() as conn:\n" +
-            "            return await conn.execute(query, *params)\n");
+        Files.writeString(dbFile, """
+            import asyncio
+            import asyncpg
+            from contextlib import asynccontextmanager
+
+            class AsyncDatabase:
+                def __init__(self):
+                    self.pool = None
+
+                async def connect(self, connection_string, min_size=10, max_size=20):
+                    self.pool = await asyncpg.create_pool(
+                        connection_string,
+                        min_size=min_size,
+                        max_size=max_size
+                    )
+
+                @asynccontextmanager
+                async def transaction(self):
+                    async with self.pool.acquire() as conn:
+                        async with conn.transaction():
+                            yield conn
+
+                async def execute(self, query, *params):
+                    async with self.pool.acquire() as conn:
+                        return await conn.execute(query, *params)
+            """);
         commitFile(repoPath, "src/database_async.py", "refactor: Add transaction support and pool configuration");
 
         checkoutMain(repoPath);

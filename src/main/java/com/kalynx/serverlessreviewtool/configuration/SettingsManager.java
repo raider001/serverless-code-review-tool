@@ -69,7 +69,7 @@ public class SettingsManager {
             AppSettings settings = gson.fromJson(reader, AppSettings.class);
             repositoryManager.updateRepositories(settings.getRepositories());
             System.out.println("Loaded settings from: " + settingsFile);
-            return settings != null ? settings : new AppSettings();
+            return settings;
         } catch (Exception e) {
             System.err.println("Failed to load settings: " + e.getMessage());
             return new AppSettings();

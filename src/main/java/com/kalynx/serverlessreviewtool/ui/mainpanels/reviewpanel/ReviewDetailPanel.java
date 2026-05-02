@@ -1,8 +1,6 @@
 package com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel;
 
-import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
 import com.kalynx.serverlessreviewtool.managers.ReviewContextManager;
-import com.kalynx.serverlessreviewtool.managers.UserManager;
 import com.kalynx.serverlessreviewtool.models.ReviewContext;
 import com.kalynx.serverlessreviewtool.models.ReviewerInfo;
 import com.kalynx.serverlessreviewtool.models.ReviewerStatus;
@@ -44,7 +42,7 @@ public class ReviewDetailPanel extends ThemedPanel {
 
     private final ThemedPanel reviewerPanel = new ThemedPanel();
 
-    public ReviewDetailPanel(ReviewContextManager reviewContextManager, RepositoryManager repositoryManager, UserManager userManager, ReviewFormModels reviewFormModels) {
+    public ReviewDetailPanel(ReviewContextManager reviewContextManager, ReviewFormModels reviewFormModels) {
         this.reviewContextManager = reviewContextManager;
         this.reviewFormModels = reviewFormModels;
         configureLayout();
