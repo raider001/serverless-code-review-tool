@@ -14,7 +14,6 @@ public class MessageIcon extends JComponent {
 
     private final MessageType type;
     private final Color iconColor;
-    private transient final ThemeManager themeManager = ThemeManager.getInstance();
 
     public enum MessageType {
         INFO,
@@ -25,6 +24,7 @@ public class MessageIcon extends JComponent {
     public MessageIcon(MessageType type, Color iconColor) {
         this.type = type;
         this.iconColor = iconColor;
+        ThemeManager themeManager = ThemeManager.getInstance();
         int size = themeManager.scale(40);
         setPreferredSize(new Dimension(size, size));
         setMinimumSize(new Dimension(size, size));
@@ -61,7 +61,7 @@ public class MessageIcon extends JComponent {
         g2d.draw(circle);
 
         int dotSize = radius / 6;
-        Ellipse2D dot = new Ellipse2D.Double(centerX - dotSize / 2, centerY - radius / 2 - dotSize, dotSize, dotSize);
+        Ellipse2D dot = new Ellipse2D.Double(centerX - (double) dotSize / 2, centerY - (double) radius / 2 - dotSize, dotSize, dotSize);
         g2d.fill(dot);
 
         int lineHeight = (int) (radius * 1.1);
@@ -77,9 +77,9 @@ public class MessageIcon extends JComponent {
         int triangleHeight = (int) (radius * 1.8);
         int triangleWidth = (int) (radius * 1.6);
 
-        triangle.moveTo(centerX, centerY - triangleHeight / 2);
-        triangle.lineTo(centerX - triangleWidth / 2, centerY + triangleHeight / 2);
-        triangle.lineTo(centerX + triangleWidth / 2, centerY + triangleHeight / 2);
+        triangle.moveTo(centerX, centerY - (double) triangleHeight / 2);
+        triangle.lineTo(centerX - (double) triangleWidth / 2, centerY + (double) triangleHeight / 2);
+        triangle.lineTo(centerX + (double) triangleWidth / 2, centerY + (double) triangleHeight / 2);
         triangle.closePath();
         g2d.draw(triangle);
 
@@ -88,7 +88,7 @@ public class MessageIcon extends JComponent {
         g2d.drawLine(centerX, centerY - lineHeight / 2, centerX, centerY + lineHeight / 4);
 
         int dotSize = radius / 6;
-        Ellipse2D dot = new Ellipse2D.Double(centerX - dotSize / 2, centerY + lineHeight, dotSize, dotSize);
+        Ellipse2D dot = new Ellipse2D.Double(centerX - (double) dotSize / 2, centerY + lineHeight, dotSize, dotSize);
         g2d.fill(dot);
     }
 
