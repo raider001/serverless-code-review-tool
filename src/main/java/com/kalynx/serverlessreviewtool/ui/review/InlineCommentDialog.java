@@ -1,10 +1,10 @@
 package com.kalynx.serverlessreviewtool.ui.review;
 
 import com.kalynx.serverlessreviewtool.models.*;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.*;
 import com.kalynx.serverlessreviewtool.theme.Theme;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 import com.kalynx.serverlessreviewtool.theme.WindowResizeHandler;
-import com.kalynx.serverlessreviewtool.theme.components.*;
 import com.kalynx.serverlessreviewtool.theme.icons.AlertIcon;
 import com.kalynx.serverlessreviewtool.theme.icons.CheckIcon;
 import net.miginfocom.swing.MigLayout;

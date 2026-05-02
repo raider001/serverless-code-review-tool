@@ -1,6 +1,7 @@
 package com.kalynx.serverlessreviewtool.ui.mainpanels;
 
-import com.kalynx.serverlessreviewtool.theme.components.*;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedScrollPane;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.settingspanel.NotificationServiceSettingsPanel;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.settingspanel.PollingSettingsPanel;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.settingspanel.RepositoriesPanel;

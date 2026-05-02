@@ -2,12 +2,11 @@ package com.kalynx.serverlessreviewtool.ui.mainpanels.settingspanel;
 
 import com.kalynx.serverlessreviewtool.configuration.AppSettings;
 import com.kalynx.serverlessreviewtool.configuration.SettingsManager;
-import com.kalynx.serverlessreviewtool.theme.components.*;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.*;
 import com.kalynx.serverlessreviewtool.ui.RepositoryConfigDialog;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;
-import java.awt.*;
 
 public class RepositoriesPanel extends ThemedPanel {
 

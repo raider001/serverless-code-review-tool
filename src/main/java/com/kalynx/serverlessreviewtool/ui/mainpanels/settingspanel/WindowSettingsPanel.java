@@ -1,10 +1,10 @@
 package com.kalynx.serverlessreviewtool.ui.mainpanels.settingspanel;
 
 import com.kalynx.serverlessreviewtool.configuration.SettingsManager;
-import com.kalynx.serverlessreviewtool.theme.components.ThemedLabel;
-import com.kalynx.serverlessreviewtool.theme.components.ThemedPanel;
-import com.kalynx.serverlessreviewtool.theme.components.ThemedSpinner;
-import com.kalynx.serverlessreviewtool.theme.components.ThemedTitledBorder;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedLabel;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedSpinner;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedTitledBorder;
 import com.kalynx.serverlessreviewtool.utils.ListenerFactory;
 import net.miginfocom.swing.MigLayout;
 

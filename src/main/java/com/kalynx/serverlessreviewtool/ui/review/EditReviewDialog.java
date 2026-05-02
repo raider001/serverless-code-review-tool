@@ -37,19 +37,19 @@ public class EditReviewDialog extends ReviewFormDialog {
         authorField.setText(ctx.author);
         summaryArea.setText(ctx.summary);
 
-        Set<String> repoNames = ctx.repositories.stream()
-            .map(Repository::getName)
-            .collect(Collectors.toSet());
-        for (JCheckBox cb : repositoryCheckboxes) {
-            if (repoNames.contains(cb.getText())) cb.setSelected(true);
-        }
+        selectedRepositories.clear();
+        selectedRepositories.addAll(
+            ctx.repositories.stream()
+                .map(Repository::getName)
+                .collect(Collectors.toList())
+        );
 
-        Set<String> reviewerNames = ctx.reviewers.stream()
-            .map(ReviewerInfo::getName)
-            .collect(Collectors.toSet());
-        for (JCheckBox cb : reviewerCheckboxes) {
-            if (reviewerNames.contains(cb.getText())) cb.setSelected(true);
-        }
+        selectedReviewers.clear();
+        selectedReviewers.addAll(
+            ctx.reviewers.stream()
+                .map(ReviewerInfo::getName)
+                .collect(Collectors.toList())
+        );
 
         updateRepositoryBadges();
         updateReviewerBadges();

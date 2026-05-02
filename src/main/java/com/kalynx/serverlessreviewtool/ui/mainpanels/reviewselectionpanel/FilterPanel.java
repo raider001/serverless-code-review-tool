@@ -2,10 +2,10 @@ package com.kalynx.serverlessreviewtool.ui.mainpanels.reviewselectionpanel;
 
 import com.kalynx.serverlessreviewtool.eventlisteners.SetOnFilterEvent;
 import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
-import com.kalynx.serverlessreviewtool.theme.components.ThemedComboBox;
-import com.kalynx.serverlessreviewtool.theme.components.ThemedLabel;
-import com.kalynx.serverlessreviewtool.theme.components.ThemedPanel;
-import com.kalynx.serverlessreviewtool.theme.components.ThemedTextField;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedComboBox;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedLabel;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedTextField;
 import com.kalynx.serverlessreviewtool.utils.DebounceTimer;
 import net.miginfocom.swing.MigLayout;
 

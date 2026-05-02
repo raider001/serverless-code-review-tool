@@ -1,9 +1,10 @@
 package com.kalynx.serverlessreviewtool.ui.review;
 
 import com.kalynx.serverlessreviewtool.models.ReviewComment;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedLabel;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
 import com.kalynx.serverlessreviewtool.theme.Theme;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
-import com.kalynx.serverlessreviewtool.theme.components.*;
 import net.miginfocom.swing.MigLayout;
 
 import java.awt.*;

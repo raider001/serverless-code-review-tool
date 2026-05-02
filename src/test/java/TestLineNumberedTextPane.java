@@ -1,4 +1,4 @@
-import com.kalynx.serverlessreviewtool.theme.components.LineNumberedTextPane;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.LineNumberedTextPane;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 import javax.swing.*;
 import java.awt.*;

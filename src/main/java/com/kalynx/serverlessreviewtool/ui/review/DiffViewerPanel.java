@@ -1,9 +1,12 @@
 package com.kalynx.serverlessreviewtool.ui.review;
 
 import com.kalynx.serverlessreviewtool.models.*;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.LineNumberedTextPane;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedScrollPane;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedSplitPane;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 import com.kalynx.serverlessreviewtool.theme.Theme;
-import com.kalynx.serverlessreviewtool.theme.components.*;
 
 import javax.swing.*;
 import javax.swing.text.*;

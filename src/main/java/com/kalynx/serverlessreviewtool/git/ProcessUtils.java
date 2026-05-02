@@ -11,9 +11,13 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * ProcessUtils provides a fluent callback-based API for running external processes asynchronously.
+ *
+ * <p>Supports generic result types through transformation functions, allowing onSuccess callbacks
+ * to receive parsed/transformed objects instead of raw strings.
  */
 public class ProcessUtils {
 
@@ -21,24 +25,28 @@ public class ProcessUtils {
      * Starts building a process execution with the given command arguments.
      *
      * @param args command and arguments
-     * @return builder for configuring success callback
+     * @return builder for configuring success callback (returns String by default)
      */
-    public static RunProcess runProcess(String... args) {
-        return new RunProcess(Arrays.asList(args));
+    public static RunProcess<String> runProcess(String... args) {
+        return new RunProcess<>(Arrays.asList(args), Function.identity());
     }
 
     /**
      * RunProcess configures the process and requires a success callback.
+     *
+     * @param <T> the type of result passed to onSuccess callback
      */
-    public static class RunProcess {
+    public static class RunProcess<T> {
 
         private final List<String> command;
+        private final Function<String, T> resultMapper;
         private Path workingDirectory;
         private String stdin;
         private Duration timeout = Duration.ofSeconds(60);
 
-        private RunProcess(List<String> command) {
+        private RunProcess(List<String> command, Function<String, T> resultMapper) {
             this.command = command;
+            this.resultMapper = resultMapper;
         }
 
         /**
@@ -47,7 +55,7 @@ public class ProcessUtils {
          * @param path working directory
          * @return this builder
          */
-        public RunProcess workingDirectory(Path path) {
+        public RunProcess<T> workingDirectory(Path path) {
             this.workingDirectory = path;
             return this;
         }
@@ -58,7 +66,7 @@ public class ProcessUtils {
          * @param content UTF-8 stdin content
          * @return this builder
          */
-        public RunProcess stdin(String content) {
+        public RunProcess<T> stdin(String content) {
             this.stdin = content;
             return this;
         }
@@ -69,39 +77,59 @@ public class ProcessUtils {
          * @param duration timeout duration
          * @return this builder
          */
-        public RunProcess timeout(Duration duration) {
+        public RunProcess<T> timeout(Duration duration) {
             this.timeout = duration;
             return this;
         }
 
         /**
+         * Transforms the stdout result to a different type.
+         *
+         * @param mapper function to transform result to desired type
+         * @param <R> the new result type
+         * @return new builder with transformed result type
+         */
+        public <R> RunProcess<R> map(Function<T, R> mapper) {
+            Function<String, R> composedMapper = this.resultMapper.andThen(mapper);
+            RunProcess<R> newBuilder = new RunProcess<>(command, composedMapper);
+            newBuilder.workingDirectory = this.workingDirectory;
+            newBuilder.stdin = this.stdin;
+            newBuilder.timeout = this.timeout;
+            return newBuilder;
+        }
+
+        /**
          * Registers the success callback and advances to failure handling.
          *
-         * @param onSuccess callback receiving stdout when exit code is zero
+         * @param onSuccess callback receiving transformed result when exit code is zero
          * @return builder for configuring failure callback
          */
-        public HandleFailure onSuccess(Consumer<String> onSuccess) {
-            return new HandleFailure(command, workingDirectory, stdin, timeout, onSuccess);
+        public HandleFailure<T> onSuccess(Consumer<T> onSuccess) {
+            return new HandleFailure<>(command, workingDirectory, stdin, timeout, resultMapper, onSuccess);
         }
     }
 
     /**
      * HandleFailure configures the failure callback.
+     *
+     * @param <T> the type of result passed to onSuccess callback
      */
-    public static class HandleFailure {
+    public static class HandleFailure<T> {
 
         private final List<String> command;
         private final Path workingDirectory;
         private final String stdin;
         private final Duration timeout;
-        private final Consumer<String> onSuccess;
+        private final Function<String, T> resultMapper;
+        private final Consumer<T> onSuccess;
 
         private HandleFailure(List<String> command, Path workingDirectory, String stdin,
-                              Duration timeout, Consumer<String> onSuccess) {
+                              Duration timeout, Function<String, T> resultMapper, Consumer<T> onSuccess) {
             this.command = command;
             this.workingDirectory = workingDirectory;
             this.stdin = stdin;
             this.timeout = timeout;
+            this.resultMapper = resultMapper;
             this.onSuccess = onSuccess;
         }
 
@@ -111,30 +139,35 @@ public class ProcessUtils {
          * @param onFailure callback receiving stderr when exit code is non-zero
          * @return builder for configuring optional timeout and execution
          */
-        public HandleTimeout onFailure(Consumer<String> onFailure) {
-            return new HandleTimeout(command, workingDirectory, stdin, timeout, onSuccess, onFailure);
+        public HandleTimeout<T> onFailure(Consumer<String> onFailure) {
+            return new HandleTimeout<>(command, workingDirectory, stdin, timeout, resultMapper, onSuccess, onFailure);
         }
     }
 
     /**
      * HandleTimeout configures optional timeout callback and triggers execution.
+     *
+     * @param <T> the type of result passed to onSuccess callback
      */
-    public static class HandleTimeout {
+    public static class HandleTimeout<T> {
 
         private final List<String> command;
         private final Path workingDirectory;
         private final String stdin;
         private final Duration timeout;
-        private final Consumer<String> onSuccess;
+        private final Function<String, T> resultMapper;
+        private final Consumer<T> onSuccess;
         private final Consumer<String> onFailure;
         private Runnable onTimeout;
 
         private HandleTimeout(List<String> command, Path workingDirectory, String stdin,
-                              Duration timeout, Consumer<String> onSuccess, Consumer<String> onFailure) {
+                              Duration timeout, Function<String, T> resultMapper,
+                              Consumer<T> onSuccess, Consumer<String> onFailure) {
             this.command = command;
             this.workingDirectory = workingDirectory;
             this.stdin = stdin;
             this.timeout = timeout;
+            this.resultMapper = resultMapper;
             this.onSuccess = onSuccess;
             this.onFailure = onFailure;
         }
@@ -145,7 +178,7 @@ public class ProcessUtils {
          * @param onTimeout callback invoked when process exceeds timeout
          * @return this builder
          */
-        public HandleTimeout onTimeout(Runnable onTimeout) {
+        public HandleTimeout<T> onTimeout(Runnable onTimeout) {
             this.onTimeout = onTimeout;
             return this;
         }
@@ -193,7 +226,12 @@ public class ProcessUtils {
                     int exitCode = process.exitValue();
 
                     if (exitCode == 0) {
-                        onSuccess.accept(stdout);
+                        try {
+                            T result = resultMapper.apply(stdout);
+                            onSuccess.accept(result);
+                        } catch (Exception e) {
+                            onFailure.accept("Result transformation failed: " + e.getMessage());
+                        }
                     } else {
                         onFailure.accept(stderr);
                     }
@@ -222,3 +260,4 @@ public class ProcessUtils {
         }
     }
 }
+

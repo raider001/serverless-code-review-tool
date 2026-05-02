@@ -7,120 +7,139 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/**
+ * GitImpl provides an asynchronous implementation of the Git interface using CompletableFuture.
+ * All Git commands are executed via ProcessUtils async API in a separate process.
+ * This class is responsible for managing Git repositories, including initializing repositories,
+ * fetching and pushing notes, and managing references.
+ */
 public class GitImpl implements Git {
 
     @Override
-    public void initNotesRepository(Path repoPath, String remote, String remoteUrl) throws GitException {
-        try {
-            Files.createDirectories(repoPath);
-        } catch (IOException e) {
-            throw new GitException("Failed to create repository directory", e);
-        }
-
-        executeSync(repoPath, "git", "init");
-        executeSync(repoPath, "git", "config", "notes.mergeStrategy", "union");
-        executeSync(repoPath, "git", "remote", "add", remote, remoteUrl);
-
-        try {
-            fetchNotes(repoPath, remote);
-        } catch (GitException e) {
-            System.out.println("Initial fetch failed (expected for new repositories): " + e.getMessage());
-        }
-    }
-
-    @Override
-    public void removeRepository(Path repoPath) throws GitException {
-        try {
-            deleteDirectory(repoPath);
-        } catch (IOException e) {
-            throw new GitException("Failed to remove repository", e);
-        }
-    }
-
-    @Override
-    public void appendToStream(Path repoPath, String streamRef, String entryJson) throws GitException {
-        Path tempFile = null;
-        try {
-            tempFile = Files.createTempFile("git-notes", ".txt");
-
-            List<String> existing = new ArrayList<>();
-            if (refExists(repoPath, streamRef)) {
-                existing = readStream(repoPath, streamRef);
+    public CompletableFuture<Void> initNotesRepository(Path repoPath, String remote, String remoteUrl) {
+        return CompletableFuture.runAsync(() -> {
+            try {
+                Files.createDirectories(repoPath);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to create repository directory", e);
             }
+        }).thenCompose(__ -> executeAsync(repoPath, "git", "init").thenApply(___ -> null))
+          .thenCompose(__ -> executeAsync(repoPath, "git", "config", "notes.mergeStrategy", "union").thenApply(___ -> null))
+          .thenCompose(__ -> executeAsync(repoPath, "git", "remote", "add", remote, remoteUrl).thenApply(___ -> null))
+          .thenCompose(__ -> fetchNotes(repoPath, remote)
+              .exceptionally(ex -> {
+                  System.out.println("Initial fetch failed (expected for new repositories): " + ex.getMessage());
+                  return null;
+              }));
+    }
 
-            existing.add(entryJson);
-            Files.writeString(tempFile, String.join("\n", existing));
+    @Override
+    public CompletableFuture<Void> removeRepository(Path repoPath) {
+        return CompletableFuture.runAsync(() -> {
+            try {
+                deleteDirectory(repoPath);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to remove repository", e);
+            }
+        });
+    }
 
-            executeSync(repoPath, "git", "hash-object", "-w", tempFile.toString());
+    @Override
+    public CompletableFuture<Void> appendToStream(Path repoPath, String streamRef, String entryJson) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return Files.createTempFile("git-notes", ".txt");
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to create temp file", e);
+            }
+        }).thenCompose(tempFile -> {
+            CompletableFuture<Void> future = refExists(repoPath, streamRef)
+                .thenCompose(exists -> {
+                    if (exists) {
+                        return readStream(repoPath, streamRef);
+                    } else {
+                        return CompletableFuture.completedFuture(new ArrayList<>());
+                    }
+                })
+                .thenCompose(existing -> {
+                    existing.add(entryJson);
+                    try {
+                        Files.writeString(tempFile, String.join("\n", existing));
+                    } catch (IOException e) {
+                        throw new RuntimeException("Failed to write temp file", e);
+                    }
+                    return executeAsync(repoPath, "git", "hash-object", "-w", tempFile.toString());
+                })
+                .thenCompose(blobHash ->
+                    executeAsync(repoPath, "git", "update-ref", streamRef, blobHash.trim())
+                )
+                .thenApply(__ -> null);
 
-            String blobHash = executeSync(repoPath, "git", "hash-object", "-w", tempFile.toString()).trim();
-
-            executeSync(repoPath, "git", "update-ref", streamRef, blobHash);
-
-        } catch (IOException e) {
-            throw new GitException("Failed to append to stream", e);
-        } finally {
-            if (tempFile != null) {
+            return future.whenComplete((__, ___) -> {
                 try {
                     Files.deleteIfExists(tempFile);
                 } catch (IOException ignored) {
                 }
-            }
-        }
+            });
+        });
     }
 
     @Override
-    public List<String> readStream(Path repoPath, String streamRef) throws GitException {
-        if (!refExists(repoPath, streamRef)) {
-            return new ArrayList<>();
-        }
-
-        String content = executeSync(repoPath, "git", "cat-file", "-p", streamRef);
-
-        return Arrays.stream(content.split("\n"))
-                .filter(line -> !line.trim().isEmpty())
-                .collect(Collectors.toList());
+    public CompletableFuture<List<String>> readStream(Path repoPath, String streamRef) {
+        return refExists(repoPath, streamRef)
+            .thenCompose(exists -> {
+                if (!exists) {
+                    return CompletableFuture.completedFuture(new ArrayList<>());
+                }
+                return executeAsync(repoPath, "git", "cat-file", "-p", streamRef)
+                    .thenApply(content ->
+                        Arrays.stream(content.split("\n"))
+                            .filter(line -> !line.trim().isEmpty())
+                            .collect(Collectors.toList())
+                    );
+            });
     }
 
     @Override
-    public void fetchNotes(Path repoPath, String remote) throws GitException {
-        executeSync(repoPath, "git", "-c", "notes.mergeStrategy=union", "fetch", remote,
-                "+refs/notes/reviews/*:refs/notes/reviews/*");
+    public CompletableFuture<Void> fetchNotes(Path repoPath, String remote) {
+        return executeAsync(repoPath, "git", "-c", "notes.mergeStrategy=union", "fetch", remote,
+                "+refs/notes/reviews/*:refs/notes/reviews/*")
+                .thenApply(__ -> null);
     }
 
     @Override
-    public void pushNotes(Path repoPath, String remote) throws GitException {
-        executeSync(repoPath, "git", "push", remote, "refs/notes/reviews/*");
+    public CompletableFuture<Void> pushNotes(Path repoPath, String remote) {
+        return executeAsync(repoPath, "git", "push", remote, "refs/notes/reviews/*")
+                .thenApply(__ -> null);
     }
 
     @Override
-    public boolean refExists(Path repoPath, String ref) throws GitException {
-        try {
-            executeSync(repoPath, "git", "show-ref", "--verify", ref);
-            return true;
-        } catch (GitException e) {
-            if (e.getMessage().contains("not a valid ref")) {
-                return false;
-            }
-            throw e;
-        }
+    public CompletableFuture<Boolean> refExists(Path repoPath, String ref) {
+        return executeAsync(repoPath, "git", "show-ref", "--verify", ref)
+            .thenApply(__ -> true)
+            .exceptionally(ex -> {
+                if (ex.getMessage() != null && ex.getMessage().contains("not a valid ref")) {
+                    return false;
+                }
+                throw new RuntimeException(ex);
+            });
     }
 
     @Override
-    public List<String> listReviews(Path repoPath) throws GitException {
-        String output = executeSync(repoPath, "git", "for-each-ref", "--format=%(refname)", NotesRef.ROOT);
-
-        return Arrays.stream(output.split("\n"))
-                .filter(line -> !line.trim().isEmpty())
-                .map(this::extractReviewId)
-                .filter(id -> id != null && !id.isEmpty())
-                .distinct()
-                .collect(Collectors.toList());
+    public CompletableFuture<List<String>> listReviews(Path repoPath) {
+        return executeAsync(repoPath, "git", "for-each-ref", "--format=%(refname)", NotesRef.ROOT)
+            .thenApply(output ->
+                Arrays.stream(output.split("\n"))
+                    .filter(line -> !line.trim().isEmpty())
+                    .map(this::extractReviewId)
+                    .filter(id -> id != null && !id.isEmpty())
+                    .distinct()
+                    .collect(Collectors.toList())
+            );
     }
 
     private String extractReviewId(String refPath) {
@@ -134,40 +153,20 @@ public class GitImpl implements Git {
         return slashIndex > 0 ? remainder.substring(0, slashIndex) : remainder;
     }
 
-    private String executeSync(Path workingDir, String... command) throws GitException {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<String> result = new AtomicReference<>();
-        AtomicReference<String> error = new AtomicReference<>();
+    private CompletableFuture<String> executeAsync(Path workingDir, String... command) {
+        CompletableFuture<String> future = new CompletableFuture<>();
 
         ProcessUtils.runProcess(command)
                 .workingDirectory(workingDir)
                 .timeout(Duration.ofSeconds(30))
-                .onSuccess(output -> {
-                    result.set(output);
-                    latch.countDown();
-                })
-                .onFailure(stderr -> {
-                    error.set(stderr);
-                    latch.countDown();
-                })
-                .onTimeout(() -> {
-                    error.set("Command timed out: " + String.join(" ", command));
-                    latch.countDown();
-                })
+                .onSuccess(future::complete)
+                .onFailure(error -> future.completeExceptionally(
+                    new RuntimeException("Git command failed: " + String.join(" ", command) + "\n" + error)))
+                .onTimeout(() -> future.completeExceptionally(
+                    new RuntimeException("Command timed out: " + String.join(" ", command))))
                 .runAsync();
 
-        try {
-            latch.await();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new GitException("Command interrupted", e);
-        }
-
-        if (error.get() != null) {
-            throw new GitException("Git command failed: " + String.join(" ", command) + "\n" + error.get());
-        }
-
-        return result.get();
+        return future;
     }
 
     private void deleteDirectory(Path path) throws IOException {
@@ -190,6 +189,4 @@ public class GitImpl implements Git {
         Files.delete(path);
     }
 }
-
-
 

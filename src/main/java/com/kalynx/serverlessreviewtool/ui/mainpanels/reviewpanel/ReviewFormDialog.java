@@ -1,15 +1,14 @@
 package com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel;
 
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.*;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
-import com.kalynx.serverlessreviewtool.theme.components.*;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * ReviewFormDialog – abstract base shared by CreateReviewDialog and EditReviewDialog.
@@ -17,9 +16,6 @@ import java.util.List;
  * Subclasses must implement:
  *   {@link #getSubmitButtonLabel()} – label for the primary action button
  *   {@link #onFormSubmit()}         – called after validation passes
- *
- * Pre-population hook: subclasses may call {@link #populateFrom} after {@code super(...)}
- * returns to fill the form from an existing ReviewContext.
  */
 public abstract class ReviewFormDialog extends ThemedPopupDialog {
 
@@ -29,7 +25,6 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
     protected static final int GAP       = 12;
     protected static final int INSET     = 16;
     protected static final int FIELD_H   = 28;
-    protected static final int LIST_H    = 150;
     protected static final int SUMMARY_H = 120;
 
     protected final ThemeManager themeManager;
@@ -38,27 +33,23 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
     // ---- Form controls (protected so subclasses can pre-populate) -----------
     protected ThemedRadioButton branchModeRadio;
     protected ThemedRadioButton commitModeRadio;
-    protected ThemedTextField   titleField;
+    protected ThemedTextField titleField;
     protected ThemedTextField   authorField;
     protected ThemedTextArea    summaryArea;
 
-    protected ThemedPanel        modeSpecificPanel;
+    protected ThemedPanel modeSpecificPanel;
     protected ThemedTextField    branchNameField;
     protected ThemedComboBox<String> reviewAgainstBranchCombo;
     protected ThemedComboBox<String> commitBranchFilterCombo;
     protected ThemedList<String> commitSelectionList;
 
-    protected ThemedTextField repositorySearchField;
-    protected ThemedPanel     repositoryCheckboxPanel;
-    protected ThemedPanel     repositoryBadgesPanel;
-    protected ThemedTextField reviewerSearchField;
-    protected ThemedPanel     reviewerCheckboxPanel;
-    protected ThemedPanel     reviewerBadgesPanel;
+    protected ThemedSearchableComboBox repositorySelector;
+    protected ThemedPanel              repositoryBadgesPanel;
+    protected ThemedSearchableComboBox reviewerSelector;
+    protected ThemedPanel              reviewerBadgesPanel;
 
-    protected final List<JCheckBox> repositoryCheckboxes = new ArrayList<>();
-    protected final List<JCheckBox> reviewerCheckboxes   = new ArrayList<>();
-    protected final List<String>    selectedRepositories = new ArrayList<>();
-    protected final List<String>    selectedReviewers    = new ArrayList<>();
+    protected final List<String> selectedRepositories = new ArrayList<>();
+    protected final List<String> selectedReviewers    = new ArrayList<>();
 
     // -------------------------------------------------------------------------
 
@@ -259,46 +250,36 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
         ));
 
         row.add(buildPickerPanel(
-            "Repositories", "Search repositories…", repos,
-            repositoryCheckboxes::addAll,
-            f -> repositorySearchField   = f,
-            p -> repositoryCheckboxPanel = p,
-            b -> repositoryBadgesPanel   = b,
-            this::filterRepositories,
-            this::updateRepositoryBadges), "grow");
+            "Repositories", "Search to add repositories…", repos,
+            c -> repositorySelector = c,
+            b -> repositoryBadgesPanel = b,
+            this::onRepositorySelected), "grow");
 
         row.add(buildPickerPanel(
-            "Reviewers", "Search reviewers…", reviewers,
-            reviewerCheckboxes::addAll,
-            f -> reviewerSearchField   = f,
-            p -> reviewerCheckboxPanel = p,
-            b -> reviewerBadgesPanel   = b,
-            this::filterReviewers,
-            this::updateReviewerBadges), "grow");
+            "Reviewers", "Search to add reviewers…", reviewers,
+            c -> reviewerSelector = c,
+            b -> reviewerBadgesPanel = b,
+            this::onReviewerSelected), "grow");
 
         return row;
     }
 
     private ThemedPanel buildPickerPanel(
             String title,
-            String searchTooltip,
+            String searchPlaceholder,
             List<String> items,
-            java.util.function.Consumer<List<JCheckBox>> checkboxesSink,
-            java.util.function.Consumer<ThemedTextField> searchSink,
-            java.util.function.Consumer<ThemedPanel>     listPanelSink,
-            java.util.function.Consumer<ThemedPanel>     badgePanelSink,
-            Runnable onFilter,
-            Runnable onBadgeUpdate) {
+            java.util.function.Consumer<ThemedSearchableComboBox> selectorSink,
+            java.util.function.Consumer<ThemedPanel> badgePanelSink,
+            Consumer<String> onItemSelected) {
 
         ThemedPanel section = new ThemedPanel();
         section.setLayout(new MigLayout(
             "fill, insets 10 12 12 12, gap 6 6",
-            "[grow,fill]",
-            "[]6[]6[grow,fill]"
+            "[grow,fill][]",
+            "[]6[]"
         ));
         section.setBorder(ThemedTitledBorder.create(title));
 
-        // Badges (top)
         ThemedPanel badges = new ThemedPanel();
         badges.setLayout(new FlowLayout(FlowLayout.LEFT, 4, 2));
         badges.setOpaque(false);
@@ -309,39 +290,28 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
         int badgeRowH = themeManager.scale(34) + badgeScroll.getHorizontalScrollBar().getPreferredSize().height;
         badgeScroll.setPreferredSize(new Dimension(0, badgeRowH));
         badgeScroll.setBorder(BorderFactory.createEmptyBorder());
-        section.add(badgeScroll, "growx, wrap");
+        section.add(badgeScroll, "growx, span, wrap");
 
-        // Search (below badges)
-        ThemedTextField search = new ThemedTextField(20);
-        search.setToolTipText(searchTooltip);
-        search.setPreferredSize(new Dimension(0, themeManager.scale(24)));
-        search.getDocument().addDocumentListener(new DocumentListener() {
-            public void insertUpdate(DocumentEvent e)  { onFilter.run(); }
-            public void removeUpdate(DocumentEvent e)  { onFilter.run(); }
-            public void changedUpdate(DocumentEvent e) { onFilter.run(); }
+        ThemedSearchableComboBox selector = new ThemedSearchableComboBox(items);
+        selector.setToolTipText(searchPlaceholder);
+        selector.setOnApply(item -> {
+            if (item != null && !item.trim().isEmpty()) {
+                onItemSelected.accept(item);
+            }
         });
-        searchSink.accept(search);
-        section.add(search, "growx, wrap");
+        selectorSink.accept(selector);
 
-        // Checklist
-        ThemedPanel list = new ThemedPanel();
-        list.setLayout(new MigLayout("insets 4 4 4 4, gap 0 2", "[grow,fill]", ""));
-        list.setOpaque(false);
-        List<JCheckBox> created = new ArrayList<>();
-        for (String item : items) {
-            ThemedCheckBox cb = new ThemedCheckBox(item);
-            cb.addActionListener(e -> onBadgeUpdate.run());
-            created.add(cb);
-            list.add(cb, "wrap");
-        }
-        checkboxesSink.accept(created);
-        listPanelSink.accept(list);
+        ThemedButton addButton = new ThemedButton("Add");
+        addButton.setPreferredSize(new Dimension(themeManager.scale(70), themeManager.scale(28)));
+        addButton.addActionListener(e -> {
+            Object selected = selector.getSelectedItem();
+            if (selected != null && !selected.toString().trim().isEmpty()) {
+                onItemSelected.accept(selected.toString());
+            }
+        });
 
-        ThemedScrollPane scroll = new ThemedScrollPane(list);
-        scroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
-        scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-        scroll.setPreferredSize(new Dimension(0, themeManager.scale(LIST_H)));
-        section.add(scroll, "grow");
+        section.add(selector, "growx");
+        section.add(addButton, "");
 
         return section;
     }
@@ -378,48 +348,47 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
         return l;
     }
 
+    private void onRepositorySelected(String repository) {
+        if (!selectedRepositories.contains(repository)) {
+            selectedRepositories.add(repository);
+            updateRepositoryBadges();
+        }
+    }
+
+    private void onReviewerSelected(String reviewer) {
+        if (!selectedReviewers.contains(reviewer)) {
+            selectedReviewers.add(reviewer);
+            updateReviewerBadges();
+        }
+    }
+
     protected void updateRepositoryBadges() {
-        rebuildBadges(repositoryBadgesPanel, repositoryCheckboxes, this::updateRepositoryBadges);
+        rebuildBadges(repositoryBadgesPanel, selectedRepositories, this::onRepositoryRemoved);
     }
 
     protected void updateReviewerBadges() {
-        rebuildBadges(reviewerBadgesPanel, reviewerCheckboxes, this::updateReviewerBadges);
+        rebuildBadges(reviewerBadgesPanel, selectedReviewers, this::onReviewerRemoved);
     }
 
-    protected void rebuildBadges(ThemedPanel panel, List<JCheckBox> source, Runnable refresh) {
+    private void onRepositoryRemoved(String repository) {
+        selectedRepositories.remove(repository);
+        updateRepositoryBadges();
+    }
+
+    private void onReviewerRemoved(String reviewer) {
+        selectedReviewers.remove(reviewer);
+        updateReviewerBadges();
+    }
+
+    protected void rebuildBadges(ThemedPanel panel, List<String> items, Consumer<String> onRemove) {
         panel.removeAll();
-        for (JCheckBox cb : source) {
-            if (cb.isSelected()) {
-                panel.add(new ThemedBadge(cb.getText(), () -> {
-                    cb.setSelected(false);
-                    refresh.run();
-                }));
-            }
+        for (String item : items) {
+            panel.add(new ThemedBadge(item, () -> onRemove.accept(item)));
         }
         panel.revalidate();
         panel.repaint();
         Container p = panel.getParent();
         while (p != null) { p.revalidate(); p.repaint(); p = p.getParent(); }
-    }
-
-    // ── filter ───────────────────────────────────────────────────────────────
-
-    private void filterRepositories() {
-        applyFilter(repositorySearchField, repositoryCheckboxPanel, repositoryCheckboxes);
-    }
-
-    private void filterReviewers() {
-        applyFilter(reviewerSearchField, reviewerCheckboxPanel, reviewerCheckboxes);
-    }
-
-    private void applyFilter(ThemedTextField search, ThemedPanel panel, List<JCheckBox> all) {
-        String q = search.getText().toLowerCase().trim();
-        panel.removeAll();
-        for (JCheckBox cb : all) {
-            if (cb.getText().toLowerCase().contains(q)) panel.add(cb, "wrap");
-        }
-        panel.revalidate();
-        panel.repaint();
     }
 
     // ── validation + submit ──────────────────────────────────────────────────
@@ -438,20 +407,13 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
         } else if (commitSelectionList.getSelectedValuesList().isEmpty()) {
             warn("Please select at least one commit"); return;
         }
-        if (repositoryCheckboxes.stream().noneMatch(JCheckBox::isSelected)) {
+        if (selectedRepositories.isEmpty()) {
             warn("Please select at least one repository"); return;
         }
-        if (reviewerCheckboxes.stream().noneMatch(JCheckBox::isSelected)) {
+        if (selectedReviewers.isEmpty()) {
             warn("Please select at least one reviewer"); return;
         }
 
-        selectedRepositories.clear();
-        for (JCheckBox cb : repositoryCheckboxes)
-            if (cb.isSelected()) selectedRepositories.add(cb.getText());
-
-        selectedReviewers.clear();
-        for (JCheckBox cb : reviewerCheckboxes)
-            if (cb.isSelected()) selectedReviewers.add(cb.getText());
 
         onFormSubmit();
     }

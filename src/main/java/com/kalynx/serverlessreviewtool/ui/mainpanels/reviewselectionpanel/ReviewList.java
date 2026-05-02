@@ -1,7 +1,7 @@
 package com.kalynx.serverlessreviewtool.ui.mainpanels.reviewselectionpanel;
 
 import com.kalynx.serverlessreviewtool.models.ReviewItem;
-import com.kalynx.serverlessreviewtool.theme.components.ThemedList;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedList;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewselectionpanel.reviewitem.ReviewItemCellRenderer;
 
 import java.util.List;

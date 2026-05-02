@@ -3,11 +3,13 @@ package com.kalynx.serverlessreviewtool.ui.review;
 import com.kalynx.serverlessreviewtool.managers.ReviewContextManager;
 import com.kalynx.serverlessreviewtool.models.ReviewContext;
 import com.kalynx.serverlessreviewtool.models.*;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedComboBox;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedLabel;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedWindow;
 import com.kalynx.serverlessreviewtool.theme.Theme;
-import com.kalynx.serverlessreviewtool.theme.components.*;
 import net.miginfocom.swing.MigLayout;
 
-import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;

@@ -1,7 +1,7 @@
 package com.kalynx.serverlessreviewtool.ui;
 
-import com.kalynx.serverlessreviewtool.theme.components.ThemedLabel;
-import com.kalynx.serverlessreviewtool.theme.components.ThemedPanel;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedLabel;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
 
 import javax.swing.*;
 import java.awt.*;

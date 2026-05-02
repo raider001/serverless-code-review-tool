@@ -1,6 +1,7 @@
 package com.kalynx.serverlessreviewtool.ui.mainpanels;
 
-import com.kalynx.serverlessreviewtool.theme.components.*;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedButton;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
 import com.kalynx.serverlessreviewtool.ui.review.CreateReviewDialog;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewselectionpanel.FilterPanel;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewselectionpanel.ReviewListPanel;

@@ -1,14 +1,13 @@
 package com.kalynx.serverlessreviewtool.ui;
 
 import com.kalynx.serverlessreviewtool.configuration.AppSettings;
-import com.kalynx.serverlessreviewtool.theme.Theme;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
-import com.kalynx.serverlessreviewtool.theme.components.ThemedButton;
-import com.kalynx.serverlessreviewtool.theme.components.ThemedLabel;
-import com.kalynx.serverlessreviewtool.theme.components.ThemedPanel;
-import com.kalynx.serverlessreviewtool.theme.components.ThemedPopupDialog;
-import com.kalynx.serverlessreviewtool.theme.components.ThemedTextField;
-import com.kalynx.serverlessreviewtool.theme.components.ThemedSpinner;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedButton;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedLabel;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPopupDialog;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedTextField;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedSpinner;
 
 import javax.swing.*;
 import java.awt.*;

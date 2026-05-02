@@ -5,8 +5,8 @@ import com.kalynx.serverlessreviewtool.models.Commit;
 import com.kalynx.serverlessreviewtool.models.Repository;
 import com.kalynx.serverlessreviewtool.models.ReviewContext;
 import com.kalynx.serverlessreviewtool.models.ReviewFile;
-import com.kalynx.serverlessreviewtool.theme.components.ThemedPanel;
-import com.kalynx.serverlessreviewtool.theme.components.ThemedSplitPane;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedSplitPane;
 import com.kalynx.serverlessreviewtool.ui.review.*;
 import net.miginfocom.swing.MigLayout;
 

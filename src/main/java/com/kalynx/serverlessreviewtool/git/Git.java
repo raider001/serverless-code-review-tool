@@ -2,12 +2,15 @@ package com.kalynx.serverlessreviewtool.git;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
- * Git provides operations for managing review notes stored in git repositories.
+ * Git provides asynchronous operations for managing review notes stored in git repositories.
  *
  * <p>All review data is persisted as NDJSON streams under {@code refs/notes/reviews/}
  * following the structure defined in the data model.
+ *
+ * <p>All operations are non-blocking and return {@link CompletableFuture} for composability.
  */
 public interface Git {
 
@@ -20,17 +23,17 @@ public interface Git {
      * @param repoPath  local repository path
      * @param remote    remote name (e.g. "origin")
      * @param remoteUrl git remote URL
-     * @throws GitException if initialization or initial fetch fails
+     * @return future that completes when initialization finishes
      */
-    void initNotesRepository(Path repoPath, String remote, String remoteUrl) throws GitException;
+    CompletableFuture<Void> initNotesRepository(Path repoPath, String remote, String remoteUrl);
 
     /**
      * Removes a local repository directory.
      *
      * @param repoPath local repository path to delete
-     * @throws GitException if deletion fails
+     * @return future that completes when deletion finishes
      */
-    void removeRepository(Path repoPath) throws GitException;
+    CompletableFuture<Void> removeRepository(Path repoPath);
 
     /**
      * Appends one NDJSON entry to a stream ref.
@@ -40,19 +43,18 @@ public interface Git {
      * @param repoPath  local repository path
      * @param streamRef fully-qualified ref path (e.g. {@code refs/notes/reviews/{id}/metadata/title})
      * @param entryJson single-line JSON entry to append
-     * @throws GitException if append fails
+     * @return future that completes when append finishes
      */
-    void appendToStream(Path repoPath, String streamRef, String entryJson) throws GitException;
+    CompletableFuture<Void> appendToStream(Path repoPath, String streamRef, String entryJson);
 
     /**
      * Reads all NDJSON entries from a stream ref.
      *
      * @param repoPath  local repository path
      * @param streamRef fully-qualified ref path
-     * @return list of NDJSON entries in order; empty if stream doesn't exist
-     * @throws GitException if read fails
+     * @return future that completes with list of NDJSON entries in order; empty if stream doesn't exist
      */
-    List<String> readStream(Path repoPath, String streamRef) throws GitException;
+    CompletableFuture<List<String>> readStream(Path repoPath, String streamRef);
 
     /**
      * Fetches all review notes refs from the remote.
@@ -62,28 +64,27 @@ public interface Git {
      *
      * @param repoPath local repository path
      * @param remote   remote name
-     * @throws GitException if fetch fails
+     * @return future that completes when fetch finishes
      */
-    void fetchNotes(Path repoPath, String remote) throws GitException;
+    CompletableFuture<Void> fetchNotes(Path repoPath, String remote);
 
     /**
      * Pushes all local review notes refs to the remote.
      *
      * @param repoPath local repository path
      * @param remote   remote name
-     * @throws GitException if push fails
+     * @return future that completes when push finishes
      */
-    void pushNotes(Path repoPath, String remote) throws GitException;
+    CompletableFuture<Void> pushNotes(Path repoPath, String remote);
 
     /**
      * Checks if a ref exists in the repository.
      *
      * @param repoPath local repository path
      * @param ref      ref path to check
-     * @return true if ref exists
-     * @throws GitException if check fails
+     * @return future that completes with true if ref exists, false otherwise
      */
-    boolean refExists(Path repoPath, String ref) throws GitException;
+    CompletableFuture<Boolean> refExists(Path repoPath, String ref);
 
     /**
      * Lists all review IDs in the repository.
@@ -91,8 +92,7 @@ public interface Git {
      * <p>Scans {@code refs/notes/reviews/} and extracts unique review identifiers.
      *
      * @param repoPath local repository path
-     * @return list of review IDs
-     * @throws GitException if scan fails
+     * @return future that completes with list of review IDs
      */
-    List<String> listReviews(Path repoPath) throws GitException;
+    CompletableFuture<List<String>> listReviews(Path repoPath);
 }

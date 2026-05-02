@@ -1,6 +1,6 @@
 package com.kalynx.serverlessreviewtool.theme.icons;
 
-import com.kalynx.serverlessreviewtool.theme.components.QuickButton;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.QuickButton;
 
 import java.awt.*;
 
