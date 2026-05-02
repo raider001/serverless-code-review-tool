@@ -31,7 +31,23 @@ public class JavaBackendRepository extends BaseRepository {
         System.out.println("  Creating UserRepository.java with incremental commits...");
         UserRepositoryFileMock.create(repoPath);
 
+        System.out.println("  Adding review notes...");
+        addReviewNotes(repoPath);
+
         System.out.println("  Java Backend repository created at: " + repoPath);
+    }
+
+    private static void addReviewNotes(Path repoPath) throws IOException, InterruptedException {
+        String commitHash = getLastCommitHash(repoPath);
+
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-001/metadata/title",
+            "{\"title\":\"Initial code review\",\"timestamp\":\"2026-01-15T10:00:00Z\"}");
+
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-001/comments",
+            "{\"author\":\"reviewer1\",\"comment\":\"Looks good overall\",\"timestamp\":\"2026-01-15T10:05:00Z\"}");
+
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-002/metadata/status",
+            "{\"status\":\"approved\",\"timestamp\":\"2026-01-16T14:30:00Z\"}");
     }
 
     private static void createInitialStructure(Path repoPath) throws IOException, InterruptedException {
