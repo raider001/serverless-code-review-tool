@@ -21,7 +21,6 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Unit tests for GitImpl demonstrating cloneRepository and removeRepository functionality.
  * Uses GitRepositoryInitializer to create mock Git repositories for testing.
- *
  * Test naming convention: {methodName}_{scenario}_{expectedResult}
  */
 public class GitImplTests {
@@ -57,7 +56,7 @@ public class GitImplTests {
     }
 
     @Test
-    void cloneRepository_validRemoteUrl_createsLocalRepository() throws Exception {
+    void cloneRepository_validRemoteUrl_createsLocalRepository() {
         String repoName = "java-backend-service";
         Path mockRepo = GitRepositoryInitializer.getBasePath().resolve(repoName);
         String remoteUrl = "file:///" + mockRepo.toString().replace("\\", "/");
@@ -158,7 +157,7 @@ public class GitImplTests {
     }
 
     @Test
-    void cloneRepository_multipleRepositories_createsMultipleDirectories() throws Exception {
+    void cloneRepository_multipleRepositories_createsMultipleDirectories() {
         String repo1 = "java-backend-service";
         String repo2 = "python-api-service";
         Path mockRepo1 = GitRepositoryInitializer.getBasePath().resolve(repo1);
@@ -280,7 +279,7 @@ public class GitImplTests {
         assertTrue(Files.exists(clonedRepo.resolve("test-file.txt")),
             "Pulled file should exist in local repository");
 
-        removeTestCommitFromRemote(mockRepo, testCommit);
+        removeTestCommitFromRemote(mockRepo);
     }
 
     @Test
@@ -335,7 +334,7 @@ public class GitImplTests {
         assertTrue(Files.exists(clonedRepo.resolve("additional-file.txt")),
             "File from pull should exist");
 
-        removeTestCommitFromRemote(mockRepo, testCommit);
+        removeTestCommitFromRemote(mockRepo);
     }
 
     @Test
@@ -361,8 +360,8 @@ public class GitImplTests {
         assertTrue(Files.exists(testRepoPath.resolve(repo1).resolve("repo1-test.txt")));
         assertTrue(Files.exists(testRepoPath.resolve(repo2).resolve("repo2-test.txt")));
 
-        removeTestCommitFromRemote(mockRepo1, commit1);
-        removeTestCommitFromRemote(mockRepo2, commit2);
+        removeTestCommitFromRemote(mockRepo1);
+        removeTestCommitFromRemote(mockRepo2);
     }
 
     @Test
@@ -379,7 +378,7 @@ public class GitImplTests {
 
         assertDoesNotThrow(() -> result.get(10, java.util.concurrent.TimeUnit.SECONDS));
 
-        removeTestCommitFromRemote(mockRepo, testCommit);
+        removeTestCommitFromRemote(mockRepo);
     }
 
     @Test
@@ -561,7 +560,7 @@ public class GitImplTests {
 
         List<String> content = readNoteRefContent(clonedRepo, noteRef);
         assertEquals(1, content.size(), "Note should have one line");
-        assertEquals(data, content.get(0), "Note content should match appended data");
+        assertEquals(data, content.getFirst(), "Note content should match appended data");
 
         removeRefFromLocal(clonedRepo, noteRef);
     }
@@ -588,7 +587,7 @@ public class GitImplTests {
 
         List<String> content = readNoteRefContent(clonedRepo, noteRef);
         assertEquals(3, content.size(), "Note should have three lines");
-        assertEquals(data1, content.get(0), "First line should match");
+        assertEquals(data1, content.getFirst(), "First line should match");
         assertEquals(data2, content.get(1), "Second line should match");
         assertEquals(data3, content.get(2), "Third line should match");
 
@@ -619,8 +618,8 @@ public class GitImplTests {
 
         assertEquals(1, content1.size(), "First ref should have one line");
         assertEquals(1, content2.size(), "Second ref should have one line");
-        assertEquals(data1, content1.get(0));
-        assertEquals(data2, content2.get(0));
+        assertEquals(data1, content1.getFirst());
+        assertEquals(data2, content2.getFirst());
 
         removeRefFromLocal(clonedRepo, noteRef1);
         removeRefFromLocal(clonedRepo, noteRef2);
@@ -659,7 +658,7 @@ public class GitImplTests {
 
         List<String> content = readNoteRefContent(clonedRepo, noteRef);
         assertEquals(1, content.size(), "Empty lines should be filtered out in NDJSON format");
-        assertEquals(data1, content.get(0));
+        assertEquals(data1, content.getFirst());
 
         removeRefFromLocal(clonedRepo, noteRef);
     }
@@ -694,8 +693,8 @@ public class GitImplTests {
 
         assertEquals(1, content1.size());
         assertEquals(1, content2.size());
-        assertEquals(data1, content1.get(0));
-        assertEquals(data2, content2.get(0));
+        assertEquals(data1, content1.getFirst());
+        assertEquals(data2, content2.getFirst());
 
         removeRefFromLocal(clonedRepo1, noteRef1);
         removeRefFromLocal(clonedRepo2, noteRef2);
@@ -722,7 +721,7 @@ public class GitImplTests {
 
         List<String> remoteContent = readNoteRefContentFromRemote(mockRepo, noteRef);
         assertEquals(2, remoteContent.size(), "Remote should have two lines");
-        assertEquals(data1, remoteContent.get(0));
+        assertEquals(data1, remoteContent.getFirst());
         assertEquals(data2, remoteContent.get(1));
 
         removeRefFromRemote(mockRepo, noteRef);
@@ -764,7 +763,7 @@ public class GitImplTests {
         assertDoesNotThrow(() -> fetchResult.get(10, java.util.concurrent.TimeUnit.SECONDS));
 
         List<String> mergedContent = readNoteRefContent(clonedRepo, noteRef);
-        assertTrue(mergedContent.size() >= 1, "Merged content should have at least one line");
+        assertFalse(mergedContent.isEmpty(), "Merged content should have at least one line");
         assertTrue(mergedContent.contains(localData) || mergedContent.contains(remoteData),
             "Merged content should contain data from at least one source");
 
@@ -827,8 +826,8 @@ public class GitImplTests {
         List<String> content1 = readNoteRefContent(clonedRepo, noteRef1);
         List<String> content2 = readNoteRefContent(clonedRepo, noteRef2);
 
-        assertTrue(content1.size() >= 1, "First ref should have merged content");
-        assertTrue(content2.size() >= 1, "Second ref should have merged content");
+        assertFalse(content1.isEmpty(), "First ref should have merged content");
+        assertFalse(content2.isEmpty(), "Second ref should have merged content");
 
         removeRefFromLocal(clonedRepo, noteRef1);
         removeRefFromLocal(clonedRepo, noteRef2);
@@ -1058,7 +1057,7 @@ public class GitImplTests {
         return output.toString().trim();
     }
 
-    private void removeTestCommitFromRemote(Path remotePath, String commitHash) throws Exception {
+    private void removeTestCommitFromRemote(Path remotePath) throws Exception {
         ProcessBuilder pb = new ProcessBuilder("git", "reset", "--hard", "HEAD~1");
         pb.directory(remotePath.toFile());
         pb.redirectErrorStream(true);
@@ -1085,16 +1084,19 @@ public class GitImplTests {
         }
 
         try (var stream = Files.walk(path)) {
-            stream.sorted((a, b) -> b.compareTo(a))
-                .forEach(p -> deleteWithRetry(p, 3));
+            stream.sorted(java.util.Comparator.reverseOrder())
+                .forEach(this::deleteWithRetry);
         }
     }
 
-    private void deleteWithRetry(Path path, int maxRetries) {
+    private void deleteWithRetry(Path path) {
+        int maxRetries = 3;
         for (int i = 0; i < maxRetries; i++) {
             try {
                 if (Files.exists(path) && !Files.isDirectory(path)) {
-                    path.toFile().setWritable(true);
+                    if (!path.toFile().setWritable(true)) {
+                        System.err.println("Warning: Could not set file writable: " + path);
+                    }
                 }
                 Files.delete(path);
                 return;

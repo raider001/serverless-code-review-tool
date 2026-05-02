@@ -14,7 +14,7 @@ public class DependencyInjector {
         return obj;
     }
 
-    public <T, V> T add(Class<T> clzInterface, T object) throws DependencyInjectionException {
+    public <T> T add(Class<T> clzInterface, T object) throws DependencyInjectionException {
 
         if(registeredClasses.get(clzInterface) != null)  throw new AlreadyAddedException(clzInterface);
 
@@ -63,7 +63,7 @@ public class DependencyInjector {
 
         if(constructors.size() != 1) throw new DIAnnotationException(clz);
 
-        Constructor<T> selectedCtor = constructors.get(0);
+        Constructor<T> selectedCtor = constructors.getFirst();
         Object[] params = new Object[selectedCtor.getParameterTypes().length];
 
         for(int i = 0; i < selectedCtor.getParameterTypes().length; i++) {

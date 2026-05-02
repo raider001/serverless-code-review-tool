@@ -43,7 +43,7 @@ public class PollingSettingsPanel extends ThemedPanel {
             settingsManager.updatePollingInterval(minutes);
         });
 
-        enablePollingCheckBox.addActionListener(e ->
+        enablePollingCheckBox.addActionListener(ignored ->
             settingsManager.updateEnablePolling(enablePollingCheckBox.isSelected())
         );
     }
@@ -52,7 +52,7 @@ public class PollingSettingsPanel extends ThemedPanel {
         JComponent editor = spinner.getEditor();
         if (editor instanceof JSpinner.DefaultEditor) {
             ((JSpinner.DefaultEditor) editor).getTextField()
-                .addFocusListener(ListenerFactory.createFocusLostAdapter(e -> onFocusLost.run()));
+                .addFocusListener(ListenerFactory.createFocusLostAdapter(ignored -> onFocusLost.run()));
         }
     }
 

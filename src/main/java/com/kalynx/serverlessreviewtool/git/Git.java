@@ -1,6 +1,5 @@
 package com.kalynx.serverlessreviewtool.git;
 
-import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 

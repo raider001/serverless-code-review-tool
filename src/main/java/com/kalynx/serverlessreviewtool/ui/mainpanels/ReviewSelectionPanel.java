@@ -38,7 +38,7 @@ public class ReviewSelectionPanel extends ThemedPanel {
     }
 
     private void configureActions() {
-        createReviewButton.addActionListener(e -> onCreateReview());
+        createReviewButton.addActionListener(ignored -> onCreateReview());
     }
 
     /**

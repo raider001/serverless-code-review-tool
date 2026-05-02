@@ -51,8 +51,8 @@ public class GitImpl implements Git {
         Path repoPath = gitLocalPath.resolve(repoName);
 
         return executeAsync(gitLocalPath, "git", "clone", remoteUrl, repoName)
-            .thenCompose(__ -> configureNotesMergeStrategy(repoPath))
-            .thenCompose(__ -> fetchNotes(repoPath));
+            .thenCompose(ignored -> configureNotesMergeStrategy(repoPath))
+            .thenCompose(ignored -> fetchNotes(repoPath));
     }
 
     @Override
@@ -71,13 +71,13 @@ public class GitImpl implements Git {
     public CompletableFuture<Void> pull(String repository) {
         Path repoPath = gitLocalPath.resolve(repository);
         return executeAsync(repoPath, "git", "pull", ORIGIN)
-            .thenCompose(result -> fetchNotes(repoPath));
+            .thenCompose(ignored -> fetchNotes(repoPath));
     }
 
     public CompletableFuture<Void> fetch(String repository) {
         Path repoPath = gitLocalPath.resolve(repository);
         return executeAsync(repoPath, "git", "fetch", ORIGIN)
-            .thenCompose(result -> fetchNotes(repoPath));
+            .thenCompose(ignored -> fetchNotes(repoPath));
     }
 
     @Override
@@ -92,7 +92,7 @@ public class GitImpl implements Git {
             .toList();
 
         return CompletableFuture.allOf(pushFutures.toArray(new CompletableFuture[0]))
-            .thenApply(__ -> null);
+            .thenApply(ignored -> null);
     }
 
     @Override
@@ -126,9 +126,9 @@ public class GitImpl implements Git {
                 .thenCompose(blobHash ->
                     executeAsync(repoPath, "git", "update-ref", note, blobHash.trim())
                 )
-                .thenApply(__ -> null);
+                .thenApply(ignored -> null);
 
-            return future.whenComplete((__, ___) -> {
+            return future.whenComplete((ignored1, ignored2) -> {
                 try {
                     Files.deleteIfExists(tempFile);
                 } catch (IOException ignored) {
@@ -139,7 +139,7 @@ public class GitImpl implements Git {
 
     private CompletableFuture<Boolean> refExists(Path repoPath, String ref) {
         return executeAsync(repoPath, "git", "show-ref", "--verify", ref)
-            .thenApply(__ -> true)
+            .thenApply(ignored -> true)
             .exceptionally(ex -> {
                 if (ex.getMessage() != null && ex.getMessage().contains("not a valid ref")) {
                     return false;
@@ -159,12 +159,12 @@ public class GitImpl implements Git {
 
     private CompletableFuture<Void> configureNotesMergeStrategy(Path repository) {
         return executeAsync(repository, "git", "config", "notes.mergeStrategy", "union")
-            .thenApply(__ -> null);
+            .thenApply(ignored -> null);
     }
 
     private CompletableFuture<Void> fetchNotes(Path repository) {
         return executeAsync(repository, "git", "fetch", ORIGIN, "refs/notes/*:refs/notes/*")
-            .thenCompose(__ -> mergeNotes(repository))
+            .thenCompose(ignored -> mergeNotes(repository))
             .exceptionally(ex -> {
                 if (ex.getMessage() != null && ex.getMessage().contains("Couldn't find remote ref")) {
                     return null;
@@ -175,7 +175,7 @@ public class GitImpl implements Git {
 
     private CompletableFuture<Void> mergeNotes(Path repository) {
         return executeAsync(repository, "git", "notes", "merge", "-s", "union", "refs/notes/commits")
-            .thenApply(result -> (Void) null)
+            .thenApply(ignored -> (Void) null)
             .exceptionally(ex -> {
                 if (ex.getMessage() != null && 
                     (ex.getMessage().contains("No notes to merge") || 
@@ -238,16 +238,19 @@ public class GitImpl implements Git {
         }
 
         try (Stream<Path> stream = Files.walk(path)) {
-            stream.sorted((a, b) -> b.compareTo(a))
-                .forEach(p -> deleteWithRetry(p, 3));
+            stream.sorted(java.util.Comparator.reverseOrder())
+                .forEach(this::deleteWithRetry);
         }
     }
 
-    private void deleteWithRetry(Path path, int maxRetries) {
+    private void deleteWithRetry(Path path) {
+        int maxRetries = 3;
         for (int i = 0; i < maxRetries; i++) {
             try {
                 if (Files.exists(path) && !Files.isDirectory(path)) {
-                    path.toFile().setWritable(true);
+                    if (!path.toFile().setWritable(true)) {
+                        System.err.println("Warning: Could not set file writable: " + path);
+                    }
                 }
                 Files.delete(path);
                 return;

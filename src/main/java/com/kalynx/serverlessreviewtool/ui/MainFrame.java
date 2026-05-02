@@ -39,7 +39,6 @@ public class MainFrame extends ThemedFrame {
     private SettingsPanel settingsPanel;
     private HelpPanel helpPanel;
     private ThemedPanel currentPanel;
-    private QuickButton refreshButton;
 
     @DI
     public MainFrame(
@@ -65,8 +64,8 @@ public class MainFrame extends ThemedFrame {
 
 
     private void setupRefreshButton() {
-        refreshButton = createRefreshButton();
-        refreshButton.addActionListener(e -> {
+        QuickButton refreshButton = createRefreshButton();
+        refreshButton.addActionListener(ignored -> {
             UserMockData_Old.refreshMockData(userManager);
             RepositoryMockData_Old.refreshMockData(repositoryManager);
             ReviewItemMockData_Old.refreshMockData(reviewItemManager);

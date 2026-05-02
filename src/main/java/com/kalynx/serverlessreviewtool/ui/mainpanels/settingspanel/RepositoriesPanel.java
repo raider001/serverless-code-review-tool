@@ -54,11 +54,11 @@ public class RepositoriesPanel extends ThemedPanel {
         updateButtonStates();
 
         // Update button states on selection change
-        repositoryList.addListSelectionListener(e -> updateButtonStates());
+        repositoryList.addListSelectionListener(ignored -> updateButtonStates());
 
-        addRepositoryButton.addActionListener(e -> showAddRepositoryDialog());
-        editRepositoryButton.addActionListener(e -> editSelectedRepository());
-        removeRepositoryButton.addActionListener(e -> removeSelectedRepository());
+        addRepositoryButton.addActionListener(ignored -> showAddRepositoryDialog());
+        editRepositoryButton.addActionListener(ignored -> editSelectedRepository());
+        removeRepositoryButton.addActionListener(ignored -> removeSelectedRepository());
     }
 
     private void updateButtonStates() {
