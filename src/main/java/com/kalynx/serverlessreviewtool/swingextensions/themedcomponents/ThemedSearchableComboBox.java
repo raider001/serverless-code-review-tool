@@ -60,6 +60,8 @@ public class ThemedSearchableComboBox extends JComboBox<String> {
     public void setValues(List<String> values) {
         myVector.clear();
         myVector.addAll(values);
+        setModel(new DefaultComboBoxModel<>(myVector));
+
     }
 
     private void applyTheme() {

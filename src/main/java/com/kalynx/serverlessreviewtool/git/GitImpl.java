@@ -50,7 +50,15 @@ public class GitImpl implements Git {
         String repoName = extractRepoName(remoteUrl);
         Path repoPath = gitLocalPath.resolve(repoName);
 
-        return executeAsync(gitLocalPath, "git", "clone", remoteUrl, repoName)
+        return isValidGitRepository(repoPath)
+            .thenCompose(isValid -> {
+                if (isValid) {
+                    return ensureRemoteConfigured(repoPath, remoteUrl);
+                } else {
+                    return executeAsync(gitLocalPath, "git", "clone", remoteUrl, repoName)
+                        .thenApply(ignored -> null);
+                }
+            })
             .thenCompose(ignored -> configureNotesMergeStrategy(repoPath))
             .thenCompose(ignored -> fetchNotes(repoPath));
     }
@@ -135,6 +143,41 @@ public class GitImpl implements Git {
                 }
             });
         });
+    }
+
+    private CompletableFuture<Void> ensureRemoteConfigured(Path repoPath, String remoteUrl) {
+        return executeAsync(repoPath, "git", "remote", "get-url", ORIGIN)
+            .handle((currentUrl, ex) -> {
+                if (ex != null) {
+                    if (ex.getMessage() != null && ex.getMessage().contains("No such remote")) {
+                        return executeAsync(repoPath, "git", "remote", "add", ORIGIN, remoteUrl);
+                    }
+                    throw new RuntimeException(ex);
+                } else {
+                    if (currentUrl.trim().equals(remoteUrl)) {
+                        return CompletableFuture.<String>completedFuture(null);
+                    } else {
+                        return executeAsync(repoPath, "git", "remote", "set-url", ORIGIN, remoteUrl);
+                    }
+                }
+            })
+            .thenCompose(future -> future)
+            .thenApply(ignored -> null);
+    }
+
+    private CompletableFuture<Boolean> isValidGitRepository(Path repoPath) {
+        if (!Files.exists(repoPath) || !Files.isDirectory(repoPath)) {
+            return CompletableFuture.completedFuture(false);
+        }
+
+        Path gitDir = repoPath.resolve(".git");
+        if (!Files.exists(gitDir) || !Files.isDirectory(gitDir)) {
+            return CompletableFuture.completedFuture(false);
+        }
+
+        return executeAsync(repoPath, "git", "rev-parse", "--git-dir")
+            .thenApply(output -> !output.trim().isEmpty())
+            .exceptionally(ex -> false);
     }
 
     private CompletableFuture<Boolean> refExists(Path repoPath, String ref) {
@@ -277,6 +320,31 @@ public class GitImpl implements Git {
                 .map(line -> line.replace("origin/", ""))
                 .distinct()
                 .collect(Collectors.toList()));
+    }
+
+    @Override
+    public CompletableFuture<String> getDefaultBranch(String repository) {
+        Path repoPath = gitLocalPath.resolve(repository);
+        return executeAsync(repoPath, "git", "symbolic-ref", "refs/remotes/origin/HEAD")
+            .thenApply(output -> {
+                String ref = output.trim();
+                if (ref.startsWith("refs/remotes/origin/")) {
+                    return ref.substring("refs/remotes/origin/".length());
+                }
+                return ref;
+            })
+            .exceptionally(ex -> {
+                return executeAsync(repoPath, "git", "rev-parse", "--abbrev-ref", "origin/HEAD")
+                    .thenApply(output -> {
+                        String ref = output.trim();
+                        if (ref.startsWith("origin/")) {
+                            return ref.substring("origin/".length());
+                        }
+                        return ref;
+                    })
+                    .exceptionally(ex2 -> "main")
+                    .join();
+            });
     }
 
     @Override

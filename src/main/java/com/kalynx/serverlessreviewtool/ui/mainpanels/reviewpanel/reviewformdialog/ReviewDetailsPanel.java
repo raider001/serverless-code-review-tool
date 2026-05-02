@@ -1,7 +1,9 @@
 package com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel.reviewformdialog;
 
+import com.kalynx.serverlessreviewtool.swingextensions.ComponentModel;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.*;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
+import com.kalynx.serverlessreviewtool.ui.models.reviewpanel.reviewformdialog.ReviewFormModels;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;
@@ -20,7 +22,12 @@ public class ReviewDetailsPanel extends ThemedPanel {
     private final ThemedTextField authorField;
     private final ThemedTextArea summaryArea;
 
-    public ReviewDetailsPanel() {
+    private boolean updatingFromModel = false;
+
+    public ReviewDetailsPanel(ComponentModel<String> titleModel,
+                              ComponentModel<String> authorModel,
+                              ComponentModel<String> summaryModel,
+                              ComponentModel<ReviewFormModels.ReviewMode> modeModel) {
         this.themeManager = ThemeManager.getInstance();
 
         setLayout(new MigLayout(
@@ -50,6 +57,92 @@ public class ReviewDetailsPanel extends ThemedPanel {
         summaryArea.setWrapStyleWord(true);
 
         configureLayout();
+        bindToModels(titleModel, authorModel, summaryModel, modeModel);
+    }
+
+    private void bindToModels(ComponentModel<String> titleModel,
+                              ComponentModel<String> authorModel,
+                              ComponentModel<String> summaryModel,
+                              ComponentModel<ReviewFormModels.ReviewMode> modeModel) {
+        titleModel.addChangeListener(value -> {
+            updatingFromModel = true;
+            titleField.setText(value != null ? value : "");
+            updatingFromModel = false;
+        });
+
+        authorModel.addChangeListener(value -> {
+            updatingFromModel = true;
+            authorField.setText(value != null ? value : "");
+            updatingFromModel = false;
+        });
+
+        summaryModel.addChangeListener(value -> {
+            updatingFromModel = true;
+            summaryArea.setText(value != null ? value : "");
+            updatingFromModel = false;
+        });
+
+        modeModel.addChangeListener(mode -> {
+            updatingFromModel = true;
+            if (mode == ReviewFormModels.ReviewMode.BRANCH) {
+                branchModeRadio.setSelected(true);
+            } else {
+                commitModeRadio.setSelected(true);
+            }
+            updatingFromModel = false;
+        });
+
+        titleField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            public void insertUpdate(javax.swing.event.DocumentEvent e) { updateModel(); }
+            public void removeUpdate(javax.swing.event.DocumentEvent e) { updateModel(); }
+            public void changedUpdate(javax.swing.event.DocumentEvent e) { updateModel(); }
+            private void updateModel() {
+                if (!updatingFromModel) {
+                    titleModel.setValue(titleField.getText());
+                }
+            }
+        });
+
+        authorField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            public void insertUpdate(javax.swing.event.DocumentEvent e) { updateModel(); }
+            public void removeUpdate(javax.swing.event.DocumentEvent e) { updateModel(); }
+            public void changedUpdate(javax.swing.event.DocumentEvent e) { updateModel(); }
+            private void updateModel() {
+                if (!updatingFromModel) {
+                    authorModel.setValue(authorField.getText());
+                }
+            }
+        });
+
+        summaryArea.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            public void insertUpdate(javax.swing.event.DocumentEvent e) { updateModel(); }
+            public void removeUpdate(javax.swing.event.DocumentEvent e) { updateModel(); }
+            public void changedUpdate(javax.swing.event.DocumentEvent e) { updateModel(); }
+            private void updateModel() {
+                if (!updatingFromModel) {
+                    summaryModel.setValue(summaryArea.getText());
+                }
+            }
+        });
+
+        branchModeRadio.addActionListener(e -> {
+            if (!updatingFromModel) {
+                modeModel.setValue(ReviewFormModels.ReviewMode.BRANCH);
+            }
+        });
+
+        commitModeRadio.addActionListener(e -> {
+            if (!updatingFromModel) {
+                modeModel.setValue(ReviewFormModels.ReviewMode.COMMIT);
+            }
+        });
+
+        if (titleModel.getValue() != null) titleField.setText(titleModel.getValue());
+        if (authorModel.getValue() != null) authorField.setText(authorModel.getValue());
+        if (summaryModel.getValue() != null) summaryArea.setText(summaryModel.getValue());
+        if (modeModel.getValue() == ReviewFormModels.ReviewMode.COMMIT) {
+            commitModeRadio.setSelected(true);
+        }
     }
 
     private void configureLayout() {
@@ -101,26 +194,6 @@ public class ReviewDetailsPanel extends ThemedPanel {
 
     public String getSummary() {
         return summaryArea.getText();
-    }
-
-    public void setTitle(String title) {
-        titleField.setText(title);
-    }
-
-    public void setAuthor(String author) {
-        authorField.setText(author);
-    }
-
-    public void setSummary(String summary) {
-        summaryArea.setText(summary);
-    }
-
-    public void setBranchMode(boolean branchMode) {
-        if (branchMode) {
-            branchModeRadio.setSelected(true);
-        } else {
-            commitModeRadio.setSelected(true);
-        }
     }
 }
 

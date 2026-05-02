@@ -33,10 +33,21 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
         this.themeManager = ThemeManager.getInstance();
         this.models = models;
 
-        this.detailsPanel = new ReviewDetailsPanel();
+        this.detailsPanel = new ReviewDetailsPanel(
+            models.title,
+            models.author,
+            models.summary,
+            models.mode
+        );
         this.sourcePanel = new SourcePanel();
-        this.repositoriesPanel = new RepositoriesPanel(models.availableRepositories);
-        this.reviewersPanel = new ReviewersPanel(models.availableReviewers.getValue());
+        this.repositoriesPanel = new RepositoriesPanel(
+            models.availableRepositories,
+            models.selectedRepositories
+        );
+        this.reviewersPanel = new ReviewersPanel(
+            models.availableReviewers,
+            models.selectedReviewers
+        );
 
         setDialogSize(themeManager.scale(DIALOG_W), themeManager.scale(DIALOG_H));
         setUserResizable(true);
@@ -53,9 +64,6 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
         }
     }
 
-    protected abstract String getSubmitButtonLabel();
-
-    protected abstract void onFormSubmit();
 
     private void configureLayout() {
         ThemedPanel content = (ThemedPanel) getContentPanel();
@@ -132,10 +140,7 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
             warn("Please select at least one commit");
             return;
         }
-        if (!repositoriesPanel.hasSelection()) {
-            warn("Please select at least one repository");
-            return;
-        }
+
         if (!reviewersPanel.hasSelection()) {
             warn("Please select at least one reviewer");
             return;
@@ -188,18 +193,11 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
         return sourcePanel.getSelectedBranchFilter();
     }
 
-    public List<String> getSelectedRepositories() {
-        return repositoriesPanel.getSelectedRepositories();
-    }
-
     public List<String> getSelectedReviewers() {
         return reviewersPanel.getSelectedReviewers();
     }
+
+    protected abstract String getSubmitButtonLabel();
+
+    protected abstract void onFormSubmit();
 }
-
-
-
-
-
-
-

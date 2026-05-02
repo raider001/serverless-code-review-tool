@@ -25,6 +25,7 @@ public class ComponentModel<T> {
 
     public synchronized void addChangeListener(Consumer<T> listener) {
         onChange.add(listener);
+        listener.accept(value);
     }
 
     public synchronized void removeChangeListener(Consumer<T> listener) {

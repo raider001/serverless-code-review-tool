@@ -83,7 +83,7 @@ public class GitImplTests {
     }
 
     @Test
-    void cloneRepository_alreadyClonedRepository_throwsExecutionException() throws Exception {
+    void cloneRepository_alreadyClonedRepository_handlesGracefully() throws Exception {
         String repoName = "java-backend-service";
         Path mockRepo = GitRepositoryInitializer.getBasePath().resolve(repoName);
         String remoteUrl = "file:///" + mockRepo.toString().replace("\\", "/");
@@ -92,9 +92,12 @@ public class GitImplTests {
 
         CompletableFuture<Void> secondClone = git.cloneRepository(remoteUrl);
 
-        ExecutionException exception = assertThrows(ExecutionException.class,
-            () -> secondClone.get(10, java.util.concurrent.TimeUnit.SECONDS));
-        assertNotNull(exception.getCause(), "Should fail when cloning to existing directory");
+        assertDoesNotThrow(() -> secondClone.get(10, java.util.concurrent.TimeUnit.SECONDS),
+            "Should handle already-cloned repository gracefully");
+
+        Path clonedRepo = testRepoPath.resolve(repoName);
+        assertTrue(Files.exists(clonedRepo), "Repository should still exist");
+        assertTrue(Files.isDirectory(clonedRepo.resolve(".git")), "Repository should still be a valid Git repository");
     }
 
     @Test

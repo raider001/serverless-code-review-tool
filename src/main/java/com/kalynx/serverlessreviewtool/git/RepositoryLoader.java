@@ -41,7 +41,7 @@ public class RepositoryLoader {
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
             .thenApply(_ -> futures.stream()
                 .map(CompletableFuture::join)
-                .filter(repo -> repo != null)
+                .filter(java.util.Objects::nonNull)
                 .toList());
     }
 
@@ -66,11 +66,9 @@ public class RepositoryLoader {
     }
 
     private CompletableFuture<Void> ensureRepositoryCloned(String name, String url) {
-        // For now, we'll attempt to clone. In practice, you'd check if it exists first
-        // GitImpl's cloneRepository should handle existing repos gracefully
         return git.cloneRepository(url)
             .exceptionally(ex -> {
-                System.out.println("Repository " + name + " may already exist or clone failed: " + ex.getMessage());
+                System.err.println("Failed to clone or initialize repository " + name + ": " + ex.getMessage());
                 return null;
             });
     }
@@ -85,7 +83,9 @@ public class RepositoryLoader {
     }
 
     private CompletableFuture<Void> loadCommits(Repository repository, String repoName) {
-        return git.listCommits(repoName, "origin/main", 50)
+        return git.getDefaultBranch(repoName)
+            .thenCompose(defaultBranch ->
+                git.listCommits(repoName, "origin/" + defaultBranch, 50))
             .thenAccept(commitLines -> {
                 for (String line : commitLines) {
                     Commit commit = parseCommit(line);

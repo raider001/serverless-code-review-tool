@@ -5,13 +5,11 @@ import com.kalynx.serverlessreviewtool.ui.models.reviewpanel.reviewformdialog.Re
 
 import java.awt.Component;
 
-/**
- * CreateReviewDialog – opens a blank review form for creating a new code review.
- */
 public class CreateReviewDialog extends ReviewFormDialog {
 
     public CreateReviewDialog(Component parent, ReviewFormModels models) {
         super(parent, "Create Code Review", models);
+        models.clear();
     }
 
     @Override

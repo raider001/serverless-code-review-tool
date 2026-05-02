@@ -50,22 +50,6 @@ public class ReviewSelectionPanel extends ThemedPanel {
     private void onCreateReview() {
         CreateReviewDialog dialog = new CreateReviewDialog(SwingUtilities.getWindowAncestor(this), reviewFormModels);
         dialog.setVisible(true);
-
-        if (dialog.isConfirmed()) {
-            String title = dialog.getReviewTitle();
-            String summary = dialog.getSummary();
-            boolean isBranchMode = dialog.isBranchMode();
-            java.util.List<String> selectedRepos = dialog.getSelectedRepositories();
-            java.util.List<String> selectedReviewers = dialog.getSelectedReviewers();
-
-            System.out.println("Creating review:");
-            System.out.println("  Title: " + title);
-            System.out.println("  Summary: " + summary);
-            System.out.println("  Mode: " + (isBranchMode ? "Branch-based" : "Commit-based"));
-            System.out.println("  Repositories: " + selectedRepos);
-            System.out.println("  Reviewers: " + selectedReviewers);
-
-            // TODO: Create the review in the backend and navigate to review details
-        }
+        // TODO - Implement me when needed.
     }
 }

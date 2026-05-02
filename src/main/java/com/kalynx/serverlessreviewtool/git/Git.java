@@ -55,6 +55,15 @@ public interface Git {
     CompletableFuture<List<String>> listBranches(String repository);
 
     /**
+     * Get the default branch name for the repository.
+     * Typically "main" or "master".
+     *
+     * @param repository local repository name
+     * @return future containing the default branch name
+     */
+    CompletableFuture<String> getDefaultBranch(String repository);
+
+    /**
      * List commits for a specific branch or ref.
      * Returns commits in format: "hash|author|date|message"
      *

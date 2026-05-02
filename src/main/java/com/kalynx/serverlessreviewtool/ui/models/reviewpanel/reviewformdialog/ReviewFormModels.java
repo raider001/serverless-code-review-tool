@@ -41,8 +41,6 @@ public class ReviewFormModels {
         selectedCommits.setValue(new ArrayList<>());
         selectedRepositories.setValue(new ArrayList<>());
         selectedReviewers.setValue(new ArrayList<>());
-        availableRepositories.setValue(new ArrayList<>());
-        availableReviewers.setValue(new ArrayList<>());
         availableBranches.setValue(new ArrayList<>());
         availableCommits.setValue(new ArrayList<>());
     }

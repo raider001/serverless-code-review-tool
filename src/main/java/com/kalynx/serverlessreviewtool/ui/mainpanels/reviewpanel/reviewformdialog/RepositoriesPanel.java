@@ -11,24 +11,31 @@ import java.util.List;
 
 public class RepositoriesPanel extends ThemedPanel {
 
-    private final ThemedSearchableComboBox repositorySelector;
-    private final ThemedPanel badgesPanel;
-    private final List<String> selectedRepositories;
+    private final ThemedSearchableComboBox repositorySelector = new ThemedSearchableComboBox(new ArrayList<>());
+    private final ThemedButton addButton = new ThemedButton("Add");
+    private final ThemedPanel badgesPanel = new ThemedPanel();
 
-    public RepositoriesPanel(ComponentModel<List<String>> availableRepositoriesModel) {
-        this.selectedRepositories = new ArrayList<>();
+    private final ComponentModel<List<String>> selectedRepositoriesModel;
+    private final ComponentModel<List<String>> availableRepositoriesModel;
 
+    public RepositoriesPanel(ComponentModel<List<String>> availableRepositoriesModel,
+                            ComponentModel<List<String>> selectedRepositoriesModel) {
+        this.availableRepositoriesModel = availableRepositoriesModel;
+        this.selectedRepositoriesModel = selectedRepositoriesModel;
+
+        configureLayout();
+        setupBindings();
+    }
+
+    private void configureLayout() {
         setLayout(new MigLayout(
-            "",
-            "[grow,fill][]",
-            "[]6[]"
+                "",
+                "[grow,fill][]",
+                "[]6[]"
         ));
         setBorder(ThemedTitledBorder.create("Repositories"));
-
-        badgesPanel = new ThemedPanel();
         badgesPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 4, 2));
         badgesPanel.setOpaque(false);
-
         ThemedScrollPane badgeScroll = new ThemedScrollPane(badgesPanel);
         badgeScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
         badgeScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_NEVER);
@@ -37,9 +44,19 @@ public class RepositoriesPanel extends ThemedPanel {
         badgeScroll.setBorder(BorderFactory.createEmptyBorder());
         add(badgeScroll, "growx, span, wrap");
 
-        repositorySelector = new ThemedSearchableComboBox(new ArrayList<>());
-        repositorySelector.bindTo(availableRepositoriesModel);
         repositorySelector.setToolTipText("Search to add repositories…");
+        addButton.setPreferredSize(new Dimension(themeManager.scale(70), themeManager.scale(28)));
+        add(repositorySelector, "growx");
+        add(addButton, "");
+    }
+
+    private void setupBindings() {
+        repositorySelector.bindTo(availableRepositoriesModel);
+
+        selectedRepositoriesModel.addChangeListener(repos -> updateBadges());
+
+        updateBadges();
+
         repositorySelector.setOnApply(item -> {
             if (item != null && !item.trim().isEmpty()) {
                 addRepository(item);
@@ -47,8 +64,6 @@ public class RepositoriesPanel extends ThemedPanel {
             }
         });
 
-        ThemedButton addButton = new ThemedButton("Add");
-        addButton.setPreferredSize(new Dimension(themeManager.scale(70), themeManager.scale(28)));
         addButton.addActionListener(ignored -> {
             Object selected = repositorySelector.getSelectedItem();
             if (selected != null && !selected.toString().trim().isEmpty()) {
@@ -56,27 +71,36 @@ public class RepositoriesPanel extends ThemedPanel {
                 repositorySelector.setSelectedIndex(-1);
             }
         });
-
-        add(repositorySelector, "growx");
-        add(addButton, "");
     }
 
     private void addRepository(String repository) {
-        if (!selectedRepositories.contains(repository)) {
-            selectedRepositories.add(repository);
-            updateBadges();
+        List<String> current = selectedRepositoriesModel.getValue();
+        if (current == null) {
+            current = new ArrayList<>();
+        }
+        if (!current.contains(repository)) {
+            List<String> updated = new ArrayList<>(current);
+            updated.add(repository);
+            selectedRepositoriesModel.setValue(updated);
         }
     }
 
     private void removeRepository(String repository) {
-        selectedRepositories.remove(repository);
-        updateBadges();
+        List<String> current = selectedRepositoriesModel.getValue();
+        if (current != null) {
+            List<String> updated = new ArrayList<>(current);
+            updated.remove(repository);
+            selectedRepositoriesModel.setValue(updated);
+        }
     }
 
     private void updateBadges() {
         badgesPanel.removeAll();
-        for (String item : selectedRepositories) {
-            badgesPanel.add(new ThemedBadge(item, () -> removeRepository(item)));
+        List<String> selected = selectedRepositoriesModel.getValue();
+        if (selected != null) {
+            for (String item : selected) {
+                badgesPanel.add(new ThemedBadge(item, () -> removeRepository(item)));
+            }
         }
         badgesPanel.revalidate();
         badgesPanel.repaint();
@@ -88,18 +112,5 @@ public class RepositoriesPanel extends ThemedPanel {
         }
     }
 
-    public List<String> getSelectedRepositories() {
-        return new ArrayList<>(selectedRepositories);
-    }
-
-    public void setSelectedRepositories(List<String> repositories) {
-        selectedRepositories.clear();
-        selectedRepositories.addAll(repositories);
-        updateBadges();
-    }
-
-    public boolean hasSelection() {
-        return !selectedRepositories.isEmpty();
-    }
 }
 

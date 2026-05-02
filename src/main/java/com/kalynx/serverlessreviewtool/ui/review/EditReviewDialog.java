@@ -23,7 +23,7 @@ public class EditReviewDialog extends ReviewFormDialog {
                             ReviewFormModels models) {
         super(parent, "Edit Code Review", models);
         this.originalContext = context;
-        prePopulate(context);
+        populateModelsFromContext(context);
     }
 
     @Override
@@ -32,26 +32,26 @@ public class EditReviewDialog extends ReviewFormDialog {
     @Override
     protected void onFormSubmit() { confirmed = true; dispose(); }
 
-    private void prePopulate(ReviewContext ctx) {
-        detailsPanel.setTitle(ctx.title);
-        detailsPanel.setAuthor(ctx.author);
-        detailsPanel.setSummary(ctx.summary);
+    private void populateModelsFromContext(ReviewContext ctx) {
+        models.title.setValue(ctx.title);
+        models.author.setValue(ctx.author);
+        models.summary.setValue(ctx.summary);
 
         List<String> repoNames = ctx.repositories.stream()
             .map(Repository::getName)
             .collect(Collectors.toList());
-        repositoriesPanel.setSelectedRepositories(repoNames);
+        models.selectedRepositories.setValue(repoNames);
 
         List<String> reviewerNames = ctx.reviewers.stream()
             .map(ReviewerInfo::getName)
             .collect(Collectors.toList());
-        reviewersPanel.setSelectedReviewers(reviewerNames);
+        models.selectedReviewers.setValue(reviewerNames);
     }
 
     public ReviewContext getUpdatedContext() {
         List<ReviewerInfo> updatedReviewers = new ArrayList<>(originalContext.reviewers);
-        Set<String> selectedReviewerNames = new HashSet<>(getSelectedReviewers());
-        
+        Set<String> selectedReviewerNames = new HashSet<>(models.selectedReviewers.getValue());
+
         updatedReviewers.removeIf(r -> !selectedReviewerNames.contains(r.getName()));
         
         Set<String> existingNames = updatedReviewers.stream()
@@ -65,8 +65,8 @@ public class EditReviewDialog extends ReviewFormDialog {
         }
 
         List<Repository> updatedRepositories = new ArrayList<>();
-        Set<String> selectedRepoNames = new HashSet<>(getSelectedRepositories());
-        
+        Set<String> selectedRepoNames = new HashSet<>(models.selectedRepositories.getValue());
+
         for (Repository repo : originalContext.repositories) {
             if (selectedRepoNames.contains(repo.getName())) {
                 updatedRepositories.add(repo);
@@ -80,9 +80,9 @@ public class EditReviewDialog extends ReviewFormDialog {
 
         return new ReviewContext(
             originalContext.reviewId,
-            getReviewTitle(),
-            getSummary(),
-            getAuthor(),
+            models.title.getValue(),
+            models.summary.getValue(),
+            models.author.getValue(),
             originalContext.status,
             updatedReviewers,
             updatedRepositories,

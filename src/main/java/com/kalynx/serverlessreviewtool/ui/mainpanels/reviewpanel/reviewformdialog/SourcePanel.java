@@ -135,6 +135,30 @@ public class SourcePanel extends ThemedPanel {
         reviewAgainstBranchCombo.setSelectedItem(branch);
     }
 
+    public void setCommitBranchFilter(String branchFilter) {
+        commitBranchFilterCombo.setSelectedItem(branchFilter);
+    }
+
+    public void setSelectedCommits(List<String> commits) {
+        if (commits == null || commits.isEmpty()) {
+            commitSelectionList.clearSelection();
+            return;
+        }
+
+        DefaultListModel<String> model = (DefaultListModel<String>) commitSelectionList.getModel();
+        List<Integer> indices = new ArrayList<>();
+
+        for (int i = 0; i < model.getSize(); i++) {
+            String commit = model.getElementAt(i);
+            if (commits.contains(commit)) {
+                indices.add(i);
+            }
+        }
+
+        int[] selectedIndices = indices.stream().mapToInt(Integer::intValue).toArray();
+        commitSelectionList.setSelectedIndices(selectedIndices);
+    }
+
     public boolean hasCommitSelection() {
         return !commitSelectionList.getSelectedValuesList().isEmpty();
     }

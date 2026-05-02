@@ -2,6 +2,7 @@ package com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel.reviewformdial
 
 import java.io.Serial;
 
+import com.kalynx.serverlessreviewtool.swingextensions.ComponentModel;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.*;
 import net.miginfocom.swing.MigLayout;
 
@@ -17,9 +18,13 @@ public class ReviewersPanel extends ThemedPanel {
     private transient final ThemedSearchableComboBox reviewerSelector;
     private final ThemedPanel badgesPanel;
     private transient final List<String> selectedReviewers;
+    private transient final ComponentModel<List<String>> selectedReviewersModel;
+    private transient boolean updatingFromModel = false;
 
-    public ReviewersPanel(List<String> availableReviewers) {
+    public ReviewersPanel(ComponentModel<List<String>> availableReviewersModel,
+                         ComponentModel<List<String>> selectedReviewersModel) {
         this.selectedReviewers = new ArrayList<>();
+        this.selectedReviewersModel = selectedReviewersModel;
 
         setLayout(new MigLayout(
             "",
@@ -40,7 +45,8 @@ public class ReviewersPanel extends ThemedPanel {
         badgeScroll.setBorder(BorderFactory.createEmptyBorder());
         add(badgeScroll, "growx, span, wrap");
 
-        reviewerSelector = new ThemedSearchableComboBox(availableReviewers);
+        reviewerSelector = new ThemedSearchableComboBox(new ArrayList<>());
+        reviewerSelector.bindTo(availableReviewersModel);
         reviewerSelector.setToolTipText("Search to add reviewers…");
         reviewerSelector.setOnApply(item -> {
             if (item != null && !item.trim().isEmpty()) {
@@ -61,18 +67,44 @@ public class ReviewersPanel extends ThemedPanel {
 
         add(reviewerSelector, "growx");
         add(addButton, "");
+
+        bindToSelectedModel(selectedReviewersModel);
+    }
+
+
+    private void bindToSelectedModel(ComponentModel<List<String>> selectedReviewersModel) {
+        selectedReviewersModel.addChangeListener(reviewers -> {
+            updatingFromModel = true;
+            selectedReviewers.clear();
+            if (reviewers != null) {
+                selectedReviewers.addAll(reviewers);
+            }
+            updateBadges();
+            updatingFromModel = false;
+        });
+
+        if (selectedReviewersModel.getValue() != null) {
+            selectedReviewers.addAll(selectedReviewersModel.getValue());
+            updateBadges();
+        }
     }
 
     private void addReviewer(String reviewer) {
         if (!selectedReviewers.contains(reviewer)) {
             selectedReviewers.add(reviewer);
             updateBadges();
+            if (!updatingFromModel) {
+                selectedReviewersModel.setValue(new ArrayList<>(selectedReviewers));
+            }
         }
     }
 
     private void removeReviewer(String reviewer) {
         selectedReviewers.remove(reviewer);
         updateBadges();
+        if (!updatingFromModel) {
+            selectedReviewersModel.setValue(new ArrayList<>(selectedReviewers));
+        }
     }
 
     private void updateBadges() {
@@ -94,11 +126,6 @@ public class ReviewersPanel extends ThemedPanel {
         return new ArrayList<>(selectedReviewers);
     }
 
-    public void setSelectedReviewers(List<String> reviewers) {
-        selectedReviewers.clear();
-        selectedReviewers.addAll(reviewers);
-        updateBadges();
-    }
 
     public boolean hasSelection() {
         return !selectedReviewers.isEmpty();
