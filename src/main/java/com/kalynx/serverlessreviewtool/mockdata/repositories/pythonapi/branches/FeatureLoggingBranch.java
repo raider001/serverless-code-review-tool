@@ -6,6 +6,7 @@ public class FeatureLoggingBranch extends BaseRepository {
     public static void create(Path repoPath) throws Exception {
         createAndCheckoutBranch(repoPath, "feature/structured-logging");
         Path loggerFile = repoPath.resolve("src/logger.py");
+        Files.createDirectories(loggerFile.getParent());
         Files.writeString(loggerFile, """
             import logging
             import json

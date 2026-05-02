@@ -11,6 +11,7 @@ public class RefactorDatabaseBranch extends BaseRepository {
         createAndCheckoutBranch(repoPath, "refactor/async-database");
 
         Path dbFile = repoPath.resolve("src/database_async.py");
+        Files.createDirectories(dbFile.getParent());
         Files.writeString(dbFile, """
             import asyncio
             import asyncpg

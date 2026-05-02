@@ -27,6 +27,7 @@ public class BugfixSecurityBranch extends BaseRepository {
         commitFile(repoPath, "src/QueryBuilder.java", "fix: Use prepared statements to prevent SQL injection");
 
         Path testFile = repoPath.resolve("src/QueryBuilderTest.java");
+        Files.createDirectories(testFile.getParent());
         Files.writeString(testFile, """
             public class QueryBuilderTest {
                 public void testSqlInjectionPrevention() {

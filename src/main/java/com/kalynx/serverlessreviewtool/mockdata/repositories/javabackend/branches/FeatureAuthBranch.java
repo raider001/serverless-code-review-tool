@@ -11,6 +11,7 @@ public class FeatureAuthBranch extends BaseRepository {
         createAndCheckoutBranch(repoPath, "feature/oauth-integration");
         
         Path authFile = repoPath.resolve("src/OAuth2Provider.java");
+        Files.createDirectories(authFile.getParent());
         Files.writeString(authFile, """
             public class OAuth2Provider {
                 public String getAuthorizationUrl() {
