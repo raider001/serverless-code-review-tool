@@ -70,9 +70,8 @@ public class ThemedSplitPane extends JSplitPane {
      * Style the divider with the current theme.
      */
     private void updateDividerStyle(Theme theme) {
-        if (getUI() instanceof BasicSplitPaneUI) {
-            BasicSplitPaneUI ui = (BasicSplitPaneUI) getUI();
-            BasicSplitPaneDivider divider = ui.getDivider();
+        if (getUI() instanceof BasicSplitPaneUI uii) {
+            BasicSplitPaneDivider divider = uii.getDivider();
             if (divider != null) {
                 divider.setBackground(theme.getBorderColor());
                 divider.setBorder(null);

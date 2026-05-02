@@ -31,7 +31,6 @@ public class RepositoryConfigDialog extends ThemedPopupDialog {
         super(parent, title);
         setDialogSize(450, 300);
 
-        ThemeManager themeManager = ThemeManager.getInstance();
 
         ThemedPanel contentPanel = (ThemedPanel) getContentPanel();
         contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));

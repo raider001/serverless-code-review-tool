@@ -127,7 +127,7 @@ public class DiffViewerPanel extends ThemedPanel {
         }
     }
 
-    public void showDiff(ReviewFile file, Commit startCommit, Commit endCommit) {
+    public void showDiff(ReviewFile file, Commit _startCommit, Commit _endCommit) {
         this.currentFile = file;
         this.startCommit = startCommit;
         this.endCommit = endCommit;

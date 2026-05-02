@@ -57,6 +57,7 @@ public class FilterableDefaultListModel<E> extends DefaultListModel<E> {
     }
 
     @Override
+    @SuppressWarnings("SuspiciousMethodCalls")
     public boolean removeElement(Object obj) {
         boolean removed = allItems.remove(obj);
         if (removed) {

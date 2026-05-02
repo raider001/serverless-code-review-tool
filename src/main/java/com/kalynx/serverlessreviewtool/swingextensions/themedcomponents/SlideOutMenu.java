@@ -103,8 +103,7 @@ public class SlideOutMenu extends ThemedPanel {
             for (Component comp : menuContentPanel.getComponents()) {
                 if (comp instanceof JLabel) {
                     comp.setForeground(theme.getAccentColor());
-                } else if (comp instanceof JButton) {
-                    JButton btn = (JButton) comp;
+                } else if (comp instanceof JButton btn) {
                     btn.setBackground(theme.getBackgroundColor());
                     btn.setForeground(theme.getForegroundColor());
                 }
@@ -230,7 +229,7 @@ public class SlideOutMenu extends ThemedPanel {
 
         // Animate sliding out
         animationTimer = new Timer(10, null);
-        animationTimer.addActionListener(e -> {
+        animationTimer.addActionListener(_ -> {
             currentX -= animationSpeed;
             if (currentX <= -menuWidth) {
                 currentX = -menuWidth;

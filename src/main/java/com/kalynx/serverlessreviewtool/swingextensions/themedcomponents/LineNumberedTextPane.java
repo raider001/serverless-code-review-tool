@@ -240,13 +240,13 @@ public class LineNumberedTextPane extends ThemedPanel {
     public void setComments(List<ReviewComment> comments) {
         lineComments.clear();
         for (ReviewComment comment : comments) {
-            lineComments.computeIfAbsent(comment.getLineNumber(), k -> new ArrayList<>()).add(comment);
+            lineComments.computeIfAbsent(comment.getLineNumber(), _ -> new ArrayList<>()).add(comment);
         }
         lineNumberPanel.repaint();
     }
 
     public void addCommentForLine(ReviewComment comment) {
-        lineComments.computeIfAbsent(comment.getLineNumber(), k -> new ArrayList<>()).add(comment);
+        lineComments.computeIfAbsent(comment.getLineNumber(), _ -> new ArrayList<>()).add(comment);
         lineNumberPanel.repaint();
     }
 

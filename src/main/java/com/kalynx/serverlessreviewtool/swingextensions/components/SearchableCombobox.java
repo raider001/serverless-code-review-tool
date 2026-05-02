@@ -11,7 +11,7 @@ public class SearchableCombobox<T> extends JComboBox<T> {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    private final Vector<T> myVector = new Vector<T>();
+    private final Vector<T> myVector = new Vector<>();
     private transient final ComboListener<T> comboListener;
 
     public SearchableCombobox() {

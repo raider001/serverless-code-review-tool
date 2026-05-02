@@ -53,8 +53,7 @@ public class ThemedPanel extends JPanel {
             setForeground(theme.getForegroundColor());
 
             // Automatically update titled borders with current theme
-            if (getBorder() instanceof TitledBorder) {
-                TitledBorder titledBorder = (TitledBorder) getBorder();
+            if (getBorder() instanceof TitledBorder titledBorder) {
                 String title = titledBorder.getTitle();
                 if (title != null) {
                     setBorder(ThemedTitledBorder.create(title));

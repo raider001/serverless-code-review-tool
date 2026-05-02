@@ -116,7 +116,7 @@ public class CustomTitleBar extends ThemedPanel {
         titleLabel.setBorder(BorderFactory.createEmptyBorder(0, themeManager.scale(10), 0, 0));
 
         QuickButton closeBtn = new QuickButton(new CloseIcon()).setTooltip("Close");
-        closeBtn.addActionListener(e -> window.dispose());
+        closeBtn.addActionListener(_ -> window.dispose());
 
         add(titleLabel, BorderLayout.WEST);
         add(closeBtn,   BorderLayout.EAST);
