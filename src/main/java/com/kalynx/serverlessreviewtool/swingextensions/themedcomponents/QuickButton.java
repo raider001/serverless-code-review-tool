@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.swingextensions.themedcomponents;
 
+import java.io.Serial;
+
 import com.kalynx.serverlessreviewtool.theme.ScalableComponent;
 import com.kalynx.serverlessreviewtool.theme.Theme;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
@@ -13,7 +15,9 @@ import java.awt.*;
  * Icons are injected from the icons package for separation of concerns
  */
 public class QuickButton extends JButton {
+    @Serial
     private static final long serialVersionUID = 1L;
+
 
     private transient final ThemeManager themeManager;
     private transient IconPainter customIconPainter;

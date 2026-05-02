@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.ui.mainpanels.reviewselectionpanel;
 
+import java.io.Serial;
+
 import javax.swing.DefaultListModel;
 import java.util.ArrayList;
 import java.util.List;
@@ -12,6 +14,7 @@ import java.util.List;
  * @param <E> The type of elements in this list model
  */
 public class FilterableDefaultListModel<E> extends DefaultListModel<E> {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     private transient final List<E> allItems = new ArrayList<>();

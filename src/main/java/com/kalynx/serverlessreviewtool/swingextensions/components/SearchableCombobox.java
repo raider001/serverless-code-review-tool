@@ -1,11 +1,14 @@
 package com.kalynx.serverlessreviewtool.swingextensions.components;
 
+import java.io.Serial;
+
 import javax.swing.*;
 import java.util.List;
 import java.util.Vector;
 import java.util.function.Consumer;
 
 public class SearchableCombobox<T> extends JComboBox<T> {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     private final Vector<T> myVector = new Vector<T>();

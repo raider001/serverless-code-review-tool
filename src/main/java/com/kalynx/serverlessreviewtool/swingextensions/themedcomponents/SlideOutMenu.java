@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.swingextensions.themedcomponents;
 
+import java.io.Serial;
+
 import com.kalynx.serverlessreviewtool.theme.Theme;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 
@@ -13,6 +15,7 @@ import java.awt.event.MouseEvent;
  * Provides navigation options and settings
  */
 public class SlideOutMenu extends ThemedPanel {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     private transient final ThemeManager themeManager;

@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.swingextensions.themedcomponents;
 
+import java.io.Serial;
+
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 import com.kalynx.serverlessreviewtool.theme.WindowResizeHandler;
 
@@ -12,6 +14,7 @@ import java.awt.*;
  * showing to enable drag-edge resizing via WindowResizeHandler.
  */
 public class ThemedPopupDialog extends JDialog {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     private transient final ThemeManager themeManager;

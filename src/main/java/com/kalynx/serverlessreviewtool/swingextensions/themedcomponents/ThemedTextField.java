@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.swingextensions.themedcomponents;
 
+import java.io.Serial;
+
 import com.kalynx.serverlessreviewtool.swingextensions.BindingLifecycleHelper;
 import com.kalynx.serverlessreviewtool.swingextensions.ComponentModel;
 import com.kalynx.serverlessreviewtool.theme.Theme;
@@ -15,6 +17,7 @@ import java.awt.event.FocusEvent;
 import java.util.function.Consumer;
 
 public class ThemedTextField extends JTextField {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     protected transient final ThemeManager themeManager;

@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.swingextensions.themedcomponents;
 
+import java.io.Serial;
+
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 
 import javax.swing.*;
@@ -13,6 +15,7 @@ import java.awt.event.HierarchyEvent;
  * This overlay floats above the layout without affecting positioning of other components
  */
 public class ThemedValidationOverlay extends JPanel {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     private transient final ThemeManager themeManager;

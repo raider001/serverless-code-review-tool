@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.ui;
 
+import java.io.Serial;
+
 import com.kalynx.serverlessreviewtool.configuration.AppSettings;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedButton;
@@ -17,6 +19,7 @@ import java.awt.*;
  * Uses themed components for consistent styling
  */
 public class RepositoryConfigDialog extends ThemedPopupDialog {
+    @Serial
     private static final long serialVersionUID = 1L;
     
     private final ThemedTextField nameField;

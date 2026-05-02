@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.ui.mainpanels.reviewselectionpanel;
 
+import java.io.Serial;
+
 import com.kalynx.serverlessreviewtool.eventlisteners.SetOnFilterEvent;
 import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedComboBox;
@@ -15,6 +17,7 @@ import javax.swing.event.DocumentListener;
 import java.util.*;
 
 public class FilterPanel extends ThemedPanel {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     private transient final Set<SetOnFilterEvent> filterEventListeners = new HashSet<>();

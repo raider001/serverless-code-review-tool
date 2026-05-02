@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.swingextensions.themedcomponents;
 
+import java.io.Serial;
+
 import com.kalynx.serverlessreviewtool.swingextensions.BindingLifecycleHelper;
 import com.kalynx.serverlessreviewtool.swingextensions.ComponentModel;
 import com.kalynx.serverlessreviewtool.swingextensions.components.ComboListener;
@@ -14,6 +16,7 @@ import java.util.Vector;
 import java.util.function.Consumer;
 
 public class ThemedSearchableComboBox extends JComboBox<String> {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     private transient final ThemeManager themeManager;
@@ -159,6 +162,7 @@ public class ThemedSearchableComboBox extends JComboBox<String> {
     }
 
     private class ThemedComboBoxRenderer extends DefaultListCellRenderer {
+        @Serial
         private static final long serialVersionUID = 1L;
 
         @Override

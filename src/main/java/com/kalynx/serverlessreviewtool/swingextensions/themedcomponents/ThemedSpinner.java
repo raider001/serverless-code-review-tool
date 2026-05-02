@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.swingextensions.themedcomponents;
 
+import java.io.Serial;
+
 import com.kalynx.serverlessreviewtool.theme.Theme;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 
@@ -12,6 +14,7 @@ import java.awt.*;
  * Uses a custom UI similar to ThemedComboBox for seamless theme integration
  */
 public class ThemedSpinner extends JSpinner {
+    @Serial
     private static final long serialVersionUID = 1L;
     
     private transient final ThemeManager themeManager;

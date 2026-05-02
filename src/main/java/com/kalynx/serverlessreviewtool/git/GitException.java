@@ -1,9 +1,12 @@
 package com.kalynx.serverlessreviewtool.git;
 
+import java.io.Serial;
+
 /**
  * GitException indicates a git operation has failed.
  */
 public class GitException extends Exception {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     /**

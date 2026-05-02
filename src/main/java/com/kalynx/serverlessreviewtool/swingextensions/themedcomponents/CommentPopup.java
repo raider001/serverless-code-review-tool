@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.swingextensions.themedcomponents;
 
+import java.io.Serial;
+
 import com.kalynx.serverlessreviewtool.theme.Theme;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 
@@ -13,6 +15,7 @@ import java.awt.event.KeyEvent;
  * Uses ThemedPopupDialog and theme components for consistent styling
  */
 public class CommentPopup extends ThemedPopupDialog {
+    @Serial
     private static final long serialVersionUID = 1L;
     
     private transient final JTextArea commentTextArea;

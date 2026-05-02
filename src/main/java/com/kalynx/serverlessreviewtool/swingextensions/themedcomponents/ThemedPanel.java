@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.swingextensions.themedcomponents;
 
+import java.io.Serial;
+
 import com.kalynx.serverlessreviewtool.theme.Theme;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 
@@ -12,6 +14,7 @@ import java.awt.*;
  * Colors are queried on-demand during paint for automatic theme updates
  */
 public class ThemedPanel extends JPanel {
+    @Serial
     private static final long serialVersionUID = 1L;
     
     protected transient final ThemeManager themeManager;

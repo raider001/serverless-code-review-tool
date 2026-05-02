@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.ui.mainpanels.reviewselectionpanel;
 
+import java.io.Serial;
+
 import com.kalynx.serverlessreviewtool.models.ReviewItem;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedList;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewselectionpanel.reviewitem.ReviewItemCellRenderer;
@@ -7,6 +9,7 @@ import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewselectionpanel.review
 import java.util.List;
 
 public class ReviewList extends ThemedList<ReviewItem> {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     public ReviewList() {
@@ -24,6 +27,7 @@ public class ReviewList extends ThemedList<ReviewItem> {
     }
 
     private static class ReviewItemFilterableModel extends FilterableDefaultListModel<ReviewItem> {
+        @Serial
         private static final long serialVersionUID = 1L;
 
         public ReviewItemFilterableModel() {

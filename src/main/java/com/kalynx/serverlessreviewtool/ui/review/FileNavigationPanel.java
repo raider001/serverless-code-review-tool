@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.ui.review;
 
+import java.io.Serial;
+
 import com.kalynx.serverlessreviewtool.managers.ReviewContextManager;
 import com.kalynx.serverlessreviewtool.models.ReviewContext;
 import com.kalynx.serverlessreviewtool.models.*;
@@ -23,6 +25,7 @@ import java.util.List;
  * FileNavigationPanel - Tree view for navigating files across multiple repositories
  */
 public class FileNavigationPanel extends ThemedPanel {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     private transient final ReviewContextManager reviewContextManager;
@@ -142,6 +145,7 @@ public class FileNavigationPanel extends ThemedPanel {
 
     // File tree cell renderer
     private class FileTreeCellRenderer extends DefaultTreeCellRenderer {
+        @Serial
         private static final long serialVersionUID = 1L;
 
         @Override

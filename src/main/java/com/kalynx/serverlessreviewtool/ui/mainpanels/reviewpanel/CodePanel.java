@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel;
 
+import java.io.Serial;
+
 import com.kalynx.serverlessreviewtool.managers.ReviewContextManager;
 import com.kalynx.serverlessreviewtool.models.Commit;
 import com.kalynx.serverlessreviewtool.models.Repository;
@@ -18,6 +20,7 @@ import java.util.List;
  * Displays the code review interface with commit comparison, file diffs, and inline comment management
  */
 public class CodePanel extends ThemedPanel {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     private transient final ReviewContextManager reviewContextManager;

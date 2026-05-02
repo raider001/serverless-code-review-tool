@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.swingextensions.themedcomponents;
 
+import java.io.Serial;
+
 import com.kalynx.serverlessreviewtool.swingextensions.BindingLifecycleHelper;
 import com.kalynx.serverlessreviewtool.swingextensions.ComponentModel;
 import com.kalynx.serverlessreviewtool.theme.Theme;
@@ -16,6 +18,7 @@ import java.util.Vector;
  * Provides clean, automatic theme integration
  */
 public class ThemedComboBox<T> extends JComboBox<T> {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     private transient final ThemeManager themeManager;
@@ -161,6 +164,7 @@ public class ThemedComboBox<T> extends JComboBox<T> {
      * Simple themed renderer for dropdown items
      */
     private class ThemedComboBoxRenderer extends DefaultListCellRenderer {
+        @Serial
         private static final long serialVersionUID = 1L;
 
         @Override

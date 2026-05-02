@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.ui.review;
 
+import java.io.Serial;
+
 import com.kalynx.serverlessreviewtool.managers.ReviewContextManager;
 import com.kalynx.serverlessreviewtool.models.ReviewContext;
 import com.kalynx.serverlessreviewtool.models.*;
@@ -22,6 +24,7 @@ import java.util.List;
  * with commit hashes displayed above as notches
  */
 public class CommitSelectorPanel extends ThemedPanel {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     private transient final ReviewContextManager reviewContextManager;
@@ -126,6 +129,7 @@ public class CommitSelectorPanel extends ThemedPanel {
      * Custom slider panel with two thumbs for selecting commit range
      */
     private class CommitSliderPanel extends ThemedPanel {
+        @Serial
         private static final long serialVersionUID = 1L;
 
         private transient List<Commit> commits = new ArrayList<>();

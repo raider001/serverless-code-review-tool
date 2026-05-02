@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel.reviewformdialog;
 
+import java.io.Serial;
+
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.*;
 import net.miginfocom.swing.MigLayout;
 
@@ -9,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ReviewersPanel extends ThemedPanel {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     private transient final ThemedSearchableComboBox reviewerSelector;

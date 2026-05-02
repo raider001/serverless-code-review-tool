@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.swingextensions.themedcomponents;
 
+import java.io.Serial;
+
 import com.kalynx.serverlessreviewtool.theme.ScalableComponent;
 import com.kalynx.serverlessreviewtool.theme.Theme;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
@@ -16,6 +18,7 @@ import java.awt.event.MouseMotionAdapter;
  * Replaces the OS-supplied window decoration
  */
 public class CustomTitleBar extends ThemedPanel {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     private transient final ThemeManager themeManager;

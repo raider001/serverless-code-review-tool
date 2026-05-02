@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.swingextensions.themedcomponents;
 
+import java.io.Serial;
+
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 
 import javax.swing.*;
@@ -10,6 +12,7 @@ import java.awt.*;
  * This shows the simplicity of creating new application windows
  */
 public class ExampleForm extends ThemedFrame {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     public ExampleForm() {

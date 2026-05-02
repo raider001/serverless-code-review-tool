@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.swingextensions.themedcomponents;
 
+import java.io.Serial;
+
 import com.kalynx.serverlessreviewtool.theme.Theme;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 import net.miginfocom.swing.MigLayout;
@@ -11,6 +13,7 @@ import java.awt.*;
  * A themed confirmation dialog with custom title bar
  */
 public class ThemedConfirmDialog extends JDialog {
+    @Serial
     private static final long serialVersionUID = 1L;
     
     private transient final ThemeManager themeManager = ThemeManager.getInstance();

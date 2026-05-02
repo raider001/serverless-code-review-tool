@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.swingextensions.themedcomponents;
 
+import java.io.Serial;
+
 import com.kalynx.serverlessreviewtool.models.ReviewComment;
 import com.kalynx.serverlessreviewtool.theme.Theme;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
@@ -22,6 +24,7 @@ import java.util.function.Consumer;
  * This component should be wrapped in a scroll pane by the parent container
  */
 public class LineNumberedTextPane extends ThemedPanel {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     private transient final ThemeManager themeManager;
@@ -268,6 +271,7 @@ public class LineNumberedTextPane extends ThemedPanel {
      * Visible for use as a row header in external scroll panes
      */
     public class LineNumberPanel extends JPanel {
+        @Serial
         private static final long serialVersionUID = 1L;
         private static final int RIGHT_MARGIN = 8;
         private static final int ICON_SPACE = 20;

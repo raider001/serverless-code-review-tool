@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.swingextensions.themedcomponents;
 
+import java.io.Serial;
+
 import com.kalynx.serverlessreviewtool.theme.Theme;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 
@@ -10,6 +12,7 @@ import java.awt.*;
  * ThemedTextPane - A theme-aware styled text pane for code/diff viewing
  */
 public class ThemedTextPane extends JTextPane {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     private transient final ThemeManager themeManager;

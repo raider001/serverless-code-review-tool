@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.swingextensions.themedcomponents;
 
+import java.io.Serial;
+
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 import net.miginfocom.swing.MigLayout;
 
@@ -11,6 +13,7 @@ import java.awt.*;
  * Useful for tooltips, popups, and floating windows
  */
 public class ThemedWindow extends JWindow {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     private transient final ThemeManager themeManager = ThemeManager.getInstance();

@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.swingextensions.themedcomponents;
 
+import java.io.Serial;
+
 import com.kalynx.serverlessreviewtool.swingextensions.BindingLifecycleHelper;
 import com.kalynx.serverlessreviewtool.swingextensions.ComponentModel;
 import com.kalynx.serverlessreviewtool.theme.Theme;
@@ -12,6 +14,7 @@ import java.awt.*;
  * ThemedCheckBox - A theme-aware checkbox component
  */
 public class ThemedCheckBox extends JCheckBox {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     private transient final ThemeManager themeManager;

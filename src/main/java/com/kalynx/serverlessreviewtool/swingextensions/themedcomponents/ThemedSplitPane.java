@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.swingextensions.themedcomponents;
 
+import java.io.Serial;
+
 import com.kalynx.serverlessreviewtool.theme.Theme;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 
@@ -13,6 +15,7 @@ import javax.swing.plaf.basic.BasicSplitPaneUI;
  * ThemedSplitPane - A modern, theme-aware split pane component with styled divider
  */
 public class ThemedSplitPane extends JSplitPane {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     private transient final ThemeManager themeManager;

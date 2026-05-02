@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.ui.review;
 
+import java.io.Serial;
+
 import com.kalynx.serverlessreviewtool.models.*;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.LineNumberedTextPane;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
@@ -16,6 +18,7 @@ import java.awt.*;
  * DiffViewerPanel - Shows file diffs in side-by-side or unified mode
  */
 public class DiffViewerPanel extends ThemedPanel {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     private transient final ThemeManager themeManager = ThemeManager.getInstance();

@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.swingextensions.themedcomponents;
 
+import java.io.Serial;
+
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 import com.kalynx.serverlessreviewtool.theme.WindowResizeHandler;
 import com.kalynx.serverlessreviewtool.theme.icons.AppIcon;
@@ -13,6 +15,7 @@ import java.awt.*;
  * Extend this class to create application forms with consistent UI elements
  */
 public class ThemedFrame extends JFrame {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     protected transient final ThemeManager themeManager;
