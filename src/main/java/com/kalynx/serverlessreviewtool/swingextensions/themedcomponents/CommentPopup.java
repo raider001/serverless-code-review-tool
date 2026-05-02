@@ -10,10 +10,7 @@ import java.awt.*;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 
-/**
- * CommentPopup - A themed popup window for adding comments to specific lines
- * Uses ThemedPopupDialog and theme components for consistent styling
- */
+@SuppressWarnings("unused")
 public class CommentPopup extends ThemedPopupDialog {
     @Serial
     private static final long serialVersionUID = 1L;

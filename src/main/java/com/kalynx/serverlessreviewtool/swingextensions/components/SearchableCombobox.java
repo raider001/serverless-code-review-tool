@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Vector;
 import java.util.function.Consumer;
 
+@SuppressWarnings("unused")
 public class SearchableCombobox<T> extends JComboBox<T> {
     @Serial
     private static final long serialVersionUID = 1L;

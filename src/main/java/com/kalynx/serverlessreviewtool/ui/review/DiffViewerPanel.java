@@ -127,17 +127,16 @@ public class DiffViewerPanel extends ThemedPanel {
         }
     }
 
-    public void showDiff(ReviewFile file, Commit _startCommit, Commit _endCommit) {
+    public void showDiff(ReviewFile file, Commit newStartCommit, Commit newEndCommit) {
         this.currentFile = file;
-        this.startCommit = startCommit;
-        this.endCommit = endCommit;
+        this.startCommit = newStartCommit;
+        this.endCommit = newEndCommit;
         this.lastRenderedTheme = themeManager.getCurrentTheme();
 
-        // Generate and display diff
         if (currentMode == DiffViewMode.SIDE_BY_SIDE) {
-            showSideBySideDiff(file, startCommit, endCommit);
+            showSideBySideDiff(file, newStartCommit, newEndCommit);
         } else {
-            showUnifiedDiff(file, startCommit, endCommit);
+            showUnifiedDiff(file, newStartCommit, newEndCommit);
         }
     }
 
@@ -232,7 +231,8 @@ public class DiffViewerPanel extends ThemedPanel {
         return sb.toString();
     }
 
-    private String generateUnifiedDiff(ReviewFile file, Commit startCommit, Commit endCommit) {
+    @SuppressWarnings({"unused", "UnusedParameters"})
+    private String generateUnifiedDiff(ReviewFile file, Commit _startCommit, Commit _endCommit) {
         return "--- a/" + file.getPath() + "\n" +
                 "+++ b/" + file.getPath() + "\n" +
                 "@@ -1,25 +1,30 @@\n" +
@@ -279,23 +279,6 @@ public class DiffViewerPanel extends ThemedPanel {
                 "+        logger.info(\"Processing request\");  // NEW\n" +
                 "     }\n" +
                 " }\n";
-    }
-
-    private void highlightDiff(LineNumberedTextPane pane, String content, boolean isOld) {
-        Theme theme = themeManager.getCurrentTheme();
-        pane.setText(content);
-
-        // Style the text pane
-        JTextPane textPane = pane.getTextPane();
-        StyledDocument doc = textPane.getStyledDocument();
-
-        // Create default style
-        Style defaultStyle = textPane.addStyle("default", null);
-        StyleConstants.setForeground(defaultStyle, theme.getForegroundColor());
-        StyleConstants.setBackground(defaultStyle, theme.getBackgroundColor());
-
-        // Apply default style to all text
-        doc.setParagraphAttributes(0, doc.getLength(), defaultStyle, true);
     }
 
     private void highlightDiffWithInlineChanges(LineNumberedTextPane leftPane, LineNumberedTextPane rightPane,
@@ -433,9 +416,6 @@ public class DiffViewerPanel extends ThemedPanel {
         currentFile = null;
     }
 
-    public DiffViewMode getCurrentMode() {
-        return currentMode;
-    }
 
     public void setOnLineDoubleClickListener(java.util.function.Consumer<Integer> listener) {
         leftPane.setOnLineDoubleClickListener(listener);

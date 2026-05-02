@@ -108,6 +108,7 @@ public class FilterableDefaultListModel<E> extends DefaultListModel<E> {
     /**
      * Clear all filters and show all items
      */
+    @SuppressWarnings("unused")
     public void clearFilter() {
         this.titleFilter = "";
         this.authorFilter = "";
@@ -131,23 +132,6 @@ public class FilterableDefaultListModel<E> extends DefaultListModel<E> {
         }
     }
 
-    /**
-     * Get the count of all items (including filtered out items)
-     *
-     * @return Total count of all items
-     */
-    public int getAllItemsCount() {
-        return allItems.size();
-    }
-
-    /**
-     * Get the count of visible (filtered) items
-     *
-     * @return Count of visible items
-     */
-    public int getVisibleItemsCount() {
-        return getSize();
-    }
 
     /**
      * Functional interface for filtering items

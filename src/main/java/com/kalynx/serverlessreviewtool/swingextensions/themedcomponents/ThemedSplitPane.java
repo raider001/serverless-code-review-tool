@@ -38,6 +38,7 @@ public class ThemedSplitPane extends JSplitPane {
         setRightComponent(rightComponent);
     }
 
+    @SuppressWarnings("unused")
     public ThemedSplitPane(int orientation, boolean continuousLayout, Component leftComponent, Component rightComponent) {
         this(orientation, leftComponent, rightComponent);
         setContinuousLayout(continuousLayout);

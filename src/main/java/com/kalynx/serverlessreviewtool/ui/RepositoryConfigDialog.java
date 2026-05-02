@@ -3,7 +3,6 @@ package com.kalynx.serverlessreviewtool.ui;
 import java.io.Serial;
 
 import com.kalynx.serverlessreviewtool.configuration.AppSettings;
-import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedButton;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedLabel;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
@@ -55,10 +54,10 @@ public class RepositoryConfigDialog extends ThemedPopupDialog {
         buttonPanel.setOpaque(false);
 
         ThemedButton cancelButton = new ThemedButton("Cancel");
-        cancelButton.addActionListener(e -> dispose());
+        cancelButton.addActionListener(_ -> dispose());
 
         ThemedButton acceptButton = new ThemedButton("Save");
-        acceptButton.addActionListener(e -> {
+        acceptButton.addActionListener(_ -> {
             confirmed = true;
             dispose();
         });

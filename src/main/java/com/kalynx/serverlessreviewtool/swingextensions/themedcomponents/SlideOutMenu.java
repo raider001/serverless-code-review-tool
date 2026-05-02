@@ -154,9 +154,9 @@ public class SlideOutMenu extends ThemedPanel {
             }
         });
 
-        menuItem.addActionListener(e -> {
+        menuItem.addActionListener(_ -> {
             action.run();
-            toggle(); // Close menu after selection
+            toggle();
         });
 
         menuContentPanel.add(menuItem);
@@ -204,9 +204,8 @@ public class SlideOutMenu extends ThemedPanel {
         layeredPane.add(overlayPanel, JLayeredPane.PALETTE_LAYER);
         layeredPane.add(this, JLayeredPane.MODAL_LAYER);
 
-        // Animate sliding in
         animationTimer = new Timer(10, null);
-        animationTimer.addActionListener(e -> {
+        animationTimer.addActionListener(_ -> {
             currentX += animationSpeed;
             if (currentX >= 0) {
                 currentX = 0;
@@ -249,12 +248,6 @@ public class SlideOutMenu extends ThemedPanel {
         animationTimer.start();
     }
 
-    /**
-     * Check if menu is currently open
-     */
-    public boolean isOpen() {
-        return isOpen;
-    }
 
     /**
      * Add a custom menu item

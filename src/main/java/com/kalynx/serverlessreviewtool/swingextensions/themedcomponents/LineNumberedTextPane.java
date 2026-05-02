@@ -142,14 +142,14 @@ public class LineNumberedTextPane extends ThemedPanel {
         JToolTip tip = textPane.createToolTip();
         tip.setTipText(tooltip.toString());
 
-        Point screenPoint = point;
+        Point screenPoint = new Point(point);
         SwingUtilities.convertPointToScreen(screenPoint, textPane);
 
         Popup popup = PopupFactory.getSharedInstance().getPopup(textPane, tip,
             screenPoint.x, screenPoint.y + 20);
         popup.show();
 
-        Timer timer = new Timer(5000, evt -> popup.hide());
+        Timer timer = new Timer(5000, _ -> popup.hide());
         timer.setRepeats(false);
         timer.start();
     }
@@ -209,9 +209,7 @@ public class LineNumberedTextPane extends ThemedPanel {
         lineNumberPanel.repaint();
     }
 
-    /**
-     * Mark a line as modified
-     */
+    @SuppressWarnings("unused")
     public void markLineModified(int lineNumber) {
         modifiedLines.add(lineNumber);
         addedLines.remove(lineNumber);
@@ -219,9 +217,6 @@ public class LineNumberedTextPane extends ThemedPanel {
         lineNumberPanel.repaint();
     }
 
-    /**
-     * Clear all line indicators
-     */
     public void clearLineIndicators() {
         addedLines.clear();
         removedLines.clear();
@@ -233,6 +228,7 @@ public class LineNumberedTextPane extends ThemedPanel {
         return textPane;
     }
 
+    @SuppressWarnings("unused")
     public LineNumberPanel getLineNumberPanel() {
         return lineNumberPanel;
     }
@@ -245,10 +241,6 @@ public class LineNumberedTextPane extends ThemedPanel {
         lineNumberPanel.repaint();
     }
 
-    public void addCommentForLine(ReviewComment comment) {
-        lineComments.computeIfAbsent(comment.getLineNumber(), _ -> new ArrayList<>()).add(comment);
-        lineNumberPanel.repaint();
-    }
 
     public List<ReviewComment> getCommentsForLine(int lineNumber) {
         return lineComments.getOrDefault(lineNumber, new ArrayList<>());
