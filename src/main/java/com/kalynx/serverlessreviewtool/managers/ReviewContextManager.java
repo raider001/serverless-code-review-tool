@@ -7,22 +7,16 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * ReviewContextManager - Singleton manager for the current review context
+ * ReviewContextManager - Manages the current review context
  * Manages the active review context and notifies listeners of changes
  */
 public class ReviewContextManager {
-
-    private static ReviewContextManager INSTANCE;
 
     private ReviewContext currentReviewContext;
 
     private final Set<Consumer<ReviewContext>> listeners = new HashSet<>();
 
-    public static synchronized ReviewContextManager getInstance() {
-        if (INSTANCE == null) {
-            INSTANCE = new ReviewContextManager();
-        }
-        return INSTANCE;
+    public ReviewContextManager() {
     }
 
     public void setReviewContext(ReviewContext reviewContext) {

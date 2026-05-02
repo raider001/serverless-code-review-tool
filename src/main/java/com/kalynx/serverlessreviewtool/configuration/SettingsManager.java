@@ -17,12 +17,11 @@ import java.nio.file.Paths;
  */
 public class SettingsManager {
 
-    private static SettingsManager instance;
     private final Gson gson;
     private final Path settingsFile;
     private AppSettings currentSettings;
 
-    private SettingsManager() {
+    public SettingsManager() {
         this.gson = new GsonBuilder().setPrettyPrinting().create();
 
         // Store settings in user home directory
@@ -41,15 +40,6 @@ public class SettingsManager {
         this.currentSettings = loadSettings();
     }
 
-    /**
-     * Get singleton instance
-     */
-    public static synchronized SettingsManager getInstance() {
-        if (instance == null) {
-            instance = new SettingsManager();
-        }
-        return instance;
-    }
 
     /**
      * Get current settings

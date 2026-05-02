@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.theme;
 
+import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
+import com.kalynx.serverlessreviewtool.managers.ReviewItemManager;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedFrame;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.ReviewSelectionPanel;
@@ -60,8 +62,12 @@ public class ThemeDemo extends ThemedFrame {
         ThemedPanel content = getContentPanel();
         content.setLayout(new BorderLayout());
 
+        // Create manager instances for demo
+        RepositoryManager repositoryManager = new RepositoryManager();
+        ReviewItemManager reviewItemManager = new ReviewItemManager();
+
         // Add the review selection panel
-        reviewSelectionPanel = new ReviewSelectionPanel();
+        reviewSelectionPanel = new ReviewSelectionPanel(repositoryManager, reviewItemManager);
         content.add(reviewSelectionPanel, BorderLayout.CENTER);
     }
 

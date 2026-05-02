@@ -9,22 +9,16 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * UserManager - Singleton manager for user data
+ * UserManager - Manages user data
  * Manages the list of users/reviewers and notifies listeners of changes
  */
 public class UserManager {
-
-    private static UserManager INSTANCE;
 
     private List<User> users = new ArrayList<>();
 
     private final Set<Consumer<List<User>>> listeners = new HashSet<>();
 
-    public static synchronized UserManager getInstance() {
-        if (INSTANCE == null) {
-            INSTANCE = new UserManager();
-        }
-        return INSTANCE;
+    public UserManager() {
     }
 
     public void updateUsers(List<User> users) {

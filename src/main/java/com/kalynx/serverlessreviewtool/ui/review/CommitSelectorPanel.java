@@ -23,7 +23,7 @@ import java.util.List;
  */
 public class CommitSelectorPanel extends ThemedPanel {
 
-    private final ReviewContextManager reviewContextManager = ReviewContextManager.getInstance();
+    private final ReviewContextManager reviewContextManager;
 
     private ThemedComboBox<DiffViewMode> viewModeComboBox;
     private CommitSliderPanel commitSliderPanel;
@@ -31,7 +31,8 @@ public class CommitSelectorPanel extends ThemedPanel {
     private final List<CommitRangeListener> commitRangeListeners = new ArrayList<>();
     private final List<ViewModeListener> viewModeListeners = new ArrayList<>();
 
-    public CommitSelectorPanel() {
+    public CommitSelectorPanel(ReviewContextManager reviewContextManager) {
+        this.reviewContextManager = reviewContextManager;
         configureLayout();
         setupListeners();
     }

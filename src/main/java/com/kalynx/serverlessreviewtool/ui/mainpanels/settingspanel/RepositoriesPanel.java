@@ -10,7 +10,7 @@ import javax.swing.*;
 
 public class RepositoriesPanel extends ThemedPanel {
 
-    private final SettingsManager settingsManager = SettingsManager.getInstance();
+    private final SettingsManager settingsManager;
     private final DefaultListModel<AppSettings.RepositoryConfig> repositoryListModel = new DefaultListModel<>();
 
     private final ThemedList<AppSettings.RepositoryConfig> repositoryList = new ThemedList<>();
@@ -18,7 +18,8 @@ public class RepositoriesPanel extends ThemedPanel {
     private final ThemedButton editRepositoryButton = new ThemedButton("Edit Repository");
     private final ThemedButton removeRepositoryButton = new ThemedButton("Remove Repository");
 
-    public RepositoriesPanel() {
+    public RepositoriesPanel(SettingsManager settingsManager) {
+        this.settingsManager = settingsManager;
         setupRepositoriesList();
         loadRepositories();
         configureLayout();

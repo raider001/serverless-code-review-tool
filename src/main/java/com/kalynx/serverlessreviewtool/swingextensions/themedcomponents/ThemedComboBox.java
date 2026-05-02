@@ -1,11 +1,14 @@
 package com.kalynx.serverlessreviewtool.swingextensions.themedcomponents;
 
+import com.kalynx.serverlessreviewtool.swingextensions.BindingLifecycleHelper;
+import com.kalynx.serverlessreviewtool.swingextensions.ComponentModel;
 import com.kalynx.serverlessreviewtool.theme.Theme;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 
 import javax.swing.*;
 import javax.swing.plaf.basic.BasicComboBoxUI;
 import java.awt.*;
+import java.util.List;
 import java.util.Vector;
 
 /**
@@ -15,6 +18,10 @@ import java.util.Vector;
 public class ThemedComboBox<T> extends JComboBox<T> {
 
     private final ThemeManager themeManager;
+
+    private ComponentModel<T> valueModel;
+    private ComponentModel<List<T>> optionsModel;
+    private BindingLifecycleHelper.ComboBoxBinding<T> binding;
 
     public ThemedComboBox() {
         super();
@@ -187,5 +194,35 @@ public class ThemedComboBox<T> extends JComboBox<T> {
 
             return label;
         }
+    }
+
+    public void bindTo(ComponentModel<T> valueModel, ComponentModel<List<T>> optionsModel) {
+        unbind();
+        this.valueModel = valueModel;
+        this.optionsModel = optionsModel;
+
+        binding = BindingLifecycleHelper.setupComboBoxBinding(valueModel, optionsModel, this);
+
+        BindingLifecycleHelper.setupAutoUnbind(this, this::unbind);
+    }
+
+    public void bindTo(ComponentModel<T> valueModel) {
+        bindTo(valueModel, null);
+    }
+
+    public void unbind() {
+        if (binding != null) {
+            BindingLifecycleHelper.unbindComboBox(
+                valueModel,
+                optionsModel,
+                binding.valueChangeListener,
+                binding.optionsChangeListener,
+                this,
+                binding.selectionListener
+            );
+        }
+        valueModel = null;
+        optionsModel = null;
+        binding = null;
     }
 }

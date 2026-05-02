@@ -12,19 +12,11 @@ import java.util.List;
  */
 public class UserMockData_Old {
 
-    /**
-     * Load mock user data into the UserManager
-     * Call this once at application startup for testing/development
-     */
-    public static void loadMockData() {
+    public static void loadMockData(UserManager userManager) {
         List<User> mockUsers = createMockUsers();
-        UserManager.getInstance().updateUsers(mockUsers);
+        userManager.updateUsers(mockUsers);
     }
 
-    /**
-     * Create a list of mock users
-     * @return List of mock User objects
-     */
     private static List<User> createMockUsers() {
         List<User> users = new ArrayList<>();
 
@@ -40,11 +32,8 @@ public class UserMockData_Old {
         return users;
     }
 
-    /**
-     * Refresh the mock data (useful for testing refresh functionality)
-     */
-    public static void refreshMockData() {
-        loadMockData();
+    public static void refreshMockData(UserManager userManager) {
+        loadMockData(userManager);
         System.out.println("Mock user data refreshed");
     }
 }

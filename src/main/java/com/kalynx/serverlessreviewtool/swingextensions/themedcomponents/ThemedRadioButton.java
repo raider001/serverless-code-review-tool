@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.swingextensions.themedcomponents;
 
+import com.kalynx.serverlessreviewtool.swingextensions.BindingLifecycleHelper;
+import com.kalynx.serverlessreviewtool.swingextensions.ComponentModel;
 import com.kalynx.serverlessreviewtool.theme.Theme;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 
@@ -12,6 +14,10 @@ import java.awt.*;
 public class ThemedRadioButton extends JRadioButton {
 
     protected final ThemeManager themeManager;
+
+    private ComponentModel<?> model;
+    private BindingLifecycleHelper.RadioButtonBinding<?> binding;
+    private Object valueWhenSelected;
 
     public ThemedRadioButton() {
         super();
@@ -50,6 +56,31 @@ public class ThemedRadioButton extends JRadioButton {
         setForeground(theme.getForegroundColor());
 
         super.paintComponent(g);
+    }
+
+    public <T> void bindTo(ComponentModel<T> model, T valueWhenSelected) {
+        unbind();
+        this.model = model;
+        this.valueWhenSelected = valueWhenSelected;
+
+        this.binding = BindingLifecycleHelper.setupRadioButtonBinding(model, this, valueWhenSelected);
+
+        BindingLifecycleHelper.setupAutoUnbind(this, this::unbind);
+    }
+
+    @SuppressWarnings("unchecked")
+    public void unbind() {
+        if (binding != null && model != null) {
+            BindingLifecycleHelper.unbindRadioButton(
+                (ComponentModel<Object>) model,
+                (java.util.function.Consumer<Object>) binding.modelChangeListener,
+                this,
+                binding.actionListener
+            );
+        }
+        model = null;
+        binding = null;
+        valueWhenSelected = null;
     }
 }
 

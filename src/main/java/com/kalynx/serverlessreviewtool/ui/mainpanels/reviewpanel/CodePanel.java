@@ -19,16 +19,19 @@ import java.util.List;
  */
 public class CodePanel extends ThemedPanel {
 
-    private final ReviewContextManager reviewContextManager = ReviewContextManager.getInstance();
+    private final ReviewContextManager reviewContextManager;
 
-    private final CommitSelectorPanel commitSelectorPanel = new CommitSelectorPanel();
-    private final FileNavigationPanel fileNavigationPanel = new FileNavigationPanel();
+    private final CommitSelectorPanel commitSelectorPanel;
+    private final FileNavigationPanel fileNavigationPanel;
     private final DiffViewerPanel diffViewerPanel = new DiffViewerPanel();
     private final ThemedSplitPane fileAndDiffSplitPane = new ThemedSplitPane(JSplitPane.HORIZONTAL_SPLIT);
 
     private ReviewFile currentFile;
 
-    public CodePanel() {
+    public CodePanel(ReviewContextManager reviewContextManager) {
+        this.reviewContextManager = reviewContextManager;
+        this.commitSelectorPanel = new CommitSelectorPanel(reviewContextManager);
+        this.fileNavigationPanel = new FileNavigationPanel(reviewContextManager);
         configureLayout();
         setupListeners();
         setupCommentIntegration();

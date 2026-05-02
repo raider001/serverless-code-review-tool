@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.swingextensions.themedcomponents;
 
+import com.kalynx.serverlessreviewtool.swingextensions.BindingLifecycleHelper;
+import com.kalynx.serverlessreviewtool.swingextensions.ComponentModel;
 import com.kalynx.serverlessreviewtool.theme.Theme;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 
@@ -11,6 +13,9 @@ import java.awt.*;
  */
 public class ThemedCheckBox extends JCheckBox {
     private final ThemeManager themeManager;
+
+    private ComponentModel<Boolean> model;
+    private BindingLifecycleHelper.CheckBoxBinding binding;
 
     public ThemedCheckBox(String text) {
         super(text);
@@ -51,6 +56,28 @@ public class ThemedCheckBox extends JCheckBox {
             setBackground(theme.getBackgroundColor());
         }
         super.paintComponent(g);
+    }
+
+    public void bindTo(ComponentModel<Boolean> model) {
+        unbind();
+        this.model = model;
+
+        binding = BindingLifecycleHelper.setupCheckBoxBinding(model, this);
+
+        BindingLifecycleHelper.setupAutoUnbind(this, this::unbind);
+    }
+
+    public void unbind() {
+        if (binding != null) {
+            BindingLifecycleHelper.unbindCheckBox(
+                model,
+                binding.modelChangeListener,
+                this,
+                binding.itemListener
+            );
+        }
+        model = null;
+        binding = null;
     }
 }
 

@@ -15,14 +15,15 @@ import java.util.stream.Collectors;
 
 public class ReviewListPanel extends ThemedPanel {
 
-    private final ReviewItemManager reviewItemManager = ReviewItemManager.getInstance();
+    private final ReviewItemManager reviewItemManager;
 
     private final ThemedTabbedPane tabbedPane = new ThemedTabbedPane();
     private final ReviewList       myReviewsList  = new ReviewList();
     private final ReviewList       myOpenReviewsList = new ReviewList();
     private final ReviewList       completedReviewsList = new ReviewList();
 
-    public ReviewListPanel() {
+    public ReviewListPanel(ReviewItemManager reviewItemManager) {
+        this.reviewItemManager = reviewItemManager;
          configureLayout();
          updateTabs();
          setupListeners();

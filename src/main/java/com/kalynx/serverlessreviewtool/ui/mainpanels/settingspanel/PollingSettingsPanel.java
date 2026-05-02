@@ -16,11 +16,12 @@ import javax.swing.*;
  */
 public class PollingSettingsPanel extends ThemedPanel {
 
-    private final SettingsManager settingsManager = SettingsManager.getInstance();
+    private final SettingsManager settingsManager;
     private final ThemedSpinner intervalSpinner = new ThemedSpinner(new SpinnerNumberModel(15, 1, 1440, 1));
     private final ThemedCheckBox enablePollingCheckBox = new ThemedCheckBox("Enable automatic polling", true);
 
-    public PollingSettingsPanel() {
+    public PollingSettingsPanel(SettingsManager settingsManager) {
+        this.settingsManager = settingsManager;
         setBorder(ThemedTitledBorder.create("Polling Settings"));
         configureLayout();
         setupListeners();

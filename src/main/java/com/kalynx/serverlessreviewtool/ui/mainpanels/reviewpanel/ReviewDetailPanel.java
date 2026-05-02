@@ -32,7 +32,9 @@ import java.util.stream.Collectors;
  */
 public class ReviewDetailPanel extends ThemedPanel {
 
-    private final ReviewContextManager reviewContextManager = ReviewContextManager.getInstance();
+    private final ReviewContextManager reviewContextManager;
+    private final RepositoryManager repositoryManager;
+    private final UserManager userManager;
 
     private final ThemedBadge headerStatusBadge = new ThemedBadge("Status").setCustomColor(Color.DARK_GRAY);
     private final ThemedLabel titleLabel = new ThemedLabel("");
@@ -44,7 +46,10 @@ public class ReviewDetailPanel extends ThemedPanel {
 
     private final ThemedPanel reviewerPanel = new ThemedPanel();
 
-    public ReviewDetailPanel() {
+    public ReviewDetailPanel(ReviewContextManager reviewContextManager, RepositoryManager repositoryManager, UserManager userManager) {
+        this.reviewContextManager = reviewContextManager;
+        this.repositoryManager = repositoryManager;
+        this.userManager = userManager;
         configureLayout();
         configureReviewContextListeners();
         setupListeners();
@@ -142,11 +147,11 @@ public class ReviewDetailPanel extends ThemedPanel {
         ReviewContext context = reviewContextManager.getReviewContext();
         if (context == null) return;
 
-        List<String> allRepositories = RepositoryManager.getInstance().getRepositories().stream()
+        List<String> allRepositories = repositoryManager.getRepositories().stream()
             .map(com.kalynx.serverlessreviewtool.models.Repository::getName)
             .collect(Collectors.toList());
 
-        List<String> allReviewers = UserManager.getInstance().getUsers().stream()
+        List<String> allReviewers = userManager.getUsers().stream()
             .map(com.kalynx.serverlessreviewtool.models.User::getName)
             .collect(Collectors.toList());
 

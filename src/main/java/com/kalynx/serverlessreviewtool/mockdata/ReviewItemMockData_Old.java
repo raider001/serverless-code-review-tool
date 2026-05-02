@@ -13,13 +13,9 @@ import java.util.List;
  */
 public class ReviewItemMockData_Old {
 
-    /**
-     * Load mock review data into the ReviewItemManager
-     * Call this once at application startup for testing/development
-     */
-    public static void loadMockData() {
+    public static void loadMockData(ReviewItemManager reviewItemManager) {
         List<ReviewItem> mockReviews = createMockReviews();
-        ReviewItemManager.getInstance().updateReviewItems(mockReviews);
+        reviewItemManager.updateReviewItems(mockReviews);
     }
 
     /**
@@ -102,11 +98,8 @@ public class ReviewItemMockData_Old {
         return reviews;
     }
 
-    /**
-     * Refresh the mock data (useful for testing refresh functionality)
-     */
-    public static void refreshMockData() {
-        loadMockData();
+    public static void refreshMockData(ReviewItemManager reviewItemManager) {
+        loadMockData(reviewItemManager);
         System.out.println("Mock review data refreshed");
     }
 }

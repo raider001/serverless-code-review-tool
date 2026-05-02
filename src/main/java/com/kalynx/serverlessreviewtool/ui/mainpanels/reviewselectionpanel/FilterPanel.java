@@ -18,7 +18,7 @@ public class FilterPanel extends ThemedPanel {
 
     private final Set<SetOnFilterEvent> filterEventListeners = new HashSet<>();
     private DebounceTimer debounceTimer;
-    private final RepositoryManager repositoryManager = RepositoryManager.getInstance();
+    private final RepositoryManager repositoryManager;
 
     private final ThemedLabel titleLabel = new ThemedLabel("Title:")
             .setThemedToolTipText("Filter reviews by title");
@@ -30,7 +30,8 @@ public class FilterPanel extends ThemedPanel {
             .setThemedToolTipText("Filter reviews by repository");
     private final ThemedComboBox<String> repositories = new ThemedComboBox<>();
 
-    public FilterPanel() {
+    public FilterPanel(RepositoryManager repositoryManager) {
+        this.repositoryManager = repositoryManager;
         configureLayout();
         setupEventListeners();
         setupRepositoryListener();
@@ -84,7 +85,7 @@ public class FilterPanel extends ThemedPanel {
     }
 
     private void setupRepositoryListener() {
-        RepositoryManager.getInstance().addListener(repos -> loadRepositories());
+        repositoryManager.addListener(repos -> loadRepositories());
     }
 
     private void loadRepositories() {

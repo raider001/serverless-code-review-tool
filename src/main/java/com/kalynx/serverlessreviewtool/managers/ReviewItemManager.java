@@ -10,18 +10,11 @@ import java.util.function.Consumer;
 
 public class ReviewItemManager {
 
-    private static ReviewItemManager INSTANCE;
-
     private List<ReviewItem> reviewItems = new ArrayList<>();
 
     private final Set<Consumer<List<ReviewItem>>> listeners = new HashSet<>();
 
-    public static synchronized ReviewItemManager getInstance() {
-
-        if (INSTANCE == null) {
-            INSTANCE = new ReviewItemManager();
-        }
-        return INSTANCE;
+    public ReviewItemManager() {
     }
 
     public void updateReviewItems(List<ReviewItem> reviewItems) {

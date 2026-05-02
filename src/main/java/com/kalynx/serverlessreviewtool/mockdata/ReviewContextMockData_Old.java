@@ -16,9 +16,9 @@ import java.util.List;
  */
 public class ReviewContextMockData_Old {
 
-    public static void loadMockData() {
+    public static void loadMockData(ReviewContextManager reviewContextManager) {
         ReviewContext mockReview = createMockReviewContext();
-        ReviewContextManager.getInstance().setReviewContext(mockReview);
+        reviewContextManager.setReviewContext(mockReview);
     }
 
     private static ReviewContext createMockReviewContext() {
@@ -88,8 +88,8 @@ public class ReviewContextMockData_Old {
         return comments;
     }
 
-    public static void refreshMockData() {
-        loadMockData();
+    public static void refreshMockData(ReviewContextManager reviewContextManager) {
+        loadMockData(reviewContextManager);
         System.out.println("Mock review context data refreshed");
     }
 }

@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.swingextensions.themedcomponents;
 
+import com.kalynx.serverlessreviewtool.swingextensions.BindingLifecycleHelper;
+import com.kalynx.serverlessreviewtool.swingextensions.ComponentModel;
 import com.kalynx.serverlessreviewtool.swingextensions.components.ComboListener;
 import com.kalynx.serverlessreviewtool.theme.Theme;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
@@ -16,6 +18,9 @@ public class ThemedSearchableComboBox extends JComboBox<String> {
     private final ThemeManager themeManager;
     private final Vector<String> myVector = new Vector<>();
     private final ComboListener<String> comboListener;
+
+    private ComponentModel<List<String>> optionsModel;
+    private Consumer<List<String>> optionsChangeListener;
 
     public ThemedSearchableComboBox(List<String> items) {
         super();
@@ -185,6 +190,32 @@ public class ThemedSearchableComboBox extends JComboBox<String> {
 
             return label;
         }
+    }
+
+    public void bindTo(ComponentModel<List<String>> optionsModel) {
+        unbind();
+        this.optionsModel = optionsModel;
+
+        if (optionsModel.getValue() != null) {
+            setValues(optionsModel.getValue());
+        }
+
+        optionsChangeListener = options -> {
+            if (options != null) {
+                setValues(options);
+            }
+        };
+        optionsModel.addChangeListener(optionsChangeListener);
+
+        BindingLifecycleHelper.setupAutoUnbind(this, this::unbind);
+    }
+
+    public void unbind() {
+        if (optionsModel != null && optionsChangeListener != null) {
+            optionsModel.removeChangeListener(optionsChangeListener);
+        }
+        optionsModel = null;
+        optionsChangeListener = null;
     }
 }
 

@@ -9,22 +9,16 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * RepositoryManager - Singleton manager for repository data
+ * RepositoryManager - Manages repository data
  * Manages the list of repositories and notifies listeners of changes
  */
 public class RepositoryManager {
-
-    private static RepositoryManager INSTANCE;
 
     private List<Repository> repositories = new ArrayList<>();
 
     private final Set<Consumer<List<Repository>>> listeners = new HashSet<>();
 
-    public static synchronized RepositoryManager getInstance() {
-        if (INSTANCE == null) {
-            INSTANCE = new RepositoryManager();
-        }
-        return INSTANCE;
+    public RepositoryManager() {
     }
 
     public void updateRepositories(List<Repository> repositories) {

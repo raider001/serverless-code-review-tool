@@ -1,5 +1,7 @@
 package com.kalynx.serverlessreviewtool.ui.mainpanels;
 
+import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
+import com.kalynx.serverlessreviewtool.managers.ReviewItemManager;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedButton;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
 import com.kalynx.serverlessreviewtool.ui.review.CreateReviewDialog;
@@ -14,12 +16,14 @@ import javax.swing.*;
  */
 public class ReviewSelectionPanel extends ThemedPanel {
 
-    private final ReviewListPanel listPanel = new ReviewListPanel();
-    private final FilterPanel filterPanel = new FilterPanel().addFilterEventListener(listPanel::filterLists);
+    private final ReviewListPanel listPanel;
+    private final FilterPanel filterPanel;
 
     private final ThemedButton createReviewButton = new ThemedButton("Create Review");
 
-    public ReviewSelectionPanel() {
+    public ReviewSelectionPanel(RepositoryManager repositoryManager, ReviewItemManager reviewItemManager) {
+        this.listPanel = new ReviewListPanel(reviewItemManager);
+        this.filterPanel = new FilterPanel(repositoryManager).addFilterEventListener(listPanel::filterLists);
         configureLayout();
         configureActions();
     }

@@ -16,8 +16,8 @@ public class NotificationServiceSettingsPanel extends ThemedPanel {
     private final ThemedLabel urlLabel = new ThemedLabel("Service URL:");
     private final ThemedTextField urlTextField = new ThemedTextField(30);
 
-    public NotificationServiceSettingsPanel() {
-        settingsManager = SettingsManager.getInstance();
+    public NotificationServiceSettingsPanel(SettingsManager settingsManager) {
+        this.settingsManager = settingsManager;
         configureLayout();
         setupValidation();
         loadDefaults();

@@ -1,6 +1,11 @@
 package com.kalynx.serverlessreviewtool.ui;
 
+import com.kalynx.lwdi.DI;
 import com.kalynx.serverlessreviewtool.configuration.SettingsManager;
+import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
+import com.kalynx.serverlessreviewtool.managers.ReviewContextManager;
+import com.kalynx.serverlessreviewtool.managers.ReviewItemManager;
+import com.kalynx.serverlessreviewtool.managers.UserManager;
 import com.kalynx.serverlessreviewtool.mockdata.RepositoryMockData_Old;
 import com.kalynx.serverlessreviewtool.mockdata.ReviewContextMockData_Old;
 import com.kalynx.serverlessreviewtool.mockdata.ReviewItemMockData_Old;
@@ -23,6 +28,12 @@ import java.awt.*;
  */
 public class MainFrame extends ThemedFrame {
 
+    private final SettingsManager settingsManager;
+    private final UserManager userManager;
+    private final RepositoryManager repositoryManager;
+    private final ReviewItemManager reviewItemManager;
+    private final ReviewContextManager reviewContextManager;
+
     private ReviewSelectionPanel reviewSelectionPanel;
     private ReviewPanel reviewPanel;
     private SettingsPanel settingsPanel;
@@ -30,11 +41,21 @@ public class MainFrame extends ThemedFrame {
     private ThemedPanel currentPanel;
     private QuickButton refreshButton;
 
-    public MainFrame() {
-        // Use static method to get settings before super() call
+    @DI
+    public MainFrame(
+            SettingsManager settingsManager,
+            UserManager userManager,
+            RepositoryManager repositoryManager,
+            ReviewItemManager reviewItemManager,
+            ReviewContextManager reviewContextManager) {
         super("Serverless Review Tool",
-              getInitialWidth(),
-              getInitialHeight());
+              settingsManager.getSettings().getWindow().getDefaultWidth(),
+              settingsManager.getSettings().getWindow().getDefaultHeight());
+        this.settingsManager = settingsManager;
+        this.userManager = userManager;
+        this.repositoryManager = repositoryManager;
+        this.reviewItemManager = reviewItemManager;
+        this.reviewContextManager = reviewContextManager;
         setApplicationIcon(AppIcon.createIconImages());
         initializePanels();
         setupMenuItems();
@@ -42,22 +63,14 @@ public class MainFrame extends ThemedFrame {
         showReviewPanel();
     }
 
-    private static int getInitialWidth() {
-        return SettingsManager.getInstance().getSettings().getWindow().getDefaultWidth();
-    }
-
-    private static int getInitialHeight() {
-        return SettingsManager.getInstance().getSettings().getWindow().getDefaultHeight();
-    }
-
 
     private void setupRefreshButton() {
         refreshButton = createRefreshButton();
         refreshButton.addActionListener(e -> {
-            UserMockData_Old.refreshMockData();
-            RepositoryMockData_Old.refreshMockData();
-            ReviewItemMockData_Old.refreshMockData();
-            ReviewContextMockData_Old.refreshMockData();
+            UserMockData_Old.refreshMockData(userManager);
+            RepositoryMockData_Old.refreshMockData(repositoryManager);
+            ReviewItemMockData_Old.refreshMockData(reviewItemManager);
+            ReviewContextMockData_Old.refreshMockData(reviewContextManager);
         });
         refreshButton.setVisible(true);
         getTitleBar().addActionButton(refreshButton);
@@ -70,9 +83,9 @@ public class MainFrame extends ThemedFrame {
     }
 
     private void initializePanels() {
-        reviewSelectionPanel = new ReviewSelectionPanel();
-        reviewPanel = new ReviewPanel();
-        settingsPanel = new SettingsPanel();
+        reviewSelectionPanel = new ReviewSelectionPanel(repositoryManager, reviewItemManager);
+        reviewPanel = new ReviewPanel(reviewContextManager, repositoryManager, userManager);
+        settingsPanel = new SettingsPanel(settingsManager);
         helpPanel = new HelpPanel();
     }
 
@@ -111,18 +124,6 @@ public class MainFrame extends ThemedFrame {
         }
         currentPanel = newPanel;
         getContentPanel().add(currentPanel, BorderLayout.CENTER);
-    }
-
-    public static void main(String[] args) {
-        UserMockData_Old.loadMockData();
-        RepositoryMockData_Old.loadMockData();
-        ReviewItemMockData_Old.loadMockData();
-        ReviewContextMockData_Old.loadMockData();
-
-        SwingUtilities.invokeLater(() -> {
-            MainFrame frame = new MainFrame();
-            frame.setVisible(true);
-        });
     }
 }
 

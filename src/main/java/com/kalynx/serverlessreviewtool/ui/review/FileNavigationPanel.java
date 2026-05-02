@@ -24,7 +24,7 @@ import java.util.List;
  */
 public class FileNavigationPanel extends ThemedPanel {
 
-    private final ReviewContextManager reviewContextManager = ReviewContextManager.getInstance();
+    private final ReviewContextManager reviewContextManager;
     private final ThemeManager themeManager = ThemeManager.getInstance();
     private final List<FileSelectionListener> listeners = new ArrayList<>();
 
@@ -33,7 +33,8 @@ public class FileNavigationPanel extends ThemedPanel {
     private DefaultMutableTreeNode rootNode;
     private ReviewContext currentReviewContext;
 
-    public FileNavigationPanel() {
+    public FileNavigationPanel(ReviewContextManager reviewContextManager) {
+        this.reviewContextManager = reviewContextManager;
         setLayout(new BorderLayout());
 
         initializeComponents();

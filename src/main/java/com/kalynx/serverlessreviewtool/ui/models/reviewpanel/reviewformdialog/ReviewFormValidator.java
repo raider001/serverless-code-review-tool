@@ -5,35 +5,35 @@ import java.util.List;
 
 public class ReviewFormValidator {
 
-    public static ValidationResult validate(ReviewFormModel model) {
+    public static ValidationResult validate(ReviewFormModels models) {
         List<String> errors = new ArrayList<>();
 
-        if (model.getTitle().trim().isEmpty()) {
+        if (models.title.getValue() == null || models.title.getValue().trim().isEmpty()) {
             errors.add("Please enter a title for the review");
         }
 
-        if (model.getAuthor().trim().isEmpty()) {
+        if (models.author.getValue() == null || models.author.getValue().trim().isEmpty()) {
             errors.add("Please enter an author name");
         }
 
-        if (model.isBranchMode()) {
-            if (model.getBranchName().trim().isEmpty()) {
+        if (models.mode.getValue() == ReviewFormModels.ReviewMode.BRANCH) {
+            if (models.branchName.getValue() == null || models.branchName.getValue().trim().isEmpty()) {
                 errors.add("Please enter a branch name to review");
             }
-            if (model.getReviewAgainstBranch() == null || model.getReviewAgainstBranch().trim().isEmpty()) {
+            if (models.reviewAgainstBranch.getValue() == null || models.reviewAgainstBranch.getValue().trim().isEmpty()) {
                 errors.add("Please select a branch to review against");
             }
         } else {
-            if (!model.hasSelectedCommits()) {
+            if (models.selectedCommits.getValue() == null || models.selectedCommits.getValue().isEmpty()) {
                 errors.add("Please select at least one commit");
             }
         }
 
-        if (!model.hasSelectedRepositories()) {
+        if (models.selectedRepositories.getValue() == null || models.selectedRepositories.getValue().isEmpty()) {
             errors.add("Please select at least one repository");
         }
 
-        if (!model.hasSelectedReviewers()) {
+        if (models.selectedReviewers.getValue() == null || models.selectedReviewers.getValue().isEmpty()) {
             errors.add("Please select at least one reviewer");
         }
 

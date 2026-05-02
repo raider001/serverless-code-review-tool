@@ -21,8 +21,8 @@ public class WindowSettingsPanel extends ThemedPanel {
     private final ThemedLabel defaultHeightLabel = new ThemedLabel("Default Height:");
     private final ThemedSpinner defaultHeightSpinner = new ThemedSpinner(new SpinnerNumberModel(700, 600, 2160, 10));
 
-    public WindowSettingsPanel() {
-        settingsManager = SettingsManager.getInstance();
+    public WindowSettingsPanel(SettingsManager settingsManager) {
+        this.settingsManager = settingsManager;
         configureLayout();
         setupListeners();
         loadWindowDefaults();

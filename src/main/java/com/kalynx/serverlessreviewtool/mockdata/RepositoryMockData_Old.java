@@ -15,13 +15,9 @@ import java.util.List;
  */
 public class RepositoryMockData_Old {
 
-    /**
-     * Load mock repository data into the RepositoryManager
-     * Call this once at application startup for testing/development
-     */
-    public static void loadMockData() {
+    public static void loadMockData(RepositoryManager repositoryManager) {
         List<Repository> mockRepositories = createMockRepositories();
-        RepositoryManager.getInstance().updateRepositories(mockRepositories);
+        repositoryManager.updateRepositories(mockRepositories);
     }
 
     /**
@@ -140,11 +136,8 @@ public class RepositoryMockData_Old {
         return repo;
     }
 
-    /**
-     * Refresh the mock data (useful for testing refresh functionality)
-     */
-    public static void refreshMockData() {
-        loadMockData();
+    public static void refreshMockData(RepositoryManager repositoryManager) {
+        loadMockData(repositoryManager);
         System.out.println("Mock repository data refreshed");
     }
 }
