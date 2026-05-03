@@ -29,7 +29,6 @@ public class ReviewFormModels {
     private void initializeDefaults() {
         reviewId.setValue(UuidV7Generator.generate());
         title.setValue("");
-        author.setValue("");
         summary.setValue("");
         selectedBranchModel.setValue("");
         selectedBaseBranchModel.setValue("main");

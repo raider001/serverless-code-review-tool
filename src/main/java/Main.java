@@ -30,26 +30,30 @@ public class Main {
             // Initialize DI container
             DependencyInjector di = new DependencyInjector();
 
-            // Register all models first as it is what stitches all comms in the app together.
-            ReviewFormModels reviewFormModels = di.inject(ReviewFormModels.class);
-
             // Create and register Git service
             String userHome = System.getProperty("user.home");
             Path gitLocalPath = Paths.get(userHome, ".serverless-review-tool", "repositories");
             GitImpl gitImpl = new GitImpl(gitLocalPath);
             di.add(Git.class, gitImpl);
 
+            // Initialize RepositoryLoader before RepositoryManager (dependency)
+            di.inject(RepositoryLoader.class);
+
+            // Initialize managers first before models that depend on them
+            RepositoryManager repositoryManager = di.inject(RepositoryManager.class);
+            SettingsManager settingsManager = di.inject(SettingsManager.class);
+            di.inject(ReviewItemManager.class);
+            di.inject(ReviewContextManager.class);
+
+            // Register all models
+            ReviewFormModels reviewFormModels = di.inject(ReviewFormModels.class);
+
             UserManager userManager = di.inject(UserManager.class);
             userManager.addListener(users -> reviewFormModels.availableReviewers.setValue(users.stream().map(User::getName).toList()));
 
             UserMockData.loadMockData(userManager);
-            di.inject(RepositoryLoader.class);
-            RepositoryManager repositoryManager = di.inject(RepositoryManager.class);
-            di.inject(SettingsManager.class);
-            di.inject(ReviewItemManager.class);
-            di.inject(ReviewContextManager.class);
 
-            setupReviewFormModelUpdaters(reviewFormModels, repositoryManager);
+            setupReviewFormModelUpdaters(reviewFormModels, repositoryManager, settingsManager);
 
             // Create and show main frame
             SwingUtilities.invokeLater(() -> {
@@ -68,9 +72,10 @@ public class Main {
         }
     }
 
-    private static void setupReviewFormModelUpdaters(ReviewFormModels reviewFormModels, RepositoryManager repositoryManager) {
+    private static void setupReviewFormModelUpdaters(ReviewFormModels reviewFormModels, RepositoryManager repositoryManager, SettingsManager settingsManager) {
         repositoryManager.addListener(repositories -> reviewFormModels.availableRepositories.setValue(repositories.stream().map(Repository::getName).toList()));
         repositoryManager.addListener(repositories -> reviewFormModels.availableBranches.setValue(repositories.stream().flatMap(r -> r.getBranches().stream()).toList()));
+        settingsManager.addUserNameListener(userName -> reviewFormModels.author.setValue(userName));
     }
 }
 

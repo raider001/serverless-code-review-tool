@@ -7,9 +7,6 @@ import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
 import com.kalynx.serverlessreviewtool.managers.ReviewContextManager;
 import com.kalynx.serverlessreviewtool.managers.ReviewItemManager;
 import com.kalynx.serverlessreviewtool.managers.UserManager;
-import com.kalynx.serverlessreviewtool.mockdata.ReviewContextMockData_Old;
-import com.kalynx.serverlessreviewtool.mockdata.ReviewItemMockData_Old;
-import com.kalynx.serverlessreviewtool.mockdata.UserMockData_Old;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.QuickButton;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedFrame;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
@@ -41,6 +38,7 @@ public class MainFrame extends ThemedFrame {
     private SettingsPanel settingsPanel;
     private HelpPanel helpPanel;
     private ThemedPanel currentPanel;
+    private QuickButton refreshButton;
 
     @DI
     public MainFrame(
@@ -70,14 +68,15 @@ public class MainFrame extends ThemedFrame {
 
 
     private void setupRefreshButton() {
-        QuickButton refreshButton = createRefreshButton();
-        refreshButton.addActionListener(ignored -> {
-            UserMockData_Old.refreshMockData(userManager);
-            ReviewItemMockData_Old.refreshMockData(reviewItemManager);
-            ReviewContextMockData_Old.refreshMockData(reviewContextManager);
-        });
-        refreshButton.setVisible(true);
+        refreshButton = createRefreshButton();
+        refreshButton.addActionListener(ignored -> onRefresh());
         getTitleBar().addActionButton(refreshButton);
+    }
+
+    private void onRefresh() {
+        if (currentPanel instanceof Refreshable) {
+            ((Refreshable) currentPanel).onRefresh();
+        }
     }
 
     private QuickButton createRefreshButton() {
@@ -128,6 +127,11 @@ public class MainFrame extends ThemedFrame {
         }
         currentPanel = newPanel;
         getContentPanel().add(currentPanel, BorderLayout.CENTER);
+        updateRefreshButtonVisibility();
+    }
+
+    private void updateRefreshButtonVisibility() {
+        refreshButton.setVisible(currentPanel instanceof Refreshable);
     }
 }
 

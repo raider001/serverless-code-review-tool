@@ -3,8 +3,10 @@ package com.kalynx.serverlessreviewtool.ui.mainpanels;
 import com.kalynx.serverlessreviewtool.git.Git;
 import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
 import com.kalynx.serverlessreviewtool.managers.ReviewItemManager;
+import com.kalynx.serverlessreviewtool.mockdata.ReviewItemMockData_Old;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedButton;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
+import com.kalynx.serverlessreviewtool.ui.Refreshable;
 import com.kalynx.serverlessreviewtool.ui.models.reviewpanel.reviewformdialog.ReviewFormModels;
 import com.kalynx.serverlessreviewtool.ui.review.CreateReviewDialog;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewselectionpanel.FilterPanel;
@@ -16,12 +18,13 @@ import javax.swing.*;
 /**
  * ReviewSelectionPanel - Main UI for selecting and filtering code reviews
  */
-public class ReviewSelectionPanel extends ThemedPanel {
+public class ReviewSelectionPanel extends ThemedPanel implements Refreshable {
 
     private final ReviewListPanel listPanel;
     private final FilterPanel filterPanel;
     private final ReviewFormModels reviewFormModels;
     private final RepositoryManager repositoryManager;
+    private final ReviewItemManager reviewItemManager;
     private final Git git;
 
     private final ThemedButton createReviewButton = new ThemedButton("Create Review");
@@ -32,6 +35,7 @@ public class ReviewSelectionPanel extends ThemedPanel {
                                Git git) {
         this.reviewFormModels = reviewFormModels;
         this.repositoryManager = repositoryManager;
+        this.reviewItemManager = reviewItemManager;
         this.git = git;
         this.listPanel = new ReviewListPanel(reviewItemManager);
         this.filterPanel = new FilterPanel(repositoryManager).addFilterEventListener(listPanel::filterLists);
@@ -63,6 +67,10 @@ public class ReviewSelectionPanel extends ThemedPanel {
             git
         );
         dialog.setVisible(true);
-        // TODO - Implement me when needed.
+    }
+
+    @Override
+    public void onRefresh() {
+        ReviewItemMockData_Old.refreshMockData(reviewItemManager);
     }
 }

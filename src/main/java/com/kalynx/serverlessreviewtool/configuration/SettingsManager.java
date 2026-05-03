@@ -13,6 +13,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * SettingsManager - Controller for loading and saving application settings
@@ -25,6 +28,7 @@ public class SettingsManager {
     private final Path settingsFile;
     private final RepositoryManager repositoryManager;
     private AppSettings currentSettings;
+    private final Set<Consumer<String>> userNameListeners = new HashSet<>();
 
     public SettingsManager(RepositoryManager repositoryManager) {
         this.gson = new GsonBuilder().setPrettyPrinting().create();
@@ -126,6 +130,66 @@ public class SettingsManager {
         saveSettings();
     }
 
+    public void updateUserName(String userName) {
+        currentSettings.setUserName(userName);
+        saveSettings();
+    }
+
+    public void updateUserEmail(String userEmail) {
+        currentSettings.setUserEmail(userEmail);
+        saveSettings();
+    }
+
+    public void updateUseGitConfig(boolean useGitConfig) {
+        currentSettings.setUseGitConfig(useGitConfig);
+        saveSettings();
+    }
+
+    public String getCurrentUserName() {
+        if (currentSettings.isUseGitConfig()) {
+            String gitName = GitConfigReader.getUserName();
+            if (gitName != null && !gitName.isEmpty()) {
+                return gitName;
+            }
+        }
+
+        String manualName = currentSettings.getUserName();
+        if (manualName != null && !manualName.isEmpty()) {
+            return manualName;
+        }
+
+        return "Unknown User";
+    }
+
+    public String getCurrentUserEmail() {
+        if (currentSettings.isUseGitConfig()) {
+            String gitEmail = GitConfigReader.getUserEmail();
+            if (gitEmail != null && !gitEmail.isEmpty()) {
+                return gitEmail;
+            }
+        }
+
+        String manualEmail = currentSettings.getUserEmail();
+        if (manualEmail != null && !manualEmail.isEmpty()) {
+            return manualEmail;
+        }
+
+        return "";
+    }
+
+    public void addUserNameListener(Consumer<String> listener) {
+        userNameListeners.add(listener);
+        listener.accept(getCurrentUserName());
+    }
+
+    public void removeUserNameListener(Consumer<String> listener) {
+        userNameListeners.remove(listener);
+    }
+
+    private void notifyUserNameListeners() {
+        String currentUserName = getCurrentUserName();
+        userNameListeners.forEach(listener -> listener.accept(currentUserName));
+    }
 
     /**
      * Get settings file path for debugging

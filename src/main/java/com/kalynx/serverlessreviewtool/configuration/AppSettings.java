@@ -25,6 +25,11 @@ public class AppSettings {
     // Theme settings
     private String theme; // "Dark" or "Light"
 
+    // User identity settings
+    private String userName;
+    private String userEmail;
+    private boolean useGitConfig; // If true, read from .gitconfig instead of manual settings
+
     public AppSettings() {
         // Default values
         this.window = new WindowSettings();
@@ -33,6 +38,9 @@ public class AppSettings {
         this.pollingIntervalMinutes = 15;
         this.enablePolling = true;
         this.theme = "Dark";
+        this.userName = "";
+        this.userEmail = "";
+        this.useGitConfig = true; // Default to using Git config
     }
 
     // Getters and Setters
@@ -53,6 +61,15 @@ public class AppSettings {
 
     public String getTheme() { return theme; }
     public void setTheme(String theme) { this.theme = theme; }
+
+    public String getUserName() { return userName; }
+    public void setUserName(String userName) { this.userName = userName; }
+
+    public String getUserEmail() { return userEmail; }
+    public void setUserEmail(String userEmail) { this.userEmail = userEmail; }
+
+    public boolean isUseGitConfig() { return useGitConfig; }
+    public void setUseGitConfig(boolean useGitConfig) { this.useGitConfig = useGitConfig; }
 
     /**
      * Window settings - size and position

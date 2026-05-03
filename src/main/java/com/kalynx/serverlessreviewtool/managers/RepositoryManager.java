@@ -3,14 +3,12 @@ package com.kalynx.serverlessreviewtool.managers;
 import com.kalynx.serverlessreviewtool.configuration.AppSettings;
 import com.kalynx.serverlessreviewtool.git.RepositoryLoader;
 import com.kalynx.serverlessreviewtool.models.Repository;
-import com.kalynx.serverlessreviewtool.ui.models.reviewpanel.reviewformdialog.ReviewFormModels;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 /**
  * RepositoryManager - Manages repository data
@@ -20,11 +18,9 @@ public class RepositoryManager {
 
     private List<Repository> repositories = new ArrayList<>();
     private final Set<Consumer<List<Repository>>> listeners = new HashSet<>();
-    private final ReviewFormModels reviewFormModels;
     private final RepositoryLoader repositoryLoader;
 
-    public RepositoryManager(ReviewFormModels reviewFormModels, RepositoryLoader repositoryLoader) {
-        this.reviewFormModels = reviewFormModels;
+    public RepositoryManager(RepositoryLoader repositoryLoader) {
         this.repositoryLoader = repositoryLoader;
     }
 
