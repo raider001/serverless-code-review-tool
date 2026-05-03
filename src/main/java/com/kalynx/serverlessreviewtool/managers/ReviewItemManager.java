@@ -3,6 +3,8 @@ package com.kalynx.serverlessreviewtool.managers;
 import com.kalynx.serverlessreviewtool.git.ReviewItemLoader;
 import com.kalynx.serverlessreviewtool.models.Repository;
 import com.kalynx.serverlessreviewtool.models.ReviewItem;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -12,6 +14,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 public class ReviewItemManager {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ReviewItemManager.class);
 
     private List<ReviewItem> reviewItems = new ArrayList<>();
 
@@ -61,6 +65,7 @@ public class ReviewItemManager {
     }
 
     private void notifyListeners() {
+        LOGGER.info("Notifying listeners of review item list update: {} items", reviewItems.size());
         listeners.forEach(listener -> listener.accept(List.copyOf(reviewItems)));
     }
 

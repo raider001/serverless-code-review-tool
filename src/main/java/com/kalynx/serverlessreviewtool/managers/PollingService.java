@@ -3,6 +3,8 @@ package com.kalynx.serverlessreviewtool.managers;
 import com.kalynx.serverlessreviewtool.configuration.AppSettings;
 import com.kalynx.serverlessreviewtool.configuration.SettingsManager;
 import com.kalynx.serverlessreviewtool.git.Git;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.Timer;
 import java.util.HashMap;
@@ -15,6 +17,8 @@ import java.util.Map;
  * When global polling is enabled, individual timers are created for each repository based on their intervals.
  */
 public class PollingService {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(PollingService.class);
 
     private final Git git;
     private final SettingsManager settingsManager;
@@ -61,7 +65,7 @@ public class PollingService {
             startPollingForRepository(repo, intervalMinutes);
         }
 
-        System.out.println("Polling started for " + repositories.size() + " repositories with individual intervals");
+        LOGGER.info("Polling started for {} repositories with individual intervals", repositories.size());
     }
 
     /**
@@ -79,7 +83,7 @@ public class PollingService {
         timer.start();
 
         repositoryTimers.put(repoName, timer);
-        System.out.println("Polling started for repository '" + repoName + "' with interval: " + intervalMinutes + " minutes");
+        LOGGER.info("Polling started for repository: {}", repoName);
     }
 
     /**
@@ -89,7 +93,7 @@ public class PollingService {
         if (!repositoryTimers.isEmpty()) {
             for (Map.Entry<String, Timer> entry : repositoryTimers.entrySet()) {
                 entry.getValue().stop();
-                System.out.println("Polling stopped for repository: " + entry.getKey());
+                LOGGER.info("Polling stopped for repository: {}", entry.getKey());
             }
             repositoryTimers.clear();
         }
@@ -104,24 +108,24 @@ public class PollingService {
         String repoName = repo.getName();
         String operationId = "automatic-repository-sync-" + repoName;
 
-        System.out.println("Performing scheduled sync for repository: " + repoName);
+        LOGGER.info("Performing scheduled sync for repository: {}", repoName);
 
         RepositorySyncManager syncManager = new RepositorySyncManager(git, List.of(repo));
 
         syncManager.syncAllRepositories(
-            message -> System.out.println("Poll sync [" + repoName + "]: " + message),
+            message -> LOGGER.info("Poll sync [{}]: {}", repoName, message),
             operationId
         )
             .thenAccept(result -> {
                 if (result.success) {
-                    System.out.println("Poll sync completed successfully for: " + repoName);
+                    LOGGER.info("Poll sync completed successfully for: {}", repoName);
                     reviewItemManager.refresh();
                 } else {
-                    System.err.println("Poll sync completed with errors for " + repoName + ": " + result.message);
+                    LOGGER.error("Poll sync completed with errors for {}: {}", repoName, result.message);
                 }
             })
             .exceptionally(error -> {
-                System.err.println("Poll sync failed for " + repoName + ": " + error.getMessage());
+                LOGGER.error("Poll sync failed for {}: {}", repoName, error.getMessage());
                 return null;
             });
     }

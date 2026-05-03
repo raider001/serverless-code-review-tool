@@ -3,6 +3,8 @@ package com.kalynx.serverlessreviewtool.managers;
 import com.kalynx.serverlessreviewtool.configuration.AppSettings;
 import com.kalynx.serverlessreviewtool.git.Git;
 import com.kalynx.serverlessreviewtool.theme.LoadingStateManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,7 +17,6 @@ import java.util.function.Consumer;
  * Uses LoadingStateManager to track sync operations.
  */
 public class RepositorySyncManager {
-
     private final Git git;
     private final List<AppSettings.RepositoryConfig> repositories;
 

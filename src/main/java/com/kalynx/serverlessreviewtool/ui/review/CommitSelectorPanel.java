@@ -87,13 +87,41 @@ public class CommitSelectorPanel extends ThemedPanel {
             commits = new ArrayList<>();
         }
 
-        commitSliderPanel.setCommits(commits);
+        List<Commit> reversedCommits = new ArrayList<>(commits);
+        java.util.Collections.reverse(reversedCommits);
+        commitSliderPanel.setCommits(reversedCommits);
 
-        if (!commits.isEmpty()) {
-            commitSliderPanel.setStartIndex(0);
-            commitSliderPanel.setEndIndex(commits.size() - 1);
-            fireCommitRangeChanged(commits.getFirst(), commits.getLast());
+        if (!reversedCommits.isEmpty()) {
+            Commit currentStart = codeViewerModel.startCommit.getValue();
+            Commit currentEnd = codeViewerModel.endCommit.getValue();
+
+            if (currentStart != null && currentEnd != null) {
+                int startIdx = findCommitIndex(reversedCommits, currentStart);
+                int endIdx = findCommitIndex(reversedCommits, currentEnd);
+
+                if (startIdx >= 0 && endIdx >= 0) {
+                    commitSliderPanel.setStartIndex(startIdx);
+                    commitSliderPanel.setEndIndex(endIdx);
+                } else {
+                    commitSliderPanel.setStartIndex(0);
+                    commitSliderPanel.setEndIndex(reversedCommits.size() - 1);
+                    fireCommitRangeChanged(reversedCommits.getFirst(), reversedCommits.getLast());
+                }
+            } else {
+                commitSliderPanel.setStartIndex(0);
+                commitSliderPanel.setEndIndex(reversedCommits.size() - 1);
+                fireCommitRangeChanged(reversedCommits.getFirst(), reversedCommits.getLast());
+            }
         }
+    }
+
+    private int findCommitIndex(List<Commit> commits, Commit target) {
+        for (int i = 0; i < commits.size(); i++) {
+            if (commits.get(i).getHash().equals(target.getHash())) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     public Commit getStartCommit() {

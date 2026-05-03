@@ -15,6 +15,8 @@ import com.kalynx.serverlessreviewtool.theme.icons.FolderIcon;
 import com.kalynx.serverlessreviewtool.theme.icons.RepositoryIcon;
 import com.kalynx.serverlessreviewtool.theme.icons.FileCommentIcon;
 import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewpanel.CodeViewerModel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import javax.swing.tree.*;
@@ -30,6 +32,7 @@ import java.util.Map;
 public class FileNavigationPanel extends ThemedPanel {
     @Serial
     private static final long serialVersionUID = 1L;
+    private static final Logger LOGGER = LoggerFactory.getLogger(FileNavigationPanel.class);
 
     private transient final ReviewContextManager reviewContextManager;
     private transient final CodeViewerModel codeViewerModel;
@@ -58,6 +61,7 @@ public class FileNavigationPanel extends ThemedPanel {
         fileTree = new ThemedTree(treeModel);
         fileTree.setRootVisible(false);
         fileTree.setShowsRootHandles(true);
+        fileTree.getSelectionModel().setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION);
         fileTree.setCellRenderer(new FileTreeCellRenderer());
 
         fileTree.addTreeSelectionListener(ignored -> {
@@ -80,9 +84,42 @@ public class FileNavigationPanel extends ThemedPanel {
     }
 
     private void onFilesChanged(List<ReviewFile> files) {
-        if (files != null && !files.isEmpty()) {
-            buildFileTreeFromModel(files);
-        }
+        LOGGER.info("onFilesChanged called with {} files", files != null ? files.size() : 0);
+
+        SwingUtilities.invokeLater(() -> {
+            try {
+                if (files != null && !files.isEmpty()) {
+                    LOGGER.info("Building tree with {} files", files.size());
+                    ReviewFile currentSelection = codeViewerModel.selectedFile.getValue();
+                    buildFileTreeFromModel(files);
+
+                    if (currentSelection != null) {
+                        boolean fileStillExists = files.stream()
+                            .anyMatch(f -> f.getPath().equals(currentSelection.getPath()) &&
+                                           f.getRepository().equals(currentSelection.getRepository()));
+
+                        if (fileStillExists) {
+                            LOGGER.info("Restoring selection: {}", currentSelection.getPath());
+                            selectFileInTree(currentSelection);
+                        } else {
+                            LOGGER.info("Current file no longer exists, clearing selection");
+                            fileTree.clearSelection();
+                            codeViewerModel.selectFile(null);
+                            codeViewerModel.setFileContent("", "", "");
+                        }
+                    }
+                } else {
+                    LOGGER.info("No files, clearing tree");
+                    rootNode.removeAllChildren();
+                    treeModel.reload();
+                    fileTree.clearSelection();
+                    codeViewerModel.selectFile(null);
+                    codeViewerModel.setFileContent("", "", "");
+                }
+            } catch (Exception e) {
+                LOGGER.error("Error building file tree", e);
+            }
+        });
     }
 
     private void onReviewContextChanged(ReviewContext context) {
@@ -90,6 +127,7 @@ public class FileNavigationPanel extends ThemedPanel {
     }
 
     private void buildFileTreeFromModel(List<ReviewFile> files) {
+        LOGGER.info("buildFileTreeFromModel: Building tree with {} files", files.size());
         rootNode.removeAllChildren();
 
         Map<String, DefaultMutableTreeNode> repoNodes = new HashMap<>();
@@ -103,20 +141,43 @@ public class FileNavigationPanel extends ThemedPanel {
                 repoNode = new DefaultMutableTreeNode(repo != null ? repo : repoName);
                 repoNodes.put(repoName, repoNode);
                 rootNode.add(repoNode);
+                LOGGER.debug("Added repository node: {}", repoName);
             }
 
             addFileToTree(repoNode, file);
         }
 
+        LOGGER.info("Tree model has {} repository nodes", rootNode.getChildCount());
         treeModel.reload();
+        LOGGER.info("Tree model reloaded");
 
-        for (int i = 0; i < fileTree.getRowCount(); i++) {
-            fileTree.expandRow(i);
-        }
+        expandAllNodes();
+        LOGGER.info("Tree nodes expanded");
 
-        // Force repaint and revalidate
         fileTree.revalidate();
         fileTree.repaint();
+        LOGGER.info("Tree repainted");
+    }
+
+    private void expandAllNodes() {
+        for (int i = 0; i < rootNode.getChildCount(); i++) {
+            DefaultMutableTreeNode child = (DefaultMutableTreeNode) rootNode.getChildAt(i);
+            expandNode(child);
+        }
+    }
+
+    private void expandNode(DefaultMutableTreeNode node) {
+        try {
+            TreePath path = new TreePath(treeModel.getPathToRoot(node));
+            fileTree.expandPath(path);
+
+            for (int i = 0; i < node.getChildCount(); i++) {
+                DefaultMutableTreeNode child = (DefaultMutableTreeNode) node.getChildAt(i);
+                expandNode(child);
+            }
+        } catch (Exception e) {
+            LOGGER.error("Error expanding tree node: {}", node.getUserObject(), e);
+        }
     }
 
     private Repository findRepository(String repoName) {
@@ -143,12 +204,8 @@ public class FileNavigationPanel extends ThemedPanel {
 
         treeModel.reload();
 
-        // Expand all repository nodes
-        for (int i = 0; i < fileTree.getRowCount(); i++) {
-            fileTree.expandRow(i);
-        }
+        expandAllNodes();
 
-        // Force repaint and revalidate
         fileTree.revalidate();
         fileTree.repaint();
     }
@@ -193,12 +250,38 @@ public class FileNavigationPanel extends ThemedPanel {
         return null;
     }
 
+    private void selectFileInTree(ReviewFile file) {
+        DefaultMutableTreeNode node = findNodeForFile(rootNode, file);
+        if (node != null) {
+            TreePath path = new TreePath(node.getPath());
+            fileTree.setSelectionPath(path);
+            fileTree.scrollPathToVisible(path);
+        }
+    }
+
+    private DefaultMutableTreeNode findNodeForFile(DefaultMutableTreeNode node, ReviewFile targetFile) {
+        Object userObject = node.getUserObject();
+        if (userObject instanceof ReviewFile file) {
+            if (file.getPath().equals(targetFile.getPath()) &&
+                file.getRepository().equals(targetFile.getRepository())) {
+                return node;
+            }
+        }
+
+        for (int i = 0; i < node.getChildCount(); i++) {
+            DefaultMutableTreeNode child = (DefaultMutableTreeNode) node.getChildAt(i);
+            DefaultMutableTreeNode result = findNodeForFile(child, targetFile);
+            if (result != null) {
+                return result;
+            }
+        }
+
+        return null;
+    }
+
     public void refreshDisplay() {
         treeModel.reload();
-        for (int i = 0; i < fileTree.getRowCount(); i++) {
-            fileTree.expandRow(i);
-        }
-        // Force repaint and revalidate
+        expandAllNodes();
         fileTree.revalidate();
         fileTree.repaint();
     }
@@ -271,6 +354,8 @@ public class FileNavigationPanel extends ThemedPanel {
                             setForeground(new Color(255, 193, 7)); // Yellow
                             break;
                     }
+                } else {
+                    setForeground(Color.WHITE);
                 }
             } else if (userObject instanceof String) {
                 // It's a folder

@@ -8,6 +8,8 @@ import com.kalynx.serverlessreviewtool.models.ReviewerInfo;
 import com.kalynx.serverlessreviewtool.models.Repository;
 import com.kalynx.serverlessreviewtool.models.review.StreamEntry;
 import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewpanel.ReviewPanelModel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -17,6 +19,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 public class ReviewContextManager {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ReviewContextManager.class);
 
     private ReviewContext currentReviewContext;
     private ReviewPanelModel reviewPanelModel;
@@ -189,6 +193,7 @@ public class ReviewContextManager {
     }
 
     private void notifyListeners() {
+        LOGGER.info("Notifying listeners of review context update: {}", currentReviewContext);
         listeners.forEach(listener -> listener.accept(currentReviewContext));
     }
 }

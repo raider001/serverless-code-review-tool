@@ -38,18 +38,30 @@ public class FileDiffManager {
      * @return future that completes when commits are loaded
      */
     public CompletableFuture<Void> loadCommitsForReview(String repositoryName, String branch, int maxCommits) {
+        logger.info("Loading commits for repository: {}, branch: {}, max: {}", repositoryName, branch, maxCommits);
+
         return git.listCommits(repositoryName, branch, maxCommits)
             .thenApply(this::parseCommits)
             .thenAccept(commits -> {
+                logger.info("Loaded {} commits", commits.size());
                 codeViewerModel.setAvailableCommits(commits);
 
                 if (!commits.isEmpty()) {
-                    codeViewerModel.setStartCommit(commits.get(Math.min(1, commits.size() - 1)));
-                    codeViewerModel.setEndCommit(commits.getFirst());
+                    int startIndex = Math.min(1, commits.size() - 1);
+                    Commit startCommit = commits.get(startIndex);
+                    Commit endCommit = commits.get(0);
+
+                    logger.info("Setting commit range: start={}, end={}",
+                        startCommit.getShortHash(), endCommit.getShortHash());
+
+                    codeViewerModel.setStartCommit(startCommit);
+                    codeViewerModel.setEndCommit(endCommit);
+                } else {
+                    logger.warn("No commits found for repository: {}, branch: {}", repositoryName, branch);
                 }
             })
             .exceptionally(error -> {
-                logger.error("Failed to load commits: {}", error.getMessage());
+                logger.error("Failed to load commits: {}", error.getMessage(), error);
                 codeViewerModel.setAvailableCommits(new ArrayList<>());
                 return null;
             });
@@ -70,11 +82,19 @@ public class FileDiffManager {
             return CompletableFuture.completedFuture(null);
         }
 
+        logger.info("Loading changed files from {} to {}", startCommit.getShortHash(), endCommit.getShortHash());
+
         return git.listChangedFiles(repositoryName, startCommit.getHash(), endCommit.getHash())
-            .thenApply(changedFiles -> parseChangedFiles(changedFiles, repositoryName))
+            .thenApply(changedFiles -> {
+                logger.debug("Got {} changed file lines from git", changedFiles.size());
+                if (!changedFiles.isEmpty()) {
+                    logger.debug("First few lines: {}", changedFiles.subList(0, Math.min(3, changedFiles.size())));
+                }
+                return parseChangedFiles(changedFiles, repositoryName);
+            })
             .thenAccept(codeViewerModel::setAvailableFiles)
             .exceptionally(error -> {
-                logger.error("Failed to load changed files: {}", error.getMessage());
+                logger.error("Failed to load changed files: {}", error.getMessage(), error);
                 codeViewerModel.setAvailableFiles(new ArrayList<>());
                 return null;
             });
@@ -218,9 +238,15 @@ public class FileDiffManager {
     private List<Commit> parseCommits(List<String> commitStrings) {
         List<Commit> commits = new ArrayList<>();
         for (String commitString : commitStrings) {
-            String[] parts = commitString.split("\\|", 4);
-            if (parts.length >= 4) {
-                commits.add(new Commit(parts[0], parts[3], parts[1], parts[2]));
+            try {
+                String[] parts = commitString.split("\\|", 4);
+                if (parts.length >= 4) {
+                    commits.add(new Commit(parts[0], parts[3], parts[1], parts[2]));
+                } else {
+                    logger.warn("Skipping malformed commit line: '{}' (only {} parts)", commitString, parts.length);
+                }
+            } catch (Exception e) {
+                logger.error("Error parsing commit line '{}': {}", commitString, e.getMessage(), e);
             }
         }
         return commits;
@@ -229,18 +255,33 @@ public class FileDiffManager {
     private List<ReviewFile> parseChangedFiles(List<String> changedFileStrings, String repositoryName) {
         List<ReviewFile> files = new ArrayList<>();
         for (String fileString : changedFileStrings) {
-            String[] parts = fileString.trim().split("\\s+", 2);
-            if (parts.length >= 2) {
-                String status = parts[0];
-                String path = parts[1];
-                FileChangeType changeType = parseFileChangeType(status);
-                files.add(new ReviewFile(path, repositoryName, changeType));
+            try {
+                String trimmed = fileString.trim();
+                if (trimmed.isEmpty()) {
+                    continue;
+                }
+
+                String[] parts = trimmed.split("\\s+", 2);
+                if (parts.length >= 2) {
+                    String status = parts[0];
+                    String path = parts[1];
+                    FileChangeType changeType = parseFileChangeType(status);
+                    files.add(new ReviewFile(path, repositoryName, changeType));
+                } else {
+                    logger.warn("Skipping malformed changed file line: '{}' (only {} parts)", trimmed, parts.length);
+                }
+            } catch (Exception e) {
+                logger.error("Error parsing changed file line '{}': {}", fileString, e.getMessage(), e);
             }
         }
         return files;
     }
 
     private FileChangeType parseFileChangeType(String status) {
+        if (status == null || status.isEmpty()) {
+            logger.warn("Empty or null status, defaulting to MODIFIED");
+            return FileChangeType.MODIFIED;
+        }
         return switch (status.toUpperCase().charAt(0)) {
             case 'A' -> FileChangeType.ADDED;
             case 'M' -> FileChangeType.MODIFIED;

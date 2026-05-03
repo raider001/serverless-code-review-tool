@@ -3,6 +3,8 @@ package com.kalynx.serverlessreviewtool.managers;
 import com.kalynx.serverlessreviewtool.configuration.AppSettings;
 import com.kalynx.serverlessreviewtool.git.RepositoryLoader;
 import com.kalynx.serverlessreviewtool.models.Repository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -15,7 +17,7 @@ import java.util.function.Consumer;
  * Manages the list of repositories and notifies listeners of changes
  */
 public class RepositoryManager {
-
+    private static final Logger LOGGER = LoggerFactory.getLogger(RepositoryManager.class);
     private List<Repository> repositories = new ArrayList<>();
     private final Set<Consumer<List<Repository>>> listeners = new HashSet<>();
     private final RepositoryLoader repositoryLoader;
@@ -37,7 +39,7 @@ public class RepositoryManager {
                 notifyListeners();
             })
             .exceptionally(ex -> {
-                System.err.println("Failed to load repositories: " + ex.getMessage());
+                LOGGER.error("Failed to load repositories: {}", ex.getMessage(), ex);
                 return null;
             });
     }
@@ -67,6 +69,7 @@ public class RepositoryManager {
 
 
     public void notifyListeners() {
+        LOGGER.info("Notifying listeners of repository list update: {} repositories", repositories.size());
         listeners.forEach(listener -> listener.accept(List.copyOf(repositories)));
     }
 }
