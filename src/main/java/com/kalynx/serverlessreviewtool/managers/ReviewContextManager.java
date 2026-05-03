@@ -20,6 +20,7 @@ public class ReviewContextManager {
 
     private ReviewContext currentReviewContext;
     private ReviewPanelModel reviewPanelModel;
+    private FileDiffManager fileDiffManager;
     private final Git git;
     private final RepositoryManager repositoryManager;
 
@@ -32,6 +33,10 @@ public class ReviewContextManager {
 
     public void setReviewPanelModel(ReviewPanelModel model) {
         this.reviewPanelModel = model;
+    }
+
+    public void setFileDiffManager(FileDiffManager fileDiffManager) {
+        this.fileDiffManager = fileDiffManager;
     }
 
     public CompletableFuture<Void> loadReview(String reviewId, String repositoryName) {
@@ -125,6 +130,18 @@ public class ReviewContextManager {
                 System.out.println("  summary field: " + reviewContext.summary);
 
                 setReviewContext(reviewContext);
+
+                if (fileDiffManager != null && !repositories.isEmpty()) {
+                    git.getDefaultBranch(repositoryName)
+                        .thenAccept(defaultBranch -> {
+                            fileDiffManager.loadCommitsForReview(repositoryName, defaultBranch, 50);
+                        })
+                        .exceptionally(error -> {
+                            System.err.println("Failed to get default branch, trying 'main': " + error.getMessage());
+                            fileDiffManager.loadCommitsForReview(repositoryName, "main", 50);
+                            return null;
+                        });
+                }
             })
             .exceptionally(ex -> {
                 if (reviewPanelModel != null) {

@@ -10,6 +10,7 @@ import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedLa
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedWindow;
 import com.kalynx.serverlessreviewtool.theme.Theme;
+import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewpanel.CodeViewerModel;
 import net.miginfocom.swing.MigLayout;
 
 import java.awt.*;
@@ -28,6 +29,7 @@ public class CommitSelectorPanel extends ThemedPanel {
     private static final long serialVersionUID = 1L;
 
     private transient final ReviewContextManager reviewContextManager;
+    private transient final CodeViewerModel codeViewerModel;
 
     private ThemedComboBox<DiffViewMode> viewModeComboBox;
     private CommitSliderPanel commitSliderPanel;
@@ -35,10 +37,12 @@ public class CommitSelectorPanel extends ThemedPanel {
     private transient final List<CommitRangeListener> commitRangeListeners = new ArrayList<>();
     private transient final List<ViewModeListener> viewModeListeners = new ArrayList<>();
 
-    public CommitSelectorPanel(ReviewContextManager reviewContextManager) {
+    public CommitSelectorPanel(ReviewContextManager reviewContextManager, CodeViewerModel codeViewerModel) {
         this.reviewContextManager = reviewContextManager;
+        this.codeViewerModel = codeViewerModel;
         configureLayout();
         setupListeners();
+        setupModelListeners();
     }
 
     private void configureLayout() {
@@ -60,11 +64,15 @@ public class CommitSelectorPanel extends ThemedPanel {
         reviewContextManager.addListener(this::onReviewContextChanged);
     }
 
+    private void setupModelListeners() {
+        codeViewerModel.availableCommits.addChangeListener(this::onCommitsChanged);
+    }
+
+    private void onCommitsChanged(List<Commit> commits) {
+        loadCommits(commits);
+    }
+
     private void onReviewContextChanged(ReviewContext context) {
-        if (context != null && !context.getRepositories().isEmpty()) {
-            Repository firstRepo = context.getRepositories().getFirst();
-            loadCommits(new ArrayList<>());
-        }
     }
 
     private void onViewModeChanged() {

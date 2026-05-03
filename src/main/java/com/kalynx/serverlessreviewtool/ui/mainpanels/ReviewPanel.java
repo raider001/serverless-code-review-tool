@@ -1,6 +1,7 @@
 package com.kalynx.serverlessreviewtool.ui.mainpanels;
 
 import com.kalynx.serverlessreviewtool.git.Git;
+import com.kalynx.serverlessreviewtool.managers.FileDiffManager;
 import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
 import com.kalynx.serverlessreviewtool.managers.ReviewContextManager;
 import com.kalynx.serverlessreviewtool.managers.UserManager;
@@ -27,6 +28,7 @@ public class ReviewPanel extends ThemedPanel {
     private final RepositoryManager repositoryManager;
     private final ReviewPanelModel model;
     private final Git git;
+    private final FileDiffManager fileDiffManager;
 
     private final ReviewDetailPanel reviewDetailPanel;
     private final CodePanel codePanel;
@@ -42,8 +44,10 @@ public class ReviewPanel extends ThemedPanel {
         this.repositoryManager = repositoryManager;
         this.model = reviewPanelModel;
         this.git = git;
+        this.fileDiffManager = new FileDiffManager(git, reviewPanelModel.codeViewerModel);
+        this.reviewContextManager.setFileDiffManager(fileDiffManager);
         this.reviewDetailPanel = new ReviewDetailPanel(reviewContextManager, reviewFormModels, repositoryManager, git);
-        this.codePanel = new CodePanel(reviewContextManager, reviewPanelModel.codeViewerModel);
+        this.codePanel = new CodePanel(reviewContextManager, reviewPanelModel.codeViewerModel, fileDiffManager);
         initializeSampleReviewContext();
         configureLayout();
     }

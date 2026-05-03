@@ -14,12 +14,15 @@ import com.kalynx.serverlessreviewtool.theme.icons.FileIcon;
 import com.kalynx.serverlessreviewtool.theme.icons.FolderIcon;
 import com.kalynx.serverlessreviewtool.theme.icons.RepositoryIcon;
 import com.kalynx.serverlessreviewtool.theme.icons.FileCommentIcon;
+import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewpanel.CodeViewerModel;
 
 import javax.swing.*;
 import javax.swing.tree.*;
 import java.awt.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * FileNavigationPanel - Tree view for navigating files across multiple repositories
@@ -29,6 +32,7 @@ public class FileNavigationPanel extends ThemedPanel {
     private static final long serialVersionUID = 1L;
 
     private transient final ReviewContextManager reviewContextManager;
+    private transient final CodeViewerModel codeViewerModel;
     private transient final ThemeManager themeManager = ThemeManager.getInstance();
     private transient final List<FileSelectionListener> listeners = new ArrayList<>();
 
@@ -37,12 +41,14 @@ public class FileNavigationPanel extends ThemedPanel {
     private DefaultMutableTreeNode rootNode;
     private transient ReviewContext currentReviewContext;
 
-    public FileNavigationPanel(ReviewContextManager reviewContextManager) {
+    public FileNavigationPanel(ReviewContextManager reviewContextManager, CodeViewerModel codeViewerModel) {
         this.reviewContextManager = reviewContextManager;
+        this.codeViewerModel = codeViewerModel;
         setLayout(new BorderLayout());
 
         initializeComponents();
         setupListeners();
+        setupModelListeners();
     }
 
     private void initializeComponents() {
@@ -69,11 +75,54 @@ public class FileNavigationPanel extends ThemedPanel {
         reviewContextManager.addListener(this::onReviewContextChanged);
     }
 
+    private void setupModelListeners() {
+        codeViewerModel.availableFiles.addChangeListener(this::onFilesChanged);
+    }
+
+    private void onFilesChanged(List<ReviewFile> files) {
+        if (files != null && !files.isEmpty()) {
+            buildFileTreeFromModel(files);
+        }
+    }
+
     private void onReviewContextChanged(ReviewContext context) {
         this.currentReviewContext = context;
-        if (context != null) {
-            buildFileTree(context);
+    }
+
+    private void buildFileTreeFromModel(List<ReviewFile> files) {
+        rootNode.removeAllChildren();
+
+        Map<String, DefaultMutableTreeNode> repoNodes = new HashMap<>();
+
+        for (ReviewFile file : files) {
+            String repoName = file.getRepository();
+            DefaultMutableTreeNode repoNode = repoNodes.get(repoName);
+            
+            if (repoNode == null) {
+                Repository repo = findRepository(repoName);
+                repoNode = new DefaultMutableTreeNode(repo != null ? repo : repoName);
+                repoNodes.put(repoName, repoNode);
+                rootNode.add(repoNode);
+            }
+
+            addFileToTree(repoNode, file);
         }
+
+        treeModel.reload();
+
+        for (int i = 0; i < fileTree.getRowCount(); i++) {
+            fileTree.expandRow(i);
+        }
+    }
+
+    private Repository findRepository(String repoName) {
+        if (currentReviewContext != null) {
+            return currentReviewContext.getRepositories().stream()
+                .filter(repo -> repo.getName().equals(repoName))
+                .findFirst()
+                .orElse(null);
+        }
+        return null;
     }
 
     private void buildFileTree(ReviewContext reviewContext) {

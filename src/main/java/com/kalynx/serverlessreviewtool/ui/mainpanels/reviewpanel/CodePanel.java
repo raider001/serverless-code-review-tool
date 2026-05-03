@@ -27,17 +27,20 @@ public class CodePanel extends ThemedPanel {
 
     private transient final ReviewContextManager reviewContextManager;
     private transient final CodeViewerModel codeViewerModel;
+    private transient final com.kalynx.serverlessreviewtool.managers.FileDiffManager fileDiffManager;
 
     private final CommitSelectorPanel commitSelectorPanel;
     private final FileNavigationPanel fileNavigationPanel;
     private final DiffViewerPanel diffViewerPanel = new DiffViewerPanel();
     private final ThemedSplitPane fileAndDiffSplitPane = new ThemedSplitPane(JSplitPane.HORIZONTAL_SPLIT);
 
-    public CodePanel(ReviewContextManager reviewContextManager, CodeViewerModel codeViewerModel) {
+    public CodePanel(ReviewContextManager reviewContextManager, CodeViewerModel codeViewerModel,
+                     com.kalynx.serverlessreviewtool.managers.FileDiffManager fileDiffManager) {
         this.reviewContextManager = reviewContextManager;
         this.codeViewerModel = codeViewerModel;
-        this.commitSelectorPanel = new CommitSelectorPanel(reviewContextManager);
-        this.fileNavigationPanel = new FileNavigationPanel(reviewContextManager);
+        this.fileDiffManager = fileDiffManager;
+        this.commitSelectorPanel = new CommitSelectorPanel(reviewContextManager, codeViewerModel);
+        this.fileNavigationPanel = new FileNavigationPanel(reviewContextManager, codeViewerModel);
         configureLayout();
         setupListeners();
         setupModelListeners();
@@ -64,8 +67,8 @@ public class CodePanel extends ThemedPanel {
 
     private void setupModelListeners() {
         codeViewerModel.selectedFile.addChangeListener(this::onModelFileChanged);
-        codeViewerModel.startCommit.addChangeListener(commit -> loadDiffForCurrentState());
-        codeViewerModel.endCommit.addChangeListener(commit -> loadDiffForCurrentState());
+        codeViewerModel.startCommit.addChangeListener(commit -> onCommitRangeChangedFromModel());
+        codeViewerModel.endCommit.addChangeListener(commit -> onCommitRangeChangedFromModel());
         codeViewerModel.diffMode.addChangeListener(mode -> {
             if (mode != null) {
                 diffViewerPanel.setViewMode(mode == CodeViewerModel.DiffMode.SIDE_BY_SIDE
@@ -73,16 +76,40 @@ public class CodePanel extends ThemedPanel {
                     : DiffViewMode.UNIFIED);
             }
         });
+
+        codeViewerModel.leftContent.addChangeListener(this::updateDiffViewerContent);
+        codeViewerModel.rightContent.addChangeListener(content -> updateDiffViewerContent(null));
+        codeViewerModel.unifiedDiffContent.addChangeListener(content -> updateDiffViewerContent(null));
     }
 
     private void onModelFileChanged(ReviewFile file) {
         if (file != null) {
-            loadDiffForCurrentState();
+            String repositoryName = getRepositoryNameForCurrentReview();
+            if (repositoryName != null) {
+                Commit start = codeViewerModel.startCommit.getValue();
+                Commit end = codeViewerModel.endCommit.getValue();
+                fileDiffManager.loadDiffForFile(repositoryName, file, start, end);
+            }
             loadCommentsForCurrentFile();
         }
     }
 
-    private void loadDiffForCurrentState() {
+    private void onCommitRangeChangedFromModel() {
+        Commit start = codeViewerModel.startCommit.getValue();
+        Commit end = codeViewerModel.endCommit.getValue();
+        String repositoryName = getRepositoryNameForCurrentReview();
+
+        if (start != null && end != null && repositoryName != null) {
+            fileDiffManager.loadChangedFiles(repositoryName, start, end);
+
+            ReviewFile currentFile = codeViewerModel.selectedFile.getValue();
+            if (currentFile != null) {
+                fileDiffManager.loadDiffForFile(repositoryName, currentFile, start, end);
+            }
+        }
+    }
+
+    private void updateDiffViewerContent(String ignored) {
         ReviewFile file = codeViewerModel.selectedFile.getValue();
         Commit start = codeViewerModel.startCommit.getValue();
         Commit end = codeViewerModel.endCommit.getValue();
@@ -90,6 +117,14 @@ public class CodePanel extends ThemedPanel {
         if (file != null && start != null && end != null) {
             diffViewerPanel.showDiff(file, start, end);
         }
+    }
+
+    private String getRepositoryNameForCurrentReview() {
+        ReviewContext context = reviewContextManager.getReviewContext();
+        if (context == null || context.getRepositories().isEmpty()) {
+            return null;
+        }
+        return context.getRepositories().get(0).getName();
     }
 
     private void setupCommentIntegration() {
@@ -128,12 +163,6 @@ public class CodePanel extends ThemedPanel {
 
     private void onCommitRangeChanged(Commit startCommit, Commit endCommit) {
         codeViewerModel.setCommitRange(startCommit, endCommit);
-
-        ReviewFile selectedFile = fileNavigationPanel.getSelectedFile();
-        if (selectedFile != null) {
-            diffViewerPanel.showDiff(selectedFile, startCommit, endCommit);
-            loadCommentsForCurrentFile();
-        }
     }
 
     private void onViewModeChanged(DiffViewMode mode) {
@@ -141,25 +170,10 @@ public class CodePanel extends ThemedPanel {
             ? CodeViewerModel.DiffMode.SIDE_BY_SIDE
             : CodeViewerModel.DiffMode.UNIFIED;
         codeViewerModel.setDiffMode(modelMode);
-        diffViewerPanel.setViewMode(mode);
     }
 
     private void onFileSelected(ReviewFile file) {
         codeViewerModel.selectFile(file);
-
-        Repository repository = findRepositoryForFile(file);
-        if (repository != null) {
-            commitSelectorPanel.loadCommits(new ArrayList<>());
-        }
-
-        Commit startCommit = commitSelectorPanel.getStartCommit();
-        Commit endCommit = commitSelectorPanel.getEndCommit();
-
-        if (startCommit != null && endCommit != null) {
-            diffViewerPanel.showDiff(file, startCommit, endCommit);
-        }
-
-        loadCommentsForCurrentFile();
     }
 
     private void loadCommentsForCurrentFile() {
@@ -175,13 +189,10 @@ public class CodePanel extends ThemedPanel {
         }
     }
 
-    private Repository findRepositoryForFile(ReviewFile file) {
-        ReviewContext context = reviewContextManager.getReviewContext();
-        if (context == null) return null;
-
-        return context.getRepositories().stream()
-            .filter(repo -> repo.getName().equals(file.getRepository()))
-            .findFirst()
-            .orElse(null);
+    public void refreshView() {
+        String repositoryName = getRepositoryNameForCurrentReview();
+        if (repositoryName != null) {
+            fileDiffManager.refreshCurrentView(repositoryName);
+        }
     }
 }

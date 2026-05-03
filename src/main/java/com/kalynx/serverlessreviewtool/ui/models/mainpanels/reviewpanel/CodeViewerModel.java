@@ -78,6 +78,14 @@ public class CodeViewerModel {
         endCommit.setValue(end);
     }
 
+    public void setStartCommit(Commit commit) {
+        startCommit.setValue(commit);
+    }
+
+    public void setEndCommit(Commit commit) {
+        endCommit.setValue(commit);
+    }
+
     public void toggleDiffMode() {
         diffMode.setValue(diffMode.getValue() == DiffMode.SIDE_BY_SIDE
             ? DiffMode.UNIFIED
@@ -92,6 +100,18 @@ public class CodeViewerModel {
         leftContent.setValue(left != null ? left : "");
         rightContent.setValue(right != null ? right : "");
         unifiedDiffContent.setValue(unified != null ? unified : "");
+    }
+
+    public void setLeftContent(String content) {
+        leftContent.setValue(content != null ? content : "");
+    }
+
+    public void setRightContent(String content) {
+        rightContent.setValue(content != null ? content : "");
+    }
+
+    public void setUnifiedDiffContent(String content) {
+        unifiedDiffContent.setValue(content != null ? content : "");
     }
 
     public boolean hasSelectedFile() {
