@@ -4,6 +4,7 @@ import com.kalynx.serverlessreviewtool.git.Git;
 import com.kalynx.serverlessreviewtool.git.GitReviewNotesManager;
 import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedOptionPane;
+import com.kalynx.serverlessreviewtool.theme.LoadingStateManager;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel.ReviewFormDialog;
 import com.kalynx.serverlessreviewtool.ui.models.reviewpanel.reviewformdialog.ReviewFormModels;
 import org.slf4j.Logger;
@@ -62,6 +63,7 @@ public class CreateReviewDialog extends ReviewFormDialog {
                              String baseBranch,
                              List<String> reviewers) {
 
+        LoadingStateManager.getInstance().startLoading("create-review");
         GitReviewNotesManager notesManager = new GitReviewNotesManager(git, repositoryName);
 
         String commitRange = baseBranch + ".." + branch;
@@ -90,11 +92,13 @@ public class CreateReviewDialog extends ReviewFormDialog {
                 );
             })
             .thenAccept(v -> SwingUtilities.invokeLater(() -> {
+                LoadingStateManager.getInstance().stopLoading("create-review");
                 confirmed = true;
                 dispose();
                 LOGGER.info("Review created successfully: {}", reviewId);
             }))
             .exceptionally(ex -> {
+                LoadingStateManager.getInstance().stopLoading("create-review");
                 Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
                 String errorMessage;
 

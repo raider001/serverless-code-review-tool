@@ -5,6 +5,7 @@ import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
 import com.kalynx.serverlessreviewtool.managers.ReviewItemManager;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedButton;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
+import com.kalynx.serverlessreviewtool.theme.LoadingStateManager;
 import com.kalynx.serverlessreviewtool.ui.Refreshable;
 import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewselectionpanel.ReviewSelectionPanelModel;
 import com.kalynx.serverlessreviewtool.ui.models.reviewpanel.reviewformdialog.ReviewFormModels;
@@ -76,6 +77,13 @@ public class ReviewSelectionPanel extends ThemedPanel implements Refreshable {
 
     @Override
     public void onRefresh() {
-        reviewItemManager.refresh();
+        LoadingStateManager.getInstance().startLoading("review-refresh");
+        reviewItemManager.refresh()
+            .whenComplete((result, error) -> {
+                LoadingStateManager.getInstance().stopLoading("review-refresh");
+                if (error != null) {
+                    System.err.println("Error refreshing reviews: " + error.getMessage());
+                }
+            });
     }
 }

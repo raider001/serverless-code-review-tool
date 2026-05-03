@@ -18,6 +18,7 @@ import com.kalynx.serverlessreviewtool.ui.mainpanels.SettingsPanel;
 import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewselectionpanel.ReviewSelectionPanelModel;
 import com.kalynx.serverlessreviewtool.ui.models.reviewpanel.reviewformdialog.ReviewFormModels;
 
+import javax.swing.*;
 import java.awt.*;
 
 /**

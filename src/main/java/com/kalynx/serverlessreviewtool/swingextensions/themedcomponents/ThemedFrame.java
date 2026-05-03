@@ -2,7 +2,9 @@ package com.kalynx.serverlessreviewtool.swingextensions.themedcomponents;
 
 import java.io.Serial;
 
+import com.kalynx.serverlessreviewtool.theme.LoadingStateManager;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
+import com.kalynx.serverlessreviewtool.theme.WindowFrameLoadingIndicator;
 import com.kalynx.serverlessreviewtool.theme.WindowResizeHandler;
 import com.kalynx.serverlessreviewtool.theme.icons.AppIcon;
 import com.kalynx.serverlessreviewtool.theme.icons.ThemeIcon;
@@ -22,6 +24,7 @@ public class ThemedFrame extends JFrame {
     protected CustomTitleBar titleBar;
     protected ThemedPanel windowPanel;
     protected ThemedPanel contentPanel;
+    protected WindowFrameLoadingIndicator loadingIndicator;
 
     /**
      * Create a themed frame with default size
@@ -100,6 +103,25 @@ public class ThemedFrame extends JFrame {
         windowPanel.addMouseMotionListener(resizeHandler);
         contentPanel.addMouseListener(resizeHandler);
         contentPanel.addMouseMotionListener(resizeHandler);
+
+        setupLoadingIndicator();
+    }
+
+    private void setupLoadingIndicator() {
+        loadingIndicator = new WindowFrameLoadingIndicator();
+        JPanel glassPane = (JPanel) getGlassPane();
+        glassPane.setLayout(new BorderLayout());
+        glassPane.add(loadingIndicator, BorderLayout.CENTER);
+        glassPane.setOpaque(false);
+        glassPane.setVisible(true);
+
+        LoadingStateManager.getInstance().addListener(() -> {
+            if (LoadingStateManager.getInstance().isLoading()) {
+                loadingIndicator.startAnimation();
+            } else {
+                loadingIndicator.stopAnimation();
+            }
+        });
     }
 
     /**
