@@ -6,6 +6,8 @@ import com.kalynx.serverlessreviewtool.managers.RepositorySyncManager;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.*;
 import com.kalynx.serverlessreviewtool.utils.ListenerFactory;
 import net.miginfocom.swing.MigLayout;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.JComponent;
 import javax.swing.JSpinner;
@@ -16,6 +18,8 @@ import javax.swing.SwingUtilities;
  * PollingSettingsPanel - Configuration for automatic polling settings
  */
 public class PollingSettingsPanel extends ThemedPanel {
+
+    private static final Logger logger = LoggerFactory.getLogger(PollingSettingsPanel.class);
 
     private final SettingsManager settingsManager;
     private final Git git;
@@ -78,26 +82,26 @@ public class PollingSettingsPanel extends ThemedPanel {
         );
 
         syncManager.syncAllRepositories(
-            message -> SwingUtilities.invokeLater(() -> System.out.println("Sync: " + message)),
+            message -> SwingUtilities.invokeLater(() -> logger.info("Sync: {}", message)),
             "force-sync-all-repositories"
         ).thenAccept(result -> SwingUtilities.invokeLater(() -> {
             forceSyncButton.setEnabled(true);
             forceSyncButton.setText("Force Sync All Repositories");
 
             if (result.success) {
-                System.out.println("Force sync completed: " + result.message);
+                logger.info("Force sync completed: {}", result.message);
             } else {
-                System.err.println("Force sync completed with errors: " + result.message);
+                logger.warn("Force sync completed with errors: {}", result.message);
                 for (RepositorySyncManager.RepositorySyncStatus status : result.repositoryResults) {
-                    System.err.println("  " + status.repositoryName + ": " +
-                        (status.success ? "✓" : "✗") + " " + status.message);
+                    logger.warn("  {}: {} {}", status.repositoryName,
+                        (status.success ? "✓" : "✗"), status.message);
                 }
             }
         })).exceptionally(error -> {
             SwingUtilities.invokeLater(() -> {
                 forceSyncButton.setEnabled(true);
                 forceSyncButton.setText("Force Sync All Repositories");
-                System.err.println("Force sync failed: " + error.getMessage());
+                logger.error("Force sync failed: {}", error.getMessage());
             });
             return null;
         });
