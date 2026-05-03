@@ -3,6 +3,7 @@ import com.kalynx.serverlessreviewtool.configuration.SettingsManager;
 import com.kalynx.serverlessreviewtool.git.Git;
 import com.kalynx.serverlessreviewtool.git.GitImpl;
 import com.kalynx.serverlessreviewtool.git.RepositoryLoader;
+import com.kalynx.serverlessreviewtool.git.ReviewItemLoader;
 import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
 import com.kalynx.serverlessreviewtool.managers.ReviewContextManager;
 import com.kalynx.serverlessreviewtool.managers.ReviewItemManager;
@@ -11,6 +12,7 @@ import com.kalynx.serverlessreviewtool.mockdata.UserMockData;
 import com.kalynx.serverlessreviewtool.models.Repository;
 import com.kalynx.serverlessreviewtool.models.User;
 import com.kalynx.serverlessreviewtool.ui.MainFrame;
+import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewselectionpanel.ReviewSelectionPanelModel;
 import com.kalynx.serverlessreviewtool.ui.models.reviewpanel.reviewformdialog.ReviewFormModels;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,11 +44,15 @@ public class Main {
             // Initialize managers first before models that depend on them
             RepositoryManager repositoryManager = di.inject(RepositoryManager.class);
             SettingsManager settingsManager = di.inject(SettingsManager.class);
-            di.inject(ReviewItemManager.class);
+
+            // Initialize ReviewItemLoader before ReviewItemManager (dependency)
+            di.inject(ReviewItemLoader.class);
+            ReviewItemManager reviewItemManager = di.inject(ReviewItemManager.class);
             di.inject(ReviewContextManager.class);
 
             // Register all models
             ReviewFormModels reviewFormModels = di.inject(ReviewFormModels.class);
+            ReviewSelectionPanelModel reviewSelectionPanelModel = di.inject(ReviewSelectionPanelModel.class);
 
             UserManager userManager = di.inject(UserManager.class);
             userManager.addListener(users -> reviewFormModels.availableReviewers.setValue(users.stream().map(User::getName).toList()));
@@ -54,6 +60,10 @@ public class Main {
             UserMockData.loadMockData(userManager);
 
             setupReviewFormModelUpdaters(reviewFormModels, repositoryManager, settingsManager);
+            setupReviewSelectionPanelModelUpdaters(reviewSelectionPanelModel, reviewItemManager);
+
+            // Load initial review data from repositories
+            reviewItemManager.refresh();
 
             // Create and show main frame
             SwingUtilities.invokeLater(() -> {
@@ -76,6 +86,11 @@ public class Main {
         repositoryManager.addListener(repositories -> reviewFormModels.availableRepositories.setValue(repositories.stream().map(Repository::getName).toList()));
         repositoryManager.addListener(repositories -> reviewFormModels.availableBranches.setValue(repositories.stream().flatMap(r -> r.getBranches().stream()).toList()));
         settingsManager.addUserNameListener(userName -> reviewFormModels.author.setValue(userName));
+        reviewFormModels.author.setValue(settingsManager.getCurrentUserName());
+    }
+
+    private static void setupReviewSelectionPanelModelUpdaters(ReviewSelectionPanelModel model, ReviewItemManager manager) {
+        manager.addListener(model::setAllReviews);
     }
 }
 

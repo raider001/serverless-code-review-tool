@@ -1,31 +1,27 @@
 package com.kalynx.serverlessreviewtool.ui.mainpanels.reviewselectionpanel;
 
-import com.kalynx.serverlessreviewtool.managers.ReviewItemManager;
 import com.kalynx.serverlessreviewtool.models.ReviewItem;
-import com.kalynx.serverlessreviewtool.models.ReviewStatus;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedScrollPane;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedTabbedPane;
+import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewselectionpanel.ReviewSelectionPanelModel;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 public class ReviewListPanel extends ThemedPanel {
 
-    private final ReviewItemManager reviewItemManager;
+    private final ReviewSelectionPanelModel model;
 
     private final ThemedTabbedPane tabbedPane = new ThemedTabbedPane();
     private final ReviewList       myReviewsList  = new ReviewList();
     private final ReviewList       myOpenReviewsList = new ReviewList();
     private final ReviewList       completedReviewsList = new ReviewList();
 
-    public ReviewListPanel(ReviewItemManager reviewItemManager) {
-        this.reviewItemManager = reviewItemManager;
+    public ReviewListPanel(ReviewSelectionPanelModel model) {
+        this.model = model;
          configureLayout();
-         updateTabs();
          setupListeners();
     }
 
@@ -50,47 +46,23 @@ public class ReviewListPanel extends ThemedPanel {
      }
 
     private void setupListeners() {
-        reviewItemManager.addListener(this::loadSampleData);
+        model.myReviews.addChangeListener(reviews -> updateList(myReviewsList, reviews));
+        model.openReviews.addChangeListener(reviews -> updateList(myOpenReviewsList, reviews));
+        model.completedReviews.addChangeListener(reviews -> updateList(completedReviewsList, reviews));
     }
 
-    public void filterLists(String titleFilter, String authorFilter, List<String> repositoryFilter) {
-        myReviewsList.setFilters(titleFilter, authorFilter, repositoryFilter);
-        myOpenReviewsList.setFilters(titleFilter, authorFilter, repositoryFilter);
-        completedReviewsList.setFilters(titleFilter, authorFilter, repositoryFilter);
-        updateTabs();
+    public void applyFilters(String titleFilter, String authorFilter, List<String> repositoryFilter) {
+        model.setFilters(titleFilter, authorFilter, repositoryFilter);
     }
 
-    private void updateModel(DefaultListModel<ReviewItem> model, List<ReviewItem> reviews) {
+    private void updateList(ReviewList list, List<ReviewItem> reviews) {
         SwingUtilities.invokeLater(() -> {
-            model.clear();
-            reviews.forEach(model::addElement);
+            DefaultListModel<ReviewItem> listModel = (DefaultListModel<ReviewItem>) list.getModel();
+            listModel.clear();
+            if (reviews != null) {
+                reviews.forEach(listModel::addElement);
+            }
             updateTabs();
-        });
-    }
-
-    private void loadSampleData(List<ReviewItem> reviews) {
-        // Filter and update each list asynchronously
-        // TODO - Hook this into git config for current user identification
-
-        CompletableFuture.runAsync(() -> {
-            List<ReviewItem> myReviews = reviews.stream()
-                .filter(r -> r.getAuthor().equals("You") && r.getStatus() != ReviewStatus.COMPLETED)
-                .collect(Collectors.toList());
-            updateModel((DefaultListModel<ReviewItem>) myReviewsList.getModel(), myReviews);
-        });
-
-        CompletableFuture.runAsync(() -> {
-            List<ReviewItem> openReviews = reviews.stream()
-                .filter(r -> r.getStatus() == ReviewStatus.OPEN && !r.getAuthor().equals("You"))
-                .collect(Collectors.toList());
-            updateModel((DefaultListModel<ReviewItem>) myOpenReviewsList.getModel(), openReviews);
-        });
-
-        CompletableFuture.runAsync(() -> {
-            List<ReviewItem> completedReviews = reviews.stream()
-                .filter(r -> r.getStatus() == ReviewStatus.COMPLETED)
-                .collect(Collectors.toList());
-            updateModel((DefaultListModel<ReviewItem>) completedReviewsList.getModel(), completedReviews);
         });
     }
 }

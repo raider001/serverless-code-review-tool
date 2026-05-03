@@ -3,10 +3,10 @@ package com.kalynx.serverlessreviewtool.ui.mainpanels;
 import com.kalynx.serverlessreviewtool.git.Git;
 import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
 import com.kalynx.serverlessreviewtool.managers.ReviewItemManager;
-import com.kalynx.serverlessreviewtool.mockdata.ReviewItemMockData_Old;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedButton;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
 import com.kalynx.serverlessreviewtool.ui.Refreshable;
+import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewselectionpanel.ReviewSelectionPanelModel;
 import com.kalynx.serverlessreviewtool.ui.models.reviewpanel.reviewformdialog.ReviewFormModels;
 import com.kalynx.serverlessreviewtool.ui.review.CreateReviewDialog;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewselectionpanel.FilterPanel;
@@ -31,16 +31,21 @@ public class ReviewSelectionPanel extends ThemedPanel implements Refreshable {
 
     public ReviewSelectionPanel(RepositoryManager repositoryManager,
                                ReviewItemManager reviewItemManager,
+                               ReviewSelectionPanelModel reviewSelectionPanelModel,
                                ReviewFormModels reviewFormModels,
                                Git git) {
         this.reviewFormModels = reviewFormModels;
         this.repositoryManager = repositoryManager;
         this.reviewItemManager = reviewItemManager;
         this.git = git;
-        this.listPanel = new ReviewListPanel(reviewItemManager);
-        this.filterPanel = new FilterPanel(repositoryManager).addFilterEventListener(listPanel::filterLists);
+        this.listPanel = new ReviewListPanel(reviewSelectionPanelModel);
+        this.filterPanel = new FilterPanel(repositoryManager).addFilterEventListener(this::onFilterChanged);
         configureLayout();
         configureActions();
+    }
+
+    private void onFilterChanged(String title, String author, java.util.List<String> repositories) {
+        listPanel.applyFilters(title, author, repositories);
     }
 
     private void configureLayout() {
@@ -71,6 +76,6 @@ public class ReviewSelectionPanel extends ThemedPanel implements Refreshable {
 
     @Override
     public void onRefresh() {
-        ReviewItemMockData_Old.refreshMockData(reviewItemManager);
+        reviewItemManager.refresh();
     }
 }

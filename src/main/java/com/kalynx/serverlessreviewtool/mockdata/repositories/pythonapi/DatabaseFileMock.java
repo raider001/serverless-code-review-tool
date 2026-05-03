@@ -10,7 +10,7 @@ public class DatabaseFileMock extends BaseRepository {
     private static final Random random = new Random();
 
     public static void create(Path repoPath) throws Exception {
-        int commitCount = 15 + random.nextInt(26);
+        int commitCount = 15 + random.nextInt(16);
         for (int i = 0; i < commitCount; i++) {
             Files.writeString(repoPath.resolve(FILE_PATH), generate(i));
             commitFile(repoPath, FILE_PATH, getCommitMessage(i));

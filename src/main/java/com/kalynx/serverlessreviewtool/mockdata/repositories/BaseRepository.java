@@ -43,17 +43,13 @@ public abstract class BaseRepository {
     protected static void commitFile(Path repoPath, String filePath, String commitMessage) throws IOException, InterruptedException {
         executeGitCommand(repoPath, "git", "add", filePath);
 
-        // Check if there are changes to commit
         ProcessBuilder pb = new ProcessBuilder("git", "diff", "--cached", "--quiet");
         pb.directory(repoPath.toFile());
         Process process = pb.start();
         int exitCode = process.waitFor();
 
-        // If exitCode is 0, there are no changes; if 1, there are changes
         if (exitCode == 1) {
             executeGitCommand(repoPath, "git", "commit", "-m", commitMessage);
-        } else {
-            System.out.println("    Skipping commit (no changes): " + commitMessage);
         }
     }
 
