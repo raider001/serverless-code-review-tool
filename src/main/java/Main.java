@@ -27,8 +27,8 @@ public class Main {
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
 
     public static void main(String[] ignored) {
-        System.out.println("ServerlessReviewTool - Java Application");
-        System.out.println("Launching application...");
+        logger.info("ServerlessReviewTool - Java Application");
+        logger.info("Launching application...");
 
         try {
             // Initialize DI container

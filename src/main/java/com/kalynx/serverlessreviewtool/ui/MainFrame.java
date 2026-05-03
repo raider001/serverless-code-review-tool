@@ -13,15 +13,18 @@ import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedFr
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
 import com.kalynx.serverlessreviewtool.theme.icons.AppIcon;
 import com.kalynx.serverlessreviewtool.theme.icons.RefreshIcon;
+import com.kalynx.serverlessreviewtool.ui.mainpanels.LogsPanel;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.ReviewPanel;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.ReviewSelectionPanel;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.SettingsPanel;
 import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewpanel.ReviewPanelModel;
 import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewselectionpanel.ReviewSelectionPanelModel;
 import com.kalynx.serverlessreviewtool.ui.models.reviewpanel.reviewformdialog.ReviewFormModels;
+import com.kalynx.serverlessreviewtool.utils.TeeOutputStream;
 
 import javax.swing.*;
 import java.awt.*;
+import java.io.PrintStream;
 
 /**
  * MainFrame - The main application window
@@ -42,6 +45,7 @@ public class MainFrame extends ThemedFrame {
     private ReviewSelectionPanel reviewSelectionPanel;
     private ReviewPanel reviewPanel;
     private SettingsPanel settingsPanel;
+    private LogsPanel logsPanel;
     private HelpPanel helpPanel;
     private ThemedPanel currentPanel;
     private QuickButton refreshButton;
@@ -100,7 +104,21 @@ public class MainFrame extends ThemedFrame {
         reviewSelectionPanel = new ReviewSelectionPanel(repositoryManager, reviewItemManager, reviewSelectionPanelModel, reviewFormModels, git);
         reviewPanel = new ReviewPanel(reviewContextManager, repositoryManager, userManager, reviewFormModels, reviewPanelModel, git);
         settingsPanel = new SettingsPanel(settingsManager, git);
+        logsPanel = new LogsPanel();
         helpPanel = new HelpPanel();
+
+        redirectConsoleToLogsPanel();
+    }
+
+    private void redirectConsoleToLogsPanel() {
+        PrintStream originalOut = System.out;
+        PrintStream originalErr = System.err;
+
+        TeeOutputStream teeOut = new TeeOutputStream(originalOut, logsPanel);
+        TeeOutputStream teeErr = new TeeOutputStream(originalErr, logsPanel);
+
+        System.setOut(new PrintStream(teeOut, true));
+        System.setErr(new PrintStream(teeErr, true));
     }
 
     private void setupReviewDoubleClickHandler() {
@@ -117,6 +135,7 @@ public class MainFrame extends ThemedFrame {
             new MenuItem("Reviews", this::showReviewPanel),
             new MenuItem("Review Code", this::showCodeReviewPanel),
             new MenuItem("Settings", this::showSettingsPanel),
+            new MenuItem("Logs", this::showLogsPanel),
             new MenuItem("Help", this::showHelpPanel)
         );
     }
@@ -134,6 +153,11 @@ public class MainFrame extends ThemedFrame {
     private void showSettingsPanel() {
         switchPanel(settingsPanel);
         setWindowTitle("Serverless Review Tool - Settings");
+    }
+
+    private void showLogsPanel() {
+        switchPanel(logsPanel);
+        setWindowTitle("Serverless Review Tool - Logs");
     }
 
     private void showHelpPanel() {
