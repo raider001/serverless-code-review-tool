@@ -3,6 +3,7 @@ package com.kalynx.serverlessreviewtool.managers;
 import com.kalynx.serverlessreviewtool.configuration.AppSettings;
 import com.kalynx.serverlessreviewtool.git.RepositoryLoader;
 import com.kalynx.serverlessreviewtool.models.Repository;
+import com.kalynx.serverlessreviewtool.theme.LoadingStateManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,8 +34,10 @@ public class RepositoryManager {
      * @param configs repository configurations from settings
      */
     public void updateRepositories(List<AppSettings.RepositoryConfig> configs) {
+        LoadingStateManager.getInstance().startLoading("load-repositories");
         repositoryLoader.loadRepositories(configs)
             .thenAccept(loadedRepos -> {
+                LoadingStateManager.getInstance().stopLoading("load-repositories");
                 this.repositories = loadedRepos;
                 notifyListeners();
             })

@@ -1,3 +1,4 @@
+import com.kalynx.lwdi.DependencyInjectionException;
 import com.kalynx.lwdi.DependencyInjector;
 import com.kalynx.serverlessreviewtool.configuration.SettingsManager;
 import com.kalynx.serverlessreviewtool.git.Git;
@@ -12,6 +13,7 @@ import com.kalynx.serverlessreviewtool.managers.UserManager;
 import com.kalynx.serverlessreviewtool.mockdata.UserMockData;
 import com.kalynx.serverlessreviewtool.models.Repository;
 import com.kalynx.serverlessreviewtool.models.User;
+import com.kalynx.serverlessreviewtool.theme.LoadingStateManager;
 import com.kalynx.serverlessreviewtool.ui.MainFrame;
 import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewpanel.ReviewPanelModel;
 import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewselectionpanel.ReviewSelectionPanelModel;
@@ -26,83 +28,93 @@ import java.nio.file.Paths;
 public class Main {
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
 
+    private static final DependencyInjector DI = new DependencyInjector();
+    private static final String userHome = System.getProperty("user.home");
+    private static final Path gitLocalPath = Paths.get(userHome, ".serverless-review-tool", "repositories");
+
+    private static final Git GIT;
+    private static final RepositoryLoader REPOSITORY_LOADER;
+    private static final RepositoryManager REPOSITORY_MANAGER;
+    private static final SettingsManager SETTINGS_MANAGER;
+    private static final ReviewItemLoader REVIEW_ITEM_LOADER;
+    private static final ReviewItemManager REVIEW_ITEM_MANAGER;
+    private static final ReviewContextManager REVIEW_CONTEXT_MANAGER;
+    private static final UserManager USER_MANAGER;
+    private static final ReviewFormModels REVIEW_FORM_MODELS;
+    private static final ReviewSelectionPanelModel REVIEW_SELECTION_PANEL_MODEL;
+    private static final ReviewPanelModel REVIEW_PANEL_MODEL;
+    private static final PollingService POLLING_SERVICE;
+
+
+    static {
+        try {
+            GIT = DI.add(Git.class, new GitImpl(gitLocalPath));
+            REPOSITORY_LOADER = DI.inject(RepositoryLoader.class);
+            REPOSITORY_MANAGER = DI.inject(RepositoryManager.class);
+            SETTINGS_MANAGER = DI.inject(SettingsManager.class);
+            REVIEW_ITEM_LOADER = DI.inject(ReviewItemLoader.class);
+            REVIEW_ITEM_MANAGER = DI.inject(ReviewItemManager.class);
+            REVIEW_CONTEXT_MANAGER = DI.inject(ReviewContextManager.class);
+            POLLING_SERVICE = DI.inject(PollingService.class);
+            USER_MANAGER = DI.inject(UserManager.class);
+            REVIEW_FORM_MODELS = DI.inject(ReviewFormModels.class);
+            REVIEW_SELECTION_PANEL_MODEL = DI.inject(ReviewSelectionPanelModel.class);
+            REVIEW_PANEL_MODEL = DI.inject(ReviewPanelModel.class);
+        } catch (DependencyInjectionException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public static void main(String[] ignored) {
         logger.info("ServerlessReviewTool - Java Application");
         logger.info("Launching application...");
 
         try {
-            // Initialize DI container
-            DependencyInjector di = new DependencyInjector();
-
-            // Create and register Git service
-            String userHome = System.getProperty("user.home");
-            Path gitLocalPath = Paths.get(userHome, ".serverless-review-tool", "repositories");
-            GitImpl gitImpl = new GitImpl(gitLocalPath);
-            di.add(Git.class, gitImpl);
-
-            // Initialize RepositoryLoader before RepositoryManager (dependency)
-            di.inject(RepositoryLoader.class);
-
-            // Initialize managers first before models that depend on them
-            RepositoryManager repositoryManager = di.inject(RepositoryManager.class);
-            SettingsManager settingsManager = di.inject(SettingsManager.class);
-
-            // Initialize ReviewItemLoader before ReviewItemManager (dependency)
-            di.inject(ReviewItemLoader.class);
-            ReviewItemManager reviewItemManager = di.inject(ReviewItemManager.class);
-            ReviewContextManager reviewContextManager = di.inject(ReviewContextManager.class);
-
-            // Register all models
-            ReviewFormModels reviewFormModels = di.inject(ReviewFormModels.class);
-            ReviewSelectionPanelModel reviewSelectionPanelModel = di.inject(ReviewSelectionPanelModel.class);
-            ReviewPanelModel reviewPanelModel = di.inject(ReviewPanelModel.class);
-
             // Wire ReviewPanelModel to ReviewContextManager
-            reviewContextManager.setReviewPanelModel(reviewPanelModel);
+            REVIEW_CONTEXT_MANAGER.setReviewPanelModel(REVIEW_PANEL_MODEL);
 
-            UserManager userManager = di.inject(UserManager.class);
-            userManager.addListener(users -> reviewFormModels.availableReviewers.setValue(users.stream().map(User::getName).toList()));
+            USER_MANAGER.addListener(users -> REVIEW_FORM_MODELS.availableReviewers.setValue(users.stream().map(User::getName).toList()));
 
-            UserMockData.loadMockData(userManager);
+            REPOSITORY_MANAGER.addListener(ignore -> {
+                REVIEW_ITEM_MANAGER.refresh();
+            });
 
-            setupReviewFormModelUpdaters(reviewFormModels, repositoryManager, settingsManager);
-            setupReviewSelectionPanelModelUpdaters(reviewSelectionPanelModel, reviewItemManager, settingsManager);
+            UserMockData.loadMockData(USER_MANAGER);
 
-            // Initialize polling service for automatic repository syncing
-            PollingService pollingService = new PollingService(gitImpl, settingsManager, reviewItemManager);
+            setupReviewFormModelUpdaters();
+            setupReviewSelectionPanelModelUpdaters();
 
-            // Load initial review data from repositories
-            reviewItemManager.refresh();
 
-            // Create and show main frame
+
             SwingUtilities.invokeLater(() -> {
                 try {
-                    MainFrame frame = di.inject(MainFrame.class);
+                    MainFrame frame = DI.inject(MainFrame.class);
                     frame.setVisible(true);
+                    SETTINGS_MANAGER.addRepositoryNameListener(REPOSITORY_MANAGER::updateRepositories);
+
                 } catch (Exception e) {
                     logger.error("Failed to create MainFrame: {}", e.getMessage(), e);
                     System.exit(1);
                 }
             });
-
         } catch (Exception e) {
             logger.error("Failed to initialize application: {}", e.getMessage(), e);
             System.exit(1);
         }
     }
 
-    private static void setupReviewFormModelUpdaters(ReviewFormModels reviewFormModels, RepositoryManager repositoryManager, SettingsManager settingsManager) {
-        repositoryManager.addListener(repositories -> reviewFormModels.availableRepositories.setValue(repositories.stream().map(Repository::getName).toList()));
-        repositoryManager.addListener(repositories -> reviewFormModels.availableBranches.setValue(repositories.stream().flatMap(r -> r.getBranches().stream()).toList()));
-        settingsManager.addUserNameListener(userName -> reviewFormModels.author.setValue(userName));
-        reviewFormModels.author.setValue(settingsManager.getCurrentUserName());
+    private static void setupReviewFormModelUpdaters() {
+        REPOSITORY_MANAGER.addListener(repositories -> REVIEW_FORM_MODELS.availableRepositories.setValue(repositories.stream().map(Repository::getName).toList()));
+        REPOSITORY_MANAGER.addListener(repositories -> REVIEW_FORM_MODELS.availableBranches.setValue(repositories.stream().flatMap(r -> r.getBranches().stream()).toList()));
+        SETTINGS_MANAGER.addUserNameListener(REVIEW_FORM_MODELS.author::setValue);
+        REVIEW_FORM_MODELS.author.setValue(SETTINGS_MANAGER.getCurrentUserName());
     }
 
-    private static void setupReviewSelectionPanelModelUpdaters(ReviewSelectionPanelModel model, ReviewItemManager manager, SettingsManager settingsManager) {
-        manager.addListener(model::setAllReviews);
-        model.setCurrentUser(settingsManager.getCurrentUserEmail(), settingsManager.getCurrentUserName());
-        settingsManager.addUserNameListener(userName ->
-            model.setCurrentUser(settingsManager.getCurrentUserEmail(), userName)
+    private static void setupReviewSelectionPanelModelUpdaters() {
+        REVIEW_ITEM_MANAGER.addListener(REVIEW_SELECTION_PANEL_MODEL::setAllReviews);
+        REVIEW_SELECTION_PANEL_MODEL.setCurrentUser(SETTINGS_MANAGER.getCurrentUserEmail(), SETTINGS_MANAGER.getCurrentUserName());
+        SETTINGS_MANAGER.addUserNameListener(userName ->
+                REVIEW_SELECTION_PANEL_MODEL.setCurrentUser(SETTINGS_MANAGER.getCurrentUserEmail(), userName)
         );
     }
 }

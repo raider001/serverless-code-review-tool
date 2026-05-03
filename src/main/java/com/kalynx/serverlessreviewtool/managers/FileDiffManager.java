@@ -94,7 +94,14 @@ public class FileDiffManager {
             })
             .thenAccept(codeViewerModel::setAvailableFiles)
             .exceptionally(error -> {
-                logger.error("Failed to load changed files: {}", error.getMessage(), error);
+                String errorMessage = error.getMessage();
+                if (errorMessage != null && errorMessage.contains("bad object")) {
+                    logger.error("Failed to load changed files - commit not found in local repository. " +
+                                "Repository may need to be synced. Start: {}, End: {}",
+                                startCommit.getShortHash(), endCommit.getShortHash(), error);
+                } else {
+                    logger.error("Failed to load changed files: {}", errorMessage, error);
+                }
                 codeViewerModel.setAvailableFiles(new ArrayList<>());
                 return null;
             });

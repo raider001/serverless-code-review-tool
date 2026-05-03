@@ -136,13 +136,19 @@ public class ReviewContextManager {
                 setReviewContext(reviewContext);
 
                 if (fileDiffManager != null && !repositories.isEmpty()) {
-                    git.getDefaultBranch(repositoryName)
+                    LOGGER.info("Fetching repository '{}' before loading commits", repositoryName);
+                    git.fetch(repositoryName)
+                        .thenCompose(fetchResult -> {
+                            LOGGER.info("Repository '{}' fetched successfully", repositoryName);
+                            return git.getDefaultBranch(repositoryName);
+                        })
                         .thenAccept(defaultBranch -> {
-                            fileDiffManager.loadCommitsForReview(repositoryName, defaultBranch, 50);
+                            String remoteBranch = "origin/" + defaultBranch;
+                            LOGGER.info("Loading commits from remote branch '{}'", remoteBranch);
+                            fileDiffManager.loadCommitsForReview(repositoryName, remoteBranch, 1000);
                         })
                         .exceptionally(error -> {
-                            System.err.println("Failed to get default branch, trying 'main': " + error.getMessage());
-                            fileDiffManager.loadCommitsForReview(repositoryName, "main", 50);
+                            LOGGER.error("Failed to fetch or load commits for '{}': {}", repositoryName, error.getMessage(), error);
                             return null;
                         });
                 }

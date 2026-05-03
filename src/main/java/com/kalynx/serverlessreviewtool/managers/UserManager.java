@@ -23,7 +23,7 @@ public class UserManager {
 
     private final Set<Consumer<List<User>>> listeners = new HashSet<>();
 
-    public UserManager(ReviewFormModels reviewFormModels) {
+    public UserManager() {
     }
 
     public void updateUsers(List<User> users) {

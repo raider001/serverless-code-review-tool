@@ -4,8 +4,7 @@ import com.kalynx.serverlessreviewtool.git.Git;
 import com.kalynx.serverlessreviewtool.managers.FileDiffManager;
 import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
 import com.kalynx.serverlessreviewtool.managers.ReviewContextManager;
-import com.kalynx.serverlessreviewtool.managers.UserManager;
-import com.kalynx.serverlessreviewtool.models.ReviewContext;
+
 import com.kalynx.serverlessreviewtool.models.*;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel.CodePanel;
@@ -15,8 +14,6 @@ import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewpanel.ReviewPa
 import com.kalynx.serverlessreviewtool.ui.models.reviewpanel.reviewformdialog.ReviewFormModels;
 import net.miginfocom.swing.MigLayout;
 
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * ReviewPanel - Main panel for reviewing code changes across multiple repositories
@@ -25,10 +22,8 @@ import java.util.List;
 public class ReviewPanel extends ThemedPanel {
 
     private final ReviewContextManager reviewContextManager;
-    private final RepositoryManager repositoryManager;
     private final ReviewPanelModel model;
-    private final Git git;
-    private final FileDiffManager fileDiffManager;
+
 
     private final ReviewDetailPanel reviewDetailPanel;
     private final CodePanel codePanel;
@@ -36,19 +31,15 @@ public class ReviewPanel extends ThemedPanel {
 
     public ReviewPanel(ReviewContextManager reviewContextManager,
                       RepositoryManager repositoryManager,
-                      UserManager userManager,
                       ReviewFormModels reviewFormModels,
                       ReviewPanelModel reviewPanelModel,
                       Git git) {
         this.reviewContextManager = reviewContextManager;
-        this.repositoryManager = repositoryManager;
         this.model = reviewPanelModel;
-        this.git = git;
-        this.fileDiffManager = new FileDiffManager(git, reviewPanelModel.codeViewerModel);
+        FileDiffManager fileDiffManager = new FileDiffManager(git, reviewPanelModel.codeViewerModel);
         this.reviewContextManager.setFileDiffManager(fileDiffManager);
         this.reviewDetailPanel = new ReviewDetailPanel(reviewContextManager, reviewFormModels, repositoryManager, git);
         this.codePanel = new CodePanel(reviewContextManager, reviewPanelModel.codeViewerModel, fileDiffManager);
-        initializeSampleReviewContext();
         configureLayout();
     }
 
@@ -71,85 +62,5 @@ public class ReviewPanel extends ThemedPanel {
                 System.err.println("Failed to load review in ReviewPanel: " + error.getMessage());
                 return null;
             });
-    }
-
-    private void initializeSampleReviewContext() {
-        List<ReviewerInfo> reviewers = new ArrayList<>();
-        reviewers.add(new ReviewerInfo("Alice Chen"));
-        reviewers.add(new ReviewerInfo("Bob Martin"));
-        reviewers.add(new ReviewerInfo("Carlos Rivera"));
-
-        // TODO: Wire up to use actual repositories from a review context once review creation is fully integrated
-        List<Repository> repositories = repositoryManager.getRepositories();
-
-        List<ReviewComment> comments = createSampleComments();
-
-        ReviewContext reviewContext = new ReviewContext(
-            "REVIEW-123",
-            "Implement OAuth2 authentication",
-            "Adds full OAuth2 support across the backend API and frontend app, " +
-            "including token validation, refresh token handling, and a new login UI component.",
-            "John Doe",
-            ReviewStatus.OPEN,
-            reviewers,
-            repositories,
-            comments
-        );
-
-        reviewContextManager.setReviewContext(reviewContext);
-    }
-
-    private List<ReviewComment> createSampleComments() {
-        List<ReviewComment> comments = new java.util.ArrayList<>();
-
-        String filePath = "src/auth/AuthService.java";
-
-        ReviewComment comment1 = new ReviewComment(
-            "C1", filePath, 45, "Alice Chen",
-            "This authentication logic could be simplified. Consider extracting the token validation into a separate method.",
-            "2 hours ago", null, true
-        );
-        comments.add(comment1);
-
-        ReviewComment reply1 = new ReviewComment(
-            "C2", filePath, 45, "Bob Martin",
-            "Good catch! I'll refactor this in the next commit. Should I also extract the refresh token logic?",
-            "1 hour ago", "C1", false
-        );
-        comments.add(reply1);
-
-        ReviewComment reply2 = new ReviewComment(
-            "C3", filePath, 45, "Alice Chen",
-            "Yes, that would make it much more maintainable. Thanks!",
-            "45 minutes ago", "C1", false
-        );
-        comments.add(reply2);
-
-        comment1.markResolved("Bob Martin");
-
-        ReviewComment comment2 = new ReviewComment(
-            "C4", filePath, 12, "Carlos Rivera",
-            "Missing null check here. What happens if the user object is null?",
-            "3 hours ago", null, true
-        );
-        comments.add(comment2);
-
-        ReviewComment comment3 = new ReviewComment(
-            "C5", filePath, 78, "Alice Chen",
-            "Nice implementation! This is much cleaner than the old approach.",
-            "30 minutes ago", null, false
-        );
-        comments.add(comment3);
-
-        String filePath2 = "src/ui/LoginComponent.java";
-
-        ReviewComment comment4 = new ReviewComment(
-            "C6", filePath2, 23, "Bob Martin",
-            "Should we add input validation for the email field?",
-            "1 hour ago", null, true
-        );
-        comments.add(comment4);
-
-        return comments;
     }
 }

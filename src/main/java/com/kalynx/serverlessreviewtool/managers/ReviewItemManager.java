@@ -3,6 +3,7 @@ package com.kalynx.serverlessreviewtool.managers;
 import com.kalynx.serverlessreviewtool.git.ReviewItemLoader;
 import com.kalynx.serverlessreviewtool.models.Repository;
 import com.kalynx.serverlessreviewtool.models.ReviewItem;
+import com.kalynx.serverlessreviewtool.theme.LoadingStateManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,6 +30,7 @@ public class ReviewItemManager {
     }
 
     public CompletableFuture<Void> refresh() {
+        LoadingStateManager.getInstance().startLoading("refresh-review-items");
         List<Repository> repositories = repositoryManager.getRepositories();
 
         List<CompletableFuture<List<ReviewItem>>> futures = repositories.stream()
@@ -43,7 +45,10 @@ public class ReviewItemManager {
                 }
                 return allReviews;
             })
-            .thenAccept(this::updateReviewItems);
+            .thenAccept(items -> {
+                updateReviewItems(items);
+                LoadingStateManager.getInstance().stopLoading("refresh-review-items");
+            });
     }
 
     public void updateReviewItems(List<ReviewItem> reviewItems) {
