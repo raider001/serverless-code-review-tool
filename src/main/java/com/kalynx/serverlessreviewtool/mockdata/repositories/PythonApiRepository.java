@@ -33,11 +33,36 @@ public class PythonApiRepository extends BaseRepository {
         System.out.println("  Creating database.py with incremental commits...");
         DatabaseFileMock.create(repoPath);
 
+        System.out.println("  Adding review notes...");
+        addReviewNotes(repoPath);
+
         System.out.println("  Creating feature branches...");
         FeatureLoggingBranch.create(repoPath);
         RefactorDatabaseBranch.create(repoPath);
 
         System.out.println("  Python API repository created at: " + repoPath);
+    }
+
+    private static void addReviewNotes(Path repoPath) throws IOException, InterruptedException {
+        String commitHash = getLastCommitHash(repoPath);
+
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-201/metadata/title",
+            "{\"id\":\"01933ea4-bf77-ad6f-ebg4-h8i5f6d7e8f9\",\"timestamp\":\"2026-01-18T11:30:00Z\",\"editor\":\"sarah.chen\",\"data\":\"Database connection pooling\"}");
+
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-201/metadata/author",
+            "{\"id\":\"01933ea4-bf77-ad6f-ebg4-h8i5f6d7e8g0\",\"timestamp\":\"2026-01-18T11:30:00Z\",\"editor\":\"sarah.chen\",\"data\":\"sarah.chen\"}");
+
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-201/metadata/status",
+            "{\"id\":\"01933ea4-bf77-ad6f-ebg4-h8i5f6d7e8g1\",\"timestamp\":\"2026-01-18T11:30:00Z\",\"editor\":\"sarah.chen\",\"data\":\"CHANGES_REQUESTED\"}");
+
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-202/metadata/title",
+            "{\"id\":\"01933ea5-cf87-be7g-fch5-i9j6g7e8f9g0\",\"timestamp\":\"2026-01-19T14:45:00Z\",\"editor\":\"alex.kumar\",\"data\":\"API authentication enhancements\"}");
+
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-202/metadata/author",
+            "{\"id\":\"01933ea5-cf87-be7g-fch5-i9j6g7e8f9g1\",\"timestamp\":\"2026-01-19T14:45:00Z\",\"editor\":\"alex.kumar\",\"data\":\"alex.kumar\"}");
+
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-202/metadata/status",
+            "{\"id\":\"01933ea5-cf87-be7g-fch5-i9j6g7e8f9g2\",\"timestamp\":\"2026-01-19T14:45:00Z\",\"editor\":\"alex.kumar\",\"data\":\"IN_REVIEW\"}");
     }
 
     protected static void createInitialStructure(Path repoPath) throws IOException, InterruptedException {

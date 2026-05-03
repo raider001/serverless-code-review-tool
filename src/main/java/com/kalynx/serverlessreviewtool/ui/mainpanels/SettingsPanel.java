@@ -3,6 +3,7 @@ package com.kalynx.serverlessreviewtool.ui.mainpanels;
 import com.kalynx.serverlessreviewtool.configuration.SettingsManager;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedScrollPane;
+import com.kalynx.serverlessreviewtool.ui.mainpanels.settingspanel.CacheManagementPanel;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.settingspanel.NotificationServiceSettingsPanel;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.settingspanel.PollingSettingsPanel;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.settingspanel.RepositoriesPanel;
@@ -38,13 +39,15 @@ public class SettingsPanel extends ThemedPanel {
         NotificationServiceSettingsPanel notificationService = new NotificationServiceSettingsPanel(settingsManager);
         RepositoriesPanel repositories = new RepositoriesPanel(settingsManager);
         PollingSettingsPanel polling = new PollingSettingsPanel(settingsManager);
+        CacheManagementPanel cacheManagement = new CacheManagementPanel();
 
         // Add sections to content panel
         contentPanel.add(userSettings, "grow, wrap");
         contentPanel.add(windowSettings, "grow, wrap");
         contentPanel.add(notificationService, "grow, wrap");
         contentPanel.add(repositories, "grow, pushy, wrap");
-        contentPanel.add(polling, "grow");
+        contentPanel.add(polling, "grow, wrap");
+        contentPanel.add(cacheManagement, "grow");
 
         return contentPanel;
     }

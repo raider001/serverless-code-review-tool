@@ -71,15 +71,24 @@ public class ReviewItemLoader {
         GitReviewNotesManager notesManager = new GitReviewNotesManager(git, repositoryName);
 
         CompletableFuture<String> titleFuture = notesManager.readTitles(reviewId)
-            .thenApply(this::getLatestValue)
+            .thenApply(entries -> {
+                String value = getLatestValue(entries);
+                return value != null ? value : "Untitled Review";
+            })
             .exceptionally(ex -> "Untitled Review");
 
         CompletableFuture<String> authorFuture = notesManager.readAuthors(reviewId)
-            .thenApply(this::getLatestValue)
+            .thenApply(entries -> {
+                String value = getLatestValue(entries);
+                return value != null ? value : "Unknown";
+            })
             .exceptionally(ex -> "Unknown");
 
         CompletableFuture<String> statusFuture = notesManager.readStatuses(reviewId)
-            .thenApply(this::getLatestValue)
+            .thenApply(entries -> {
+                String value = getLatestValue(entries);
+                return value != null ? value : "OPEN";
+            })
             .exceptionally(ex -> "OPEN");
 
         return CompletableFuture.allOf(titleFuture, authorFuture, statusFuture)

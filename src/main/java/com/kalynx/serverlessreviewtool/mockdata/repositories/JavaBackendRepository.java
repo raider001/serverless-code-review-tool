@@ -47,13 +47,22 @@ public class JavaBackendRepository extends BaseRepository {
         String commitHash = getLastCommitHash(repoPath);
 
         addGitNote(repoPath, commitHash, "refs/notes/reviews/review-001/metadata/title",
-            "{\"title\":\"Initial code review\",\"timestamp\":\"2026-01-15T10:00:00Z\"}");
+            "{\"id\":\"01933ea1-8f47-7a3c-b8f1-d5e2c3a4b5c6\",\"timestamp\":\"2026-01-15T10:00:00Z\",\"editor\":\"john.doe\",\"data\":\"Refactor user service layer\"}");
 
-        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-001/comments",
-            "{\"author\":\"reviewer1\",\"comment\":\"Looks good overall\",\"timestamp\":\"2026-01-15T10:05:00Z\"}");
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-001/metadata/author",
+            "{\"id\":\"01933ea1-8f47-7a3c-b8f1-d5e2c3a4b5c7\",\"timestamp\":\"2026-01-15T10:00:00Z\",\"editor\":\"john.doe\",\"data\":\"john.doe\"}");
+
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-001/metadata/status",
+            "{\"id\":\"01933ea1-8f47-7a3c-b8f1-d5e2c3a4b5c8\",\"timestamp\":\"2026-01-15T10:00:00Z\",\"editor\":\"john.doe\",\"data\":\"OPEN\"}");
+
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-002/metadata/title",
+            "{\"id\":\"01933ea2-9f57-8b4d-c9g2-e6f3d4b5c6d7\",\"timestamp\":\"2026-01-16T14:30:00Z\",\"editor\":\"jane.smith\",\"data\":\"Security fixes for auth controller\"}");
+
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-002/metadata/author",
+            "{\"id\":\"01933ea2-9f57-8b4d-c9g2-e6f3d4b5c6d8\",\"timestamp\":\"2026-01-16T14:30:00Z\",\"editor\":\"jane.smith\",\"data\":\"jane.smith\"}");
 
         addGitNote(repoPath, commitHash, "refs/notes/reviews/review-002/metadata/status",
-            "{\"status\":\"approved\",\"timestamp\":\"2026-01-16T14:30:00Z\"}");
+            "{\"id\":\"01933ea2-9f57-8b4d-c9g2-e6f3d4b5c6d9\",\"timestamp\":\"2026-01-16T14:30:00Z\",\"editor\":\"jane.smith\",\"data\":\"IN_REVIEW\"}");
     }
 
     protected static void createInitialStructure(Path repoPath) throws IOException, InterruptedException {

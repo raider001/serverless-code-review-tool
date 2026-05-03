@@ -33,11 +33,27 @@ public class ReactFrontendRepository extends BaseRepository {
         System.out.println("  Creating api.ts with incremental commits...");
         ApiFileMock.create(repoPath);
 
+        System.out.println("  Adding review notes...");
+        addReviewNotes(repoPath);
+
         System.out.println("  Creating feature branches...");
         FeatureThemingBranch.create(repoPath);
         PerformanceOptimizationBranch.create(repoPath);
 
         System.out.println("  React Frontend repository created at: " + repoPath);
+    }
+
+    private static void addReviewNotes(Path repoPath) throws IOException, InterruptedException {
+        String commitHash = getLastCommitHash(repoPath);
+
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-101/metadata/title",
+            "{\"id\":\"01933ea3-af67-9c5e-daf3-g7h4e5c6d7e8\",\"timestamp\":\"2026-01-17T09:15:00Z\",\"editor\":\"mike.wilson\",\"data\":\"UI component refactoring\"}");
+
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-101/metadata/author",
+            "{\"id\":\"01933ea3-af67-9c5e-daf3-g7h4e5c6d7e9\",\"timestamp\":\"2026-01-17T09:15:00Z\",\"editor\":\"mike.wilson\",\"data\":\"mike.wilson\"}");
+
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-101/metadata/status",
+            "{\"id\":\"01933ea3-af67-9c5e-daf3-g7h4e5c6d7f0\",\"timestamp\":\"2026-01-17T09:15:00Z\",\"editor\":\"mike.wilson\",\"data\":\"APPROVED\"}");
     }
 
     protected static void createInitialStructure(Path repoPath) throws IOException, InterruptedException {
