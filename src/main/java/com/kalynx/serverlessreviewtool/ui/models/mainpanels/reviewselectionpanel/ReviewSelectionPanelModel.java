@@ -9,6 +9,7 @@ import java.util.List;
 public class ReviewSelectionPanelModel {
 
     public final ComponentModel<List<ReviewItem>> allReviews = new ComponentModel<>();
+    public final ComponentModel<List<ReviewItem>> allReviewsFiltered = new ComponentModel<>();
     public final ComponentModel<List<ReviewItem>> myReviews = new ComponentModel<>();
     public final ComponentModel<List<ReviewItem>> openReviews = new ComponentModel<>();
     public final ComponentModel<List<ReviewItem>> completedReviews = new ComponentModel<>();
@@ -24,12 +25,22 @@ public class ReviewSelectionPanelModel {
     public final ComponentModel<Boolean> isLoading = new ComponentModel<>();
     public final ComponentModel<String> errorMessage = new ComponentModel<>();
 
+    private String currentUserEmail = "";
+    private String currentUserName = "";
+
     public ReviewSelectionPanelModel() {
         initializeDefaults();
     }
 
+    public void setCurrentUser(String email, String name) {
+        this.currentUserEmail = email != null ? email : "";
+        this.currentUserName = name != null ? name : "";
+        applyFiltersToAllLists(allReviews.getValue());
+    }
+
     private void initializeDefaults() {
         allReviews.setValue(new ArrayList<>());
+        allReviewsFiltered.setValue(new ArrayList<>());
         myReviews.setValue(new ArrayList<>());
         openReviews.setValue(new ArrayList<>());
         completedReviews.setValue(new ArrayList<>());
@@ -67,6 +78,7 @@ public class ReviewSelectionPanelModel {
             .filter(r -> matchesFilters(r, title, author, repos))
             .toList();
 
+        allReviewsFiltered.setValue(filtered);
         myReviews.setValue(filterMyReviews(filtered));
         openReviews.setValue(filterOpenReviews(filtered));
         completedReviews.setValue(filterCompletedReviews(filtered));
@@ -104,7 +116,20 @@ public class ReviewSelectionPanelModel {
     }
 
     private boolean isMyReview(ReviewItem review) {
-        return "You".equals(review.getAuthor());
+        if (currentUserEmail.isEmpty() && currentUserName.isEmpty()) {
+            return false;
+        }
+
+        boolean isAuthor = (!currentUserName.isEmpty() && currentUserName.equals(review.getAuthor())) ||
+                          (!currentUserEmail.isEmpty() && currentUserEmail.equals(review.getAuthor()));
+
+        boolean isReviewer = review.getReviewers().stream()
+            .anyMatch(reviewer ->
+                (!currentUserName.isEmpty() && reviewer.equals(currentUserName)) ||
+                (!currentUserEmail.isEmpty() && reviewer.equals(currentUserEmail))
+            );
+
+        return isAuthor || isReviewer;
     }
 
     private boolean isCompleted(ReviewItem review) {
@@ -152,6 +177,7 @@ public class ReviewSelectionPanelModel {
             case 0 -> myReviews.getValue();
             case 1 -> openReviews.getValue();
             case 2 -> completedReviews.getValue();
+            case 3 -> allReviewsFiltered.getValue();
             default -> new ArrayList<>();
         };
     }

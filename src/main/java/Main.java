@@ -60,7 +60,7 @@ public class Main {
             UserMockData.loadMockData(userManager);
 
             setupReviewFormModelUpdaters(reviewFormModels, repositoryManager, settingsManager);
-            setupReviewSelectionPanelModelUpdaters(reviewSelectionPanelModel, reviewItemManager);
+            setupReviewSelectionPanelModelUpdaters(reviewSelectionPanelModel, reviewItemManager, settingsManager);
 
             // Load initial review data from repositories
             reviewItemManager.refresh();
@@ -89,8 +89,12 @@ public class Main {
         reviewFormModels.author.setValue(settingsManager.getCurrentUserName());
     }
 
-    private static void setupReviewSelectionPanelModelUpdaters(ReviewSelectionPanelModel model, ReviewItemManager manager) {
+    private static void setupReviewSelectionPanelModelUpdaters(ReviewSelectionPanelModel model, ReviewItemManager manager, SettingsManager settingsManager) {
         manager.addListener(model::setAllReviews);
+        model.setCurrentUser(settingsManager.getCurrentUserEmail(), settingsManager.getCurrentUserName());
+        settingsManager.addUserNameListener(userName ->
+            model.setCurrentUser(settingsManager.getCurrentUserEmail(), userName)
+        );
     }
 }
 

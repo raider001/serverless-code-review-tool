@@ -133,6 +133,10 @@ public class MainFrame extends ThemedFrame {
         currentPanel = newPanel;
         getContentPanel().add(currentPanel, BorderLayout.CENTER);
         updateRefreshButtonVisibility();
+
+        if (newPanel instanceof ReviewSelectionPanel) {
+            ((ReviewSelectionPanel) newPanel).onPanelShown();
+        }
     }
 
     private void updateRefreshButtonVisibility() {

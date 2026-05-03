@@ -73,6 +73,18 @@ public class ReviewSelectionPanel extends ThemedPanel implements Refreshable {
             git
         );
         dialog.setVisible(true);
+
+        if (dialog.isConfirmed()) {
+            onRefresh();
+        }
+    }
+
+    /**
+     * Called when the panel is shown in the MainFrame.
+     * Loads data on first show.
+     */
+    public void onPanelShown() {
+        onRefresh();
     }
 
     @Override

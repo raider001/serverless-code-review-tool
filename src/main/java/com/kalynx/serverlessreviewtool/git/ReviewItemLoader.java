@@ -6,6 +6,7 @@ import com.kalynx.serverlessreviewtool.models.review.StreamEntry;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -58,12 +59,12 @@ public class ReviewItemLoader {
     private CompletableFuture<List<ReviewItem>> loadReviewItems(String repositoryName, List<String> reviewIds) {
         List<CompletableFuture<ReviewItem>> reviewFutures = reviewIds.stream()
             .map(reviewId -> loadReviewItem(repositoryName, reviewId))
-            .collect(Collectors.toList());
+            .toList();
 
         return CompletableFuture.allOf(reviewFutures.toArray(new CompletableFuture[0]))
             .thenApply(ignored -> reviewFutures.stream()
                 .map(CompletableFuture::join)
-                .filter(item -> item != null)
+                .filter(Objects::nonNull)
                 .collect(Collectors.toList()));
     }
 
@@ -91,15 +92,23 @@ public class ReviewItemLoader {
             })
             .exceptionally(ex -> "OPEN");
 
-        return CompletableFuture.allOf(titleFuture, authorFuture, statusFuture)
+        CompletableFuture<List<String>> reviewersFuture = notesManager.readReviewers(reviewId)
+            .thenApply(entries -> entries.stream()
+                .map(StreamEntry::editor)
+                .distinct()
+                .collect(java.util.stream.Collectors.toList()))
+            .exceptionally(ex -> new ArrayList<>());
+
+        return CompletableFuture.allOf(titleFuture, authorFuture, statusFuture, reviewersFuture)
             .thenApply(ignored -> {
                 String title = titleFuture.join();
                 String author = authorFuture.join();
                 String statusStr = statusFuture.join();
+                List<String> reviewers = reviewersFuture.join();
                 ReviewStatus status = parseStatus(statusStr);
                 long lastUpdate = System.currentTimeMillis();
 
-                return new ReviewItem(title, author, repositoryName, status, lastUpdate);
+                return new ReviewItem(title, author, repositoryName, status, lastUpdate, reviewers);
             })
             .exceptionally(ex -> {
                 System.err.println("Failed to load review " + reviewId + " from " + repositoryName + ": " + ex.getMessage());
@@ -111,7 +120,7 @@ public class ReviewItemLoader {
         if (entries == null || entries.isEmpty()) {
             return null;
         }
-        return entries.get(entries.size() - 1).data();
+        return entries.getLast().data();
     }
 
     private ReviewStatus parseStatus(String statusStr) {

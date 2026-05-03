@@ -1,6 +1,8 @@
 package com.kalynx.serverlessreviewtool.models;
 
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 public class ReviewItem {
@@ -9,17 +11,19 @@ public class ReviewItem {
     private final String       repository;
     private final ReviewStatus status;
     private final long       lastUpdate;
+    private final List<String> reviewers;
 
-    public ReviewItem(String title, String author, String repository, ReviewStatus status, long lastUpdate) {
+    public ReviewItem(String title, String author, String repository, ReviewStatus status, long lastUpdate, List<String> reviewers) {
         this.title      = title;
         this.author     = author;
         this.repository = repository;
         this.status     = status;
         this.lastUpdate    = lastUpdate;
+        this.reviewers  = reviewers != null ? new ArrayList<>(reviewers) : new ArrayList<>();
     }
 
     public ReviewItem(ReviewItem reviewItem) {
-        this(reviewItem.title, reviewItem.author, reviewItem.repository, reviewItem.status, reviewItem.lastUpdate);
+        this(reviewItem.title, reviewItem.author, reviewItem.repository, reviewItem.status, reviewItem.lastUpdate, reviewItem.reviewers);
     }
 
     public String       getTitle()      { return title; }
@@ -27,6 +31,7 @@ public class ReviewItem {
     public String       getRepository() { return repository; }
     public ReviewStatus getStatus()     { return status; }
     public long         getLastUpdate()    { return lastUpdate; }
+    public List<String> getReviewers()  { return new ArrayList<>(reviewers); }
 
     @Override
     public boolean equals(Object o) {
@@ -37,11 +42,12 @@ public class ReviewItem {
                Objects.equals(author, that.author) &&
                Objects.equals(repository, that.repository) &&
                status == that.status &&
-               Objects.equals(lastUpdate, that.lastUpdate);
+               Objects.equals(lastUpdate, that.lastUpdate) &&
+               Objects.equals(reviewers, that.reviewers);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(title, author, repository, status, lastUpdate);
+        return Objects.hash(title, author, repository, status, lastUpdate, reviewers);
     }
 }
