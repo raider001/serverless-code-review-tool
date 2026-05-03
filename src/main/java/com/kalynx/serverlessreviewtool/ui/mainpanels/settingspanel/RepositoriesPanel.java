@@ -119,20 +119,17 @@ public class RepositoriesPanel extends ThemedPanel {
     // Helper methods to keep settings and UI model synchronized
 
     private void addRepository(AppSettings.RepositoryConfig config) {
-        settingsManager.getSettings().getRepositories().add(config);
+        settingsManager.addRepository(config);
         repositoryListModel.addElement(config);
-        settingsManager.saveSettings();
     }
 
     private void updateRepository(int index, AppSettings.RepositoryConfig updated) {
-        settingsManager.getSettings().getRepositories().set(index, updated);
+        settingsManager.updateRepository(index, updated);
         repositoryListModel.setElementAt(updated, index);
-        settingsManager.saveSettings();
     }
 
     private void removeRepository(int index) {
-        settingsManager.getSettings().getRepositories().remove(index);
+        settingsManager.removeRepository(index);
         repositoryListModel.remove(index);
-        settingsManager.saveSettings();
     }
 }

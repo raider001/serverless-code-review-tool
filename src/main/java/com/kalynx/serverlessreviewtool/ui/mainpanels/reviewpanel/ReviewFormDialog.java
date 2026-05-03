@@ -114,8 +114,25 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
             return;
         }
 
-        List<String> commonBranches = findCommonBranches(selectedRepos);
-        models.availableBranches.setValue(commonBranches);
+        String primaryRepoName = selectedRepoNames.get(0);
+        git.fetch(primaryRepoName)
+            .thenCompose(ignored -> git.listBranches(primaryRepoName))
+            .thenAccept(branches -> SwingUtilities.invokeLater(() -> {
+                repositoryManager.updateBranchesForRepository(primaryRepoName, branches);
+                List<Repository> updatedRepos = repositoryManager.getRepositories();
+                List<Repository> updatedSelectedRepos = selectedRepoNames.stream()
+                    .map(name -> findRepositoryByName(updatedRepos, name))
+                    .filter(repo -> repo != null)
+                    .collect(Collectors.toList());
+                List<String> commonBranches = findCommonBranches(updatedSelectedRepos);
+                models.availableBranches.setValue(commonBranches);
+            }))
+            .exceptionally(error -> {
+                System.err.println("Failed to fetch branches: " + error.getMessage());
+                List<String> commonBranches = findCommonBranches(selectedRepos);
+                SwingUtilities.invokeLater(() -> models.availableBranches.setValue(commonBranches));
+                return null;
+            });
     }
 
     private Repository findRepositoryByName(List<Repository> repositories, String name) {

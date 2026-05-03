@@ -66,14 +66,18 @@ public class CreateReviewDialog extends ReviewFormDialog {
         LoadingStateManager.getInstance().startLoading("create-review");
         GitReviewNotesManager notesManager = new GitReviewNotesManager(git, repositoryName);
 
-        String commitRange = baseBranch + ".." + branch;
+        LOGGER.info("Creating review - Repository: {}, Branch: {}, Base: {}", repositoryName, branch, baseBranch);
 
         git.fetch(repositoryName)
-            .thenCompose(v -> git.listCommits(repositoryName, commitRange, 1000))
+            .thenCompose(v -> {
+                String commitRange = baseBranch + ".." + branch;
+                return git.listCommits(repositoryName, commitRange, 1000);
+            })
             .thenCompose(commitMessages -> {
                 List<String> commitHashes = extractCommitHashes(commitMessages);
 
                 if (commitHashes.isEmpty()) {
+                    LOGGER.warn("No commits found between {} and {}", baseBranch, branch);
                     return CompletableFuture.failedFuture(
                         new IllegalArgumentException("No commits found between '" + baseBranch +
                             "' and '" + branch + "'. Either the branches don't exist or they are identical.")
