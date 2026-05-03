@@ -31,7 +31,7 @@ public class SettingsPanel extends ThemedPanel {
 
     private JPanel createContentPanel() {
         ThemedPanel contentPanel = new ThemedPanel();
-        contentPanel.setLayout(new MigLayout("fill", "", ""));
+        contentPanel.setLayout(new MigLayout("", "[grow][grow]", "[][][grow][]"));
 
         // Create settings sections with DI
         UserSettingsPanel userSettings = new UserSettingsPanel(settingsManager);
@@ -42,12 +42,12 @@ public class SettingsPanel extends ThemedPanel {
         CacheManagementPanel cacheManagement = new CacheManagementPanel();
 
         // Add sections to content panel
-        contentPanel.add(userSettings, "grow, wrap");
-        contentPanel.add(windowSettings, "grow, wrap");
-        contentPanel.add(notificationService, "grow, wrap");
-        contentPanel.add(repositories, "grow, pushy, wrap");
-        contentPanel.add(polling, "grow, wrap");
-        contentPanel.add(cacheManagement, "grow");
+        contentPanel.add(userSettings, "cell 0 0 2 1, growx");
+        contentPanel.add(windowSettings, "cell 0 1, growx");
+        contentPanel.add(notificationService, "cell 1 1, growx");
+        contentPanel.add(repositories, "cell 0 2 2 1, grow");
+        contentPanel.add(polling, "cell 0 3, growx");
+        contentPanel.add(cacheManagement, "cell 1 3, growx");
 
         return contentPanel;
     }

@@ -58,7 +58,7 @@ public class ReviewListPanel extends ThemedPanel {
     private void updateList(ReviewList list, List<ReviewItem> reviews) {
         SwingUtilities.invokeLater(() -> {
             DefaultListModel<ReviewItem> listModel = (DefaultListModel<ReviewItem>) list.getModel();
-            listModel.clear();
+            listModel.removeAllElements();
             if (reviews != null) {
                 reviews.forEach(listModel::addElement);
             }

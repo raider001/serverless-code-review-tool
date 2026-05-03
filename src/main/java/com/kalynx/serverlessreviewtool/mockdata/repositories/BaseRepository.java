@@ -85,6 +85,29 @@ public abstract class BaseRepository {
         return output.toString().trim();
     }
 
+    protected static String getRootCommitHash(Path repoPath) throws IOException, InterruptedException {
+        ProcessBuilder pb = new ProcessBuilder("git", "rev-list", "--max-parents=0", "HEAD");
+        pb.directory(repoPath.toFile());
+        pb.redirectErrorStream(true);
+
+        Process process = pb.start();
+        StringBuilder output = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                output.append(line);
+                break;
+            }
+        }
+
+        int exitCode = process.waitFor();
+        if (exitCode != 0) {
+            throw new IOException("Failed to get root commit hash");
+        }
+
+        return output.toString().trim();
+    }
+
     protected static void createBranch(Path repoPath, String branchName) throws IOException, InterruptedException {
         executeGitCommand(repoPath, "git", "branch", branchName);
     }

@@ -44,7 +44,7 @@ public class PythonApiRepository extends BaseRepository {
     }
 
     private static void addReviewNotes(Path repoPath) throws IOException, InterruptedException {
-        String commitHash = getLastCommitHash(repoPath);
+        String commitHash = getRootCommitHash(repoPath);
 
         addGitNote(repoPath, commitHash, "refs/notes/reviews/review-201/metadata/title",
             "{\"id\":\"01933ea4-bf77-ad6f-ebg4-h8i5f6d7e8f9\",\"timestamp\":\"2026-01-18T11:30:00Z\",\"editor\":\"sarah.chen\",\"data\":\"Database connection pooling\"}");

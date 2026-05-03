@@ -44,7 +44,7 @@ public class ReactFrontendRepository extends BaseRepository {
     }
 
     private static void addReviewNotes(Path repoPath) throws IOException, InterruptedException {
-        String commitHash = getLastCommitHash(repoPath);
+        String commitHash = getRootCommitHash(repoPath);
 
         addGitNote(repoPath, commitHash, "refs/notes/reviews/review-101/metadata/title",
             "{\"id\":\"01933ea3-af67-9c5e-daf3-g7h4e5c6d7e8\",\"timestamp\":\"2026-01-17T09:15:00Z\",\"editor\":\"mike.wilson\",\"data\":\"UI component refactoring\"}");

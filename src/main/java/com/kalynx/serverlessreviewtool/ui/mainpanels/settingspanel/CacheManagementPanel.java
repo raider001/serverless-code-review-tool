@@ -1,6 +1,5 @@
 package com.kalynx.serverlessreviewtool.ui.mainpanels.settingspanel;
 
-import com.kalynx.serverlessreviewtool.git.GitFactory;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedButton;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedConfirmDialog;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedLabel;
@@ -46,9 +45,10 @@ public class CacheManagementPanel extends ThemedPanel {
         boolean confirmed = ThemedConfirmDialog.showConfirmation(
             SwingUtilities.getWindowAncestor(this),
             "Clear Cache",
-            "Are you sure you want to delete all local repositories?\n" +
-            "This will remove all cached Git repositories and notes.\n" +
-            "They will be re-cloned on next use."
+                """
+                        Are you sure you want to delete all local repositories?
+                        This will remove all cached Git repositories and notes.
+                        They will be re-cloned on next use."""
         );
 
         if (confirmed) {

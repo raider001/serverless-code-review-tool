@@ -44,7 +44,7 @@ public class JavaBackendRepository extends BaseRepository {
     }
 
     private static void addReviewNotes(Path repoPath) throws IOException, InterruptedException {
-        String commitHash = getLastCommitHash(repoPath);
+        String commitHash = getRootCommitHash(repoPath);
 
         addGitNote(repoPath, commitHash, "refs/notes/reviews/review-001/metadata/title",
             "{\"id\":\"01933ea1-8f47-7a3c-b8f1-d5e2c3a4b5c6\",\"timestamp\":\"2026-01-15T10:00:00Z\",\"editor\":\"john.doe\",\"data\":\"Refactor user service layer\"}");
