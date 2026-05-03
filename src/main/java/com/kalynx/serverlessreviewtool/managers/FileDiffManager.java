@@ -5,6 +5,8 @@ import com.kalynx.serverlessreviewtool.models.Commit;
 import com.kalynx.serverlessreviewtool.models.FileChangeType;
 import com.kalynx.serverlessreviewtool.models.ReviewFile;
 import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewpanel.CodeViewerModel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,6 +18,8 @@ import java.util.concurrent.CompletableFuture;
  * Updates CodeViewerModel which triggers UI updates.
  */
 public class FileDiffManager {
+    private static final Logger logger = LoggerFactory.getLogger(FileDiffManager.class);
+
     private final Git git;
     private final CodeViewerModel codeViewerModel;
 
@@ -45,7 +49,7 @@ public class FileDiffManager {
                 }
             })
             .exceptionally(error -> {
-                System.err.println("Failed to load commits: " + error.getMessage());
+                logger.error("Failed to load commits: {}", error.getMessage());
                 codeViewerModel.setAvailableCommits(new ArrayList<>());
                 return null;
             });
@@ -70,7 +74,7 @@ public class FileDiffManager {
             .thenApply(changedFiles -> parseChangedFiles(changedFiles, repositoryName))
             .thenAccept(codeViewerModel::setAvailableFiles)
             .exceptionally(error -> {
-                System.err.println("Failed to load changed files: " + error.getMessage());
+                logger.error("Failed to load changed files: {}", error.getMessage());
                 codeViewerModel.setAvailableFiles(new ArrayList<>());
                 return null;
             });
@@ -80,6 +84,7 @@ public class FileDiffManager {
      * Loads diff content for a specific file between two commits.
      * Loads both side-by-side content (left/right) and unified diff format.
      * Updates the model with file content.
+     * Handles ADDED and DELETED files gracefully with appropriate placeholder messages.
      *
      * @param repositoryName name of the repository
      * @param file file to load diff for
@@ -93,10 +98,26 @@ public class FileDiffManager {
             return CompletableFuture.completedFuture(null);
         }
 
-        CompletableFuture<String> leftContentFuture = loadFileContent(repositoryName,
-            file.getPath(), startCommit.getHash());
-        CompletableFuture<String> rightContentFuture = loadFileContent(repositoryName,
-            file.getPath(), endCommit.getHash());
+        // For ADDED files, left side doesn't exist
+        CompletableFuture<String> leftContentFuture;
+        if (file.getChangeType() == FileChangeType.ADDED) {
+            leftContentFuture = CompletableFuture.completedFuture(
+                "// File does not exist in commit " + startCommit.getShortHash() + "\n" +
+                "// This file was added in commit " + endCommit.getShortHash());
+        } else {
+            leftContentFuture = loadFileContent(repositoryName, file.getPath(), startCommit.getHash(), file);
+        }
+
+        // For DELETED files, right side doesn't exist
+        CompletableFuture<String> rightContentFuture;
+        if (file.getChangeType() == FileChangeType.DELETED) {
+            rightContentFuture = CompletableFuture.completedFuture(
+                "// File was deleted in commit " + endCommit.getShortHash() + "\n" +
+                "// This file existed in commit " + startCommit.getShortHash());
+        } else {
+            rightContentFuture = loadFileContent(repositoryName, file.getPath(), endCommit.getHash(), file);
+        }
+
         CompletableFuture<String> unifiedDiffFuture = loadUnifiedDiff(repositoryName,
             file.getPath(), startCommit.getHash(), endCommit.getHash());
 
@@ -111,10 +132,10 @@ public class FileDiffManager {
                 codeViewerModel.setUnifiedDiffContent(unifiedDiff);
             })
             .exceptionally(error -> {
-                System.err.println("Failed to load diff for file " + file.getPath() + ": " + error.getMessage());
-                codeViewerModel.setLeftContent("");
-                codeViewerModel.setRightContent("");
-                codeViewerModel.setUnifiedDiffContent("");
+                logger.error("Failed to load diff for file {}: {}", file.getPath(), error.getMessage());
+                codeViewerModel.setLeftContent("// Error loading content: " + error.getMessage());
+                codeViewerModel.setRightContent("// Error loading content: " + error.getMessage());
+                codeViewerModel.setUnifiedDiffContent("// Error loading diff: " + error.getMessage());
                 return null;
             });
     }
@@ -146,11 +167,37 @@ public class FileDiffManager {
         return filesRefresh;
     }
 
-    private CompletableFuture<String> loadFileContent(String repositoryName, String filePath, String commitHash) {
+    private CompletableFuture<String> loadFileContent(String repositoryName, String filePath,
+                                                       String commitHash, ReviewFile file) {
         return git.executeAsync(repositoryName, "show", commitHash + ":" + filePath)
             .exceptionally(error -> {
-                System.err.println("Failed to load file content for " + filePath + " at " + commitHash + ": " + error.getMessage());
-                return "";
+                String errorMsg = error.getMessage();
+
+                // Handle cases where file doesn't exist in this commit
+                if (errorMsg != null && (errorMsg.contains("does not exist") ||
+                                        errorMsg.contains("not in") ||
+                                        errorMsg.contains("path") && errorMsg.contains("exists on disk"))) {
+
+                    if (file.getChangeType() == FileChangeType.ADDED) {
+                        return "// File does not exist in this commit\n" +
+                               "// File: " + filePath + "\n" +
+                               "// This file was added in a later commit";
+                    } else if (file.getChangeType() == FileChangeType.DELETED) {
+                        return "// File was deleted in a later commit\n" +
+                               "// File: " + filePath + "\n" +
+                               "// This file existed in an earlier commit";
+                    } else {
+                        return "// File not available in commit " + commitHash.substring(0, 8) + "\n" +
+                               "// File: " + filePath;
+                    }
+                }
+
+                // Other errors
+                logger.warn("Failed to load file content for {} at {}: {}",
+                           filePath, commitHash, errorMsg);
+                return "// Error loading file content\n" +
+                       "// File: " + filePath + "\n" +
+                       "// Error: " + errorMsg;
             });
     }
 
@@ -158,8 +205,13 @@ public class FileDiffManager {
                                                         String fromCommit, String toCommit) {
         return git.executeAsync(repositoryName, "diff", fromCommit, toCommit, "--", filePath)
             .exceptionally(error -> {
-                System.err.println("Failed to generate unified diff for " + filePath + ": " + error.getMessage());
-                return "";
+                String errorMsg = error.getMessage();
+                logger.warn("Failed to generate unified diff for {}: {}", filePath, errorMsg);
+
+                // Return a descriptive message for the diff pane
+                return "# Unable to generate diff\n" +
+                       "# File: " + filePath + "\n" +
+                       "# Error: " + errorMsg;
             });
     }
 

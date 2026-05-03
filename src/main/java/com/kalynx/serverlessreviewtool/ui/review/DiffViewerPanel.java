@@ -9,6 +9,7 @@ import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedSc
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedSplitPane;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 import com.kalynx.serverlessreviewtool.theme.Theme;
+import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewpanel.CodeViewerModel;
 
 import javax.swing.*;
 import javax.swing.text.*;
@@ -22,6 +23,7 @@ public class DiffViewerPanel extends ThemedPanel {
     private static final long serialVersionUID = 1L;
 
     private transient final ThemeManager themeManager = ThemeManager.getInstance();
+    private transient final CodeViewerModel codeViewerModel;
 
     private DiffViewMode currentMode = DiffViewMode.SIDE_BY_SIDE;
     private ThemedPanel contentPanel;
@@ -35,7 +37,8 @@ public class DiffViewerPanel extends ThemedPanel {
     private transient Commit endCommit;
     private transient Theme lastRenderedTheme;
 
-    public DiffViewerPanel() {
+    public DiffViewerPanel(CodeViewerModel codeViewerModel) {
+        this.codeViewerModel = codeViewerModel;
         setLayout(new BorderLayout());
         initializeComponents();
     }
@@ -141,17 +144,31 @@ public class DiffViewerPanel extends ThemedPanel {
     }
 
     private void showSideBySideDiff(ReviewFile file, Commit startCommit, Commit endCommit) {
-        // Generate sample diff content
-        String beforeContent = generateSampleContent(file, startCommit, true);
-        String afterContent = generateSampleContent(file, endCommit, false);
+        // Get content from model
+        String beforeContent = codeViewerModel.leftContent.getValue();
+        String afterContent = codeViewerModel.rightContent.getValue();
+
+        // Fall back to emptyif not available
+        if (beforeContent == null || beforeContent.isEmpty()) {
+            beforeContent = "// Content not available for " + file.getPath();
+        }
+        if (afterContent == null || afterContent.isEmpty()) {
+            afterContent = "// Content not available for " + file.getPath();
+        }
 
         // Set content and apply highlighting
         highlightDiffWithInlineChanges(leftPane, rightPane, beforeContent, afterContent);
     }
 
     private void showUnifiedDiff(ReviewFile file, Commit startCommit, Commit endCommit) {
-        // Generate unified diff format
-        String unifiedDiff = generateUnifiedDiff(file, startCommit, endCommit);
+        // Get unified diff from model
+        String unifiedDiff = codeViewerModel.unifiedDiffContent.getValue();
+
+        // Fall back to placeholder if not available
+        if (unifiedDiff == null || unifiedDiff.isEmpty()) {
+            unifiedDiff = "// Unified diff not available for " + file.getPath();
+        }
+
         highlightUnifiedDiff(unifiedPane, unifiedDiff);
     }
 

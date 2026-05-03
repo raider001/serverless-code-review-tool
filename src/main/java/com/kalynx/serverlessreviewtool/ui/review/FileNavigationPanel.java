@@ -113,6 +113,10 @@ public class FileNavigationPanel extends ThemedPanel {
         for (int i = 0; i < fileTree.getRowCount(); i++) {
             fileTree.expandRow(i);
         }
+
+        // Force repaint and revalidate
+        fileTree.revalidate();
+        fileTree.repaint();
     }
 
     private Repository findRepository(String repoName) {
@@ -143,6 +147,10 @@ public class FileNavigationPanel extends ThemedPanel {
         for (int i = 0; i < fileTree.getRowCount(); i++) {
             fileTree.expandRow(i);
         }
+
+        // Force repaint and revalidate
+        fileTree.revalidate();
+        fileTree.repaint();
     }
 
     private void addFileToTree(DefaultMutableTreeNode repoNode, ReviewFile file) {
@@ -190,6 +198,9 @@ public class FileNavigationPanel extends ThemedPanel {
         for (int i = 0; i < fileTree.getRowCount(); i++) {
             fileTree.expandRow(i);
         }
+        // Force repaint and revalidate
+        fileTree.revalidate();
+        fileTree.repaint();
     }
 
     // File tree cell renderer

@@ -31,7 +31,7 @@ public class CodePanel extends ThemedPanel {
 
     private final CommitSelectorPanel commitSelectorPanel;
     private final FileNavigationPanel fileNavigationPanel;
-    private final DiffViewerPanel diffViewerPanel = new DiffViewerPanel();
+    private final DiffViewerPanel diffViewerPanel;
     private final ThemedSplitPane fileAndDiffSplitPane = new ThemedSplitPane(JSplitPane.HORIZONTAL_SPLIT);
 
     public CodePanel(ReviewContextManager reviewContextManager, CodeViewerModel codeViewerModel,
@@ -41,6 +41,7 @@ public class CodePanel extends ThemedPanel {
         this.fileDiffManager = fileDiffManager;
         this.commitSelectorPanel = new CommitSelectorPanel(reviewContextManager, codeViewerModel);
         this.fileNavigationPanel = new FileNavigationPanel(reviewContextManager, codeViewerModel);
+        this.diffViewerPanel = new DiffViewerPanel(codeViewerModel);
         configureLayout();
         setupListeners();
         setupModelListeners();
