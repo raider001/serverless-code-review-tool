@@ -53,14 +53,48 @@ public class GitImpl implements Git {
         return isValidGitRepository(repoPath)
             .thenCompose(isValid -> {
                 if (isValid) {
-                    return ensureRemoteConfigured(repoPath, remoteUrl);
+                    return ensureRemoteConfigured(repoPath, remoteUrl)
+                        .thenCompose(ignored -> detachHead(repoPath));
                 } else {
                     return executeAsync(gitLocalPath, "git", "clone", remoteUrl, repoName)
-                        .thenApply(ignored -> null);
+                        .thenCompose(ignored -> detachHead(repoPath));
                 }
             })
             .thenCompose(ignored -> configureNotesMergeStrategy(repoPath))
+            .thenCompose(ignored -> fetchAllBranches(repoPath))
             .thenCompose(ignored -> fetchNotes(repoPath));
+    }
+
+    private CompletableFuture<Void> detachHead(Path repoPath) {
+        return executeAsync(repoPath, "git", "checkout", "--detach")
+            .exceptionally(ex -> {
+                System.err.println("Warning: Failed to detach HEAD: " + ex.getMessage());
+                return "";
+            })
+            .thenApply(ignored -> null);
+    }
+
+    private CompletableFuture<Void> fetchAllBranches(Path repoPath) {
+        return executeAsync(repoPath, "git", "fetch", ORIGIN, "+refs/heads/*:refs/heads/*")
+            .exceptionally(ex -> {
+                if (ex.getMessage() != null && ex.getMessage().contains("refusing to fetch into branch")) {
+                    return "NEEDS_DETACH";
+                }
+                System.err.println("Warning: Failed to fetch all branches: " + ex.getMessage());
+                return "";
+            })
+            .thenCompose(result -> {
+                if ("NEEDS_DETACH".equals(result)) {
+                    return detachHead(repoPath)
+                        .thenCompose(ignored -> executeAsync(repoPath, "git", "fetch", ORIGIN, "+refs/heads/*:refs/heads/*"))
+                        .exceptionally(ex -> {
+                            System.err.println("Warning: Failed to fetch all branches after detach: " + ex.getMessage());
+                            return "";
+                        });
+                }
+                return CompletableFuture.completedFuture(result);
+            })
+            .thenApply(ignored -> null);
     }
 
     @Override
@@ -84,7 +118,7 @@ public class GitImpl implements Git {
 
     public CompletableFuture<Void> fetch(String repository) {
         Path repoPath = gitLocalPath.resolve(repository);
-        return executeAsync(repoPath, "git", "fetch", ORIGIN)
+        return fetchAllBranches(repoPath)
             .thenCompose(ignored -> fetchNotes(repoPath));
     }
 
@@ -270,6 +304,23 @@ public class GitImpl implements Git {
     }
 
 
+
+    @Override
+    public CompletableFuture<String> executeAsync(String repository, String... args) {
+        Path repoPath = gitLocalPath.resolve(repository);
+
+        if (!Files.exists(repoPath)) {
+            return CompletableFuture.failedFuture(
+                new RuntimeException("Repository not found: " + repository)
+            );
+        }
+
+        String[] command = new String[args.length + 1];
+        command[0] = "git";
+        System.arraycopy(args, 0, command, 1, args.length);
+
+        return executeAsync(repoPath, command);
+    }
 
     private CompletableFuture<String> executeAsync(Path workingDir, String... command) {
         CompletableFuture<String> future = new CompletableFuture<>();

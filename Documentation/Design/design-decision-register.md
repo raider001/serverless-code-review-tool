@@ -29,3 +29,86 @@ Captures all design decisions and why for the project.
   - Mitigation: We can implement a cleanup strategy to archive old decisions or use a structured directory system to manage files effectively.
 
 ## Review Discovery
+
+## Git Notes Anchor Strategy
+
+### Decision
+All review metadata notes are attached to the repository's **root commit** (the first commit with no parents).
+
+### Why
+Git notes must be attached to a specific commit. We evaluated several options:
+
+**Options Considered**:
+
+1. **Attach to HEAD** ❌
+   - Problem: HEAD moves when branches are merged or switched
+   - Result: Notes become inaccessible when HEAD changes
+   - Example: After merge, HEAD points to new commit, but notes are on old commit
+
+2. **Attach to first commit in review** ❌
+   - Problem: If commits are rebased/rewritten, their hashes change
+   - Result: Notes lost when commit history is rewritten
+   - Example: Interactive rebase changes commit SHA, orphaning notes
+
+3. **Create empty anchor commits** ❌
+   - Problem: Creates unnecessary commits in repository
+   - Problem: Anchor commits may not be fetched if not reachable from branches
+   - Problem: Risk of garbage collection for unreachable commits
+   - Problem: Need to track and store anchor commit hashes
+
+4. **Use repository root commit** ✅ **CHOSEN**
+   - **Always exists**: Every Git repository has an initial commit
+   - **Never changes**: Root commit hash is immutable forever
+   - **Always fetchable**: Part of every branch's history
+   - **Easy to discover**: Simple command: `git rev-list --max-parents=0 HEAD`
+   - **No extra commits**: Uses existing infrastructure
+   - **Conceptually clean**: Review data is separate from code commits
+
+### Implementation
+```java
+private CompletableFuture<String> getRepositoryRootCommit() {
+    return git.executeAsync(
+        repositoryName,
+        "rev-list", "--max-parents=0", "HEAD"
+    ).thenApply(output -> {
+        String[] commits = output.trim().split("\n");
+        return commits[0].trim();
+    });
+}
+```
+
+### Benefits
+- **Decoupled from code**: Review metadata independent of code commit lifecycle
+- **Discoverable**: Reviews found via `git for-each-ref refs/notes/reviews/`
+- **Durable**: Survives merges, rebases, cherry-picks, branch deletions
+- **Simple**: No tracking of anchor commits, no extra infrastructure
+- **Distributed**: Syncs automatically via standard Git push/fetch
+
+### Implications
+- All reviews in a repository share the same anchor commit (the root)
+- When reading/writing review notes, system first finds root commit
+- Root commit is queried once per operation and can be cached
+- Works correctly even if repository has multiple root commits (rare): uses first one
+
+### Storage Structure
+```
+Repository commits:    [root] → A → B → C → ... → HEAD
+                         ↑
+                         └── All review metadata notes attached here
+                         
+refs/notes/reviews/{review-id}/metadata/title  → note on [root]
+refs/notes/reviews/{review-id}/metadata/status → note on [root]
+refs/notes/reviews/{review-id}/reviewers       → note on [root]
+```
+
+### Edge Cases
+- **Multiple root commits**: Use first one returned by `rev-list --max-parents=0 HEAD`
+- **Empty repository**: Cannot create reviews (no commits exist yet)
+- **Shallow clone**: Root commit included in fetch, no special handling needed
+
+### Date Decided
+2026-05-03
+
+### Status
+**ACTIVE** - Implemented in GitReviewNotesManager.java
+

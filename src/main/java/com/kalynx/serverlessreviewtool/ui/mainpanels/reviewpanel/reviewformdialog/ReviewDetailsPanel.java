@@ -3,7 +3,6 @@ package com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel.reviewformdial
 import com.kalynx.serverlessreviewtool.swingextensions.ComponentModel;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.*;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
-import com.kalynx.serverlessreviewtool.ui.models.reviewpanel.reviewformdialog.ReviewFormModels;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;
@@ -16,8 +15,6 @@ public class ReviewDetailsPanel extends ThemedPanel {
     private static final int SUMMARY_H = 120;
 
     private final ThemeManager themeManager;
-    private final ThemedRadioButton branchModeRadio;
-    private final ThemedRadioButton commitModeRadio;
     private final ThemedTextField titleField;
     private final ThemedTextField authorField;
     private final ThemedTextArea summaryArea;
@@ -26,24 +23,15 @@ public class ReviewDetailsPanel extends ThemedPanel {
 
     public ReviewDetailsPanel(ComponentModel<String> titleModel,
                               ComponentModel<String> authorModel,
-                              ComponentModel<String> summaryModel,
-                              ComponentModel<ReviewFormModels.ReviewMode> modeModel) {
+                              ComponentModel<String> summaryModel) {
         this.themeManager = ThemeManager.getInstance();
 
         setLayout(new MigLayout(
             "insets 10 12 12 12, gap " + GAP + " 8",
-            "[90!][grow,fill][]",
+            "[90!][grow,fill]",
             "[]8[]8[]"
         ));
         setBorder(ThemedTitledBorder.create("Review Details"));
-
-        branchModeRadio = new ThemedRadioButton("Branch");
-        commitModeRadio = new ThemedRadioButton("Commit");
-        branchModeRadio.setSelected(true);
-
-        ButtonGroup grp = new ButtonGroup();
-        grp.add(branchModeRadio);
-        grp.add(commitModeRadio);
 
         titleField = new ThemedTextField(20);
         titleField.setPreferredSize(new Dimension(0, themeManager.scale(FIELD_H)));
@@ -57,13 +45,12 @@ public class ReviewDetailsPanel extends ThemedPanel {
         summaryArea.setWrapStyleWord(true);
 
         configureLayout();
-        bindToModels(titleModel, authorModel, summaryModel, modeModel);
+        bindToModels(titleModel, authorModel, summaryModel);
     }
 
     private void bindToModels(ComponentModel<String> titleModel,
                               ComponentModel<String> authorModel,
-                              ComponentModel<String> summaryModel,
-                              ComponentModel<ReviewFormModels.ReviewMode> modeModel) {
+                              ComponentModel<String> summaryModel) {
         titleModel.addChangeListener(value -> {
             SwingUtilities.invokeLater(() -> {
                 updatingFromModel = true;
@@ -84,18 +71,6 @@ public class ReviewDetailsPanel extends ThemedPanel {
             SwingUtilities.invokeLater(() -> {
                 updatingFromModel = true;
                 summaryArea.setText(value != null ? value : "");
-                updatingFromModel = false;
-            });
-        });
-
-        modeModel.addChangeListener(mode -> {
-            SwingUtilities.invokeLater(() -> {
-                updatingFromModel = true;
-                if (mode == ReviewFormModels.ReviewMode.BRANCH) {
-                    branchModeRadio.setSelected(true);
-                } else {
-                    commitModeRadio.setSelected(true);
-                }
                 updatingFromModel = false;
             });
         });
@@ -133,40 +108,17 @@ public class ReviewDetailsPanel extends ThemedPanel {
             }
         });
 
-        branchModeRadio.addActionListener(e -> {
-            if (!updatingFromModel) {
-                modeModel.setValue(ReviewFormModels.ReviewMode.BRANCH);
-            }
-        });
-
-        commitModeRadio.addActionListener(e -> {
-            if (!updatingFromModel) {
-                modeModel.setValue(ReviewFormModels.ReviewMode.COMMIT);
-            }
-        });
-
         if (titleModel.getValue() != null) titleField.setText(titleModel.getValue());
         if (authorModel.getValue() != null) authorField.setText(authorModel.getValue());
         if (summaryModel.getValue() != null) summaryArea.setText(summaryModel.getValue());
-        if (modeModel.getValue() == ReviewFormModels.ReviewMode.COMMIT) {
-            commitModeRadio.setSelected(true);
-        }
     }
 
     private void configureLayout() {
-        ThemedPanel modeToggle = new ThemedPanel();
-        modeToggle.setLayout(new MigLayout("insets 0, gap 4", "[][]", ""));
-        modeToggle.setOpaque(false);
-        modeToggle.add(new ThemedLabel("Mode:"));
-        modeToggle.add(branchModeRadio);
-        modeToggle.add(commitModeRadio);
-
         add(rightLabel("Title:"));
-        add(titleField, "growx");
-        add(modeToggle, "wrap");
+        add(titleField, "growx, wrap");
 
         add(rightLabel("Author:"));
-        add(authorField, "growx, span 2, wrap");
+        add(authorField, "growx, wrap");
 
         ThemedScrollPane summaryScroll = new ThemedScrollPane(summaryArea);
         summaryScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
@@ -174,22 +126,13 @@ public class ReviewDetailsPanel extends ThemedPanel {
         summaryScroll.setPreferredSize(new Dimension(0, themeManager.scale(SUMMARY_H)));
 
         add(rightLabel("Summary:"), "aligny top, gaptop 4");
-        add(summaryScroll, "grow, span 2");
+        add(summaryScroll, "grow");
     }
 
     private ThemedLabel rightLabel(String text) {
         ThemedLabel label = new ThemedLabel(text);
         label.setHorizontalAlignment(SwingConstants.RIGHT);
         return label;
-    }
-
-    public void setOnModeChangeListener(Runnable listener) {
-        branchModeRadio.addActionListener(ignored -> listener.run());
-        commitModeRadio.addActionListener(ignored -> listener.run());
-    }
-
-    public boolean isBranchMode() {
-        return branchModeRadio.isSelected();
     }
 
     public String getTitle() {
@@ -204,4 +147,3 @@ public class ReviewDetailsPanel extends ThemedPanel {
         return summaryArea.getText();
     }
 }
-

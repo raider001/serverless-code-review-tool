@@ -84,6 +84,14 @@ public interface Git {
      * @return future containing list of changed files with status
      */
     CompletableFuture<List<String>> listChangedFiles(String repository, String fromCommit, String toCommit);
-}
 
+    /**
+     * Execute an arbitrary git command in the specified repository.
+     *
+     * @param repository local repository name
+     * @param args git command arguments (e.g., "notes", "--ref=myref", "add", ...)
+     * @return future containing the command output
+     */
+    CompletableFuture<String> executeAsync(String repository, String... args);
+}
 

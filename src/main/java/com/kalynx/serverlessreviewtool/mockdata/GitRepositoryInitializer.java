@@ -20,8 +20,8 @@ public class GitRepositoryInitializer {
         try {
 
             // Just to keep re-creating mock repositories.
-            if(true)
-                return;
+//            if(true)
+//                return;
 
             System.out.println("Initializing mock Git repositories...");
             System.out.println("Base path: " + MOCK_BASE_PATH);

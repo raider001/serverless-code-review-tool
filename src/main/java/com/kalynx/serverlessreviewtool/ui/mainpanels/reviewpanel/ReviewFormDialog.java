@@ -47,16 +47,12 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
         this.detailsPanel = new ReviewDetailsPanel(
             models.title,
             models.author,
-            models.summary,
-            models.mode
+            models.summary
         );
         this.sourcePanel = new SourcePanel(
             models.availableBranches,
-            models.selectedRepositories,
             models.selectedBranchModel,
-            models.selectedBaseBranchModel,
-            models.selectedCommitsModel,
-            git
+            models.selectedBaseBranchModel
         );
         this.repositoriesPanel = new RepositoriesPanel(
             models.availableRepositories,
@@ -94,13 +90,9 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
         content.add(createSelectionSection(), "grow, wrap");
         content.add(sourcePanel, "grow, wrap");
         content.add(createFooter(), "growx");
-
-        sourcePanel.updateMode(detailsPanel.isBranchMode());
     }
 
     private void setupListeners() {
-        detailsPanel.setOnModeChangeListener(() -> sourcePanel.updateMode(detailsPanel.isBranchMode()));
-
         models.selectedRepositories.addChangeListener(repos -> SwingUtilities.invokeLater(() -> updateAvailableBranches(repos)));
         updateAvailableBranches(models.selectedRepositories.getValue());
     }
@@ -196,17 +188,14 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
             warn("Please enter a title for the review");
             return;
         }
-        if (detailsPanel.isBranchMode()) {
-            if (sourcePanel.getBranchName().trim().isEmpty()) {
-                warn("Please enter a branch name to review");
-                return;
-            }
-            if (sourcePanel.getReviewAgainstBranch() == null) {
-                warn("Please select a branch to review against");
-                return;
-            }
-        } else if (!sourcePanel.hasCommitSelection()) {
-            warn("Please select at least one commit");
+
+        if (sourcePanel.getBranchName().trim().isEmpty()) {
+            warn("Please enter a branch name to review");
+            return;
+        }
+
+        if (sourcePanel.getReviewAgainstBranch() == null) {
+            warn("Please select a branch to review against");
             return;
         }
 
@@ -225,14 +214,12 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
 
     private void printReviewFormModels() {
         System.out.println("=== ReviewFormModels Values ===");
+        System.out.println("Review ID: " + models.reviewId.getValue());
         System.out.println("Title: " + models.title.getValue());
         System.out.println("Author: " + models.author.getValue());
         System.out.println("Summary: " + models.summary.getValue());
-        System.out.println("Mode: " + models.mode.getValue());
         System.out.println("Selected Branch: " + models.selectedBranchModel.getValue());
         System.out.println("Selected Base Branch: " + models.selectedBaseBranchModel.getValue());
-        System.out.println("Commit Branch Filter: " + models.commitBranchFilter.getValue());
-        System.out.println("Selected Commits: " + models.selectedCommitsModel.getValue());
         System.out.println("Available Branches: " + models.availableBranches.getValue());
         System.out.println("Selected Repositories: " + models.selectedRepositories.getValue());
         System.out.println("Available Repositories: " + models.availableRepositories.getValue());
@@ -243,10 +230,6 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
 
     public boolean isConfirmed() {
         return confirmed;
-    }
-
-    public boolean isBranchMode() {
-        return detailsPanel.isBranchMode();
     }
 
     public String getReviewTitle() {
@@ -267,18 +250,6 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
 
     public String getReviewAgainstBranch() {
         return sourcePanel.getReviewAgainstBranch();
-    }
-
-    public String getSelectedCommit() {
-        return sourcePanel.getSelectedCommit();
-    }
-
-    public List<String> getSelectedCommits() {
-        return sourcePanel.getSelectedCommits();
-    }
-
-    public String getSelectedBranchFilter() {
-        return sourcePanel.getSelectedBranchFilter();
     }
 
     protected abstract String getSubmitButtonLabel();

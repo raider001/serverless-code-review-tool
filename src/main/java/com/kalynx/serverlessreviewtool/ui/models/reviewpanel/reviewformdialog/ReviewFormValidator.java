@@ -16,17 +16,12 @@ public class ReviewFormValidator {
             errors.add("Please enter an author name");
         }
 
-        if (models.mode.getValue() == ReviewFormModels.ReviewMode.BRANCH) {
-            if (models.selectedBranchModel.getValue() == null || models.selectedBranchModel.getValue().trim().isEmpty()) {
-                errors.add("Please enter a branch name to review");
-            }
-            if (models.selectedBaseBranchModel.getValue() == null || models.selectedBaseBranchModel.getValue().trim().isEmpty()) {
-                errors.add("Please select a branch to review against");
-            }
-        } else {
-            if (models.selectedCommitsModel.getValue() == null || models.selectedCommitsModel.getValue().isEmpty()) {
-                errors.add("Please select at least one commit");
-            }
+        if (models.selectedBranchModel.getValue() == null || models.selectedBranchModel.getValue().trim().isEmpty()) {
+            errors.add("Please enter a branch name to review");
+        }
+
+        if (models.selectedBaseBranchModel.getValue() == null || models.selectedBaseBranchModel.getValue().trim().isEmpty()) {
+            errors.add("Please select a branch to review against");
         }
 
         if (models.selectedRepositories.getValue() == null || models.selectedRepositories.getValue().isEmpty()) {

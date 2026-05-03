@@ -48,6 +48,34 @@ This document defines the data structures used in the Serverless Code Review Too
 
 ## Git Notes Organization
 
+### Note Attachment Strategy
+
+**All review notes are attached to the repository's root commit** (the first commit with no parents).
+
+**Rationale**:
+- **Stable Reference**: Root commit hash never changes, even after merges, rebases, or branch operations
+- **Always Exists**: Every repository has an initial commit
+- **Always Fetchable**: Root commit is part of all branch histories, automatically fetched with any clone/pull
+- **Decoupled from Code**: Review metadata independent of code commit lifecycle
+- **Simple Discovery**: Easy to find via `git rev-list --max-parents=0 HEAD`
+
+**Example**:
+```bash
+# Find root commit (anchor for all notes)
+$ git rev-list --max-parents=0 HEAD
+735ad14ad0cf3348987da9edc324a128339a9396
+
+# All review notes attached to this commit
+$ git notes --ref=refs/notes/reviews/{review-id}/metadata/title show 735ad14...
+```
+
+**Storage Pattern**:
+```
+Repository:  [root: 735ad14] → commit A → commit B → ... → HEAD
+                    ↑
+                    └─── All review metadata notes attached here
+```
+
 ### Refs Namespaces
 
 **Append-Only Stream Structure** - Designed for low-conflict concurrent updates with independent lanes per field
@@ -72,20 +100,53 @@ refs/notes/reviews/{review-id}/
 
 ## Data Structures
 
-**Universal Stream Entry Format**: Every appended NDJSON line in a stream uses this structure:
+### ID Generation Strategy
+
+**Format**: UUID v7 (Time-Ordered UUID)
+
+**Rationale**:
+- **Globally unique**: 128-bit entropy ensures zero collision probability across distributed clients
+- **Time-ordered**: UUIDs created later naturally sort after earlier ones
+- **Standard format**: Industry-standard UUID format (8-4-4-4-12 hexadecimal)
+- **No coordination required**: Clients generate IDs independently without risk of collision
+
+**Structure**:
+- 48 bits: Unix timestamp in milliseconds (time-ordered prefix)
+- 4 bits: Version identifier (0111 = version 7)
+- 12 bits: Random data
+- 2 bits: Variant identifier (10 = RFC 4122)
+- 62 bits: Random data (total randomness ensures uniqueness)
+
+**Example ID**: `01890a5d-ac96-774b-bcce-b302099a8057`
+
+**Generation** (Java):
+```java
+import com.kalynx.serverlessreviewtool.utils.UuidV7Generator;
+
+String id = UuidV7Generator.generate();
+```
+
+**Collision Probability**: Effectively zero (2^128 possible values, with 74 bits of randomness per millisecond)
+
+---
+
+### Universal Stream Entry Format
+
+Every appended NDJSON line in a stream uses this structure:
 ```json
 {
-  "id": "john_2026-04-23T13:00:00.456789Z_0001",
+  "id": "01890a5d-ac96-774b-bcce-b302099a8057",
   "timestamp": "2026-04-23T13:00:00.456789Z",
-  "editor": "user@example.com",
+  "editor": "john@example.com",
   "data": "<any-data-type>"
 }
 ```
 
-**Notes**:
-- `id` is unique within a stream and is used for replies/references.
-- `timestamp` is required for deterministic ordering during replay.
-- `data` remains field-specific payload.
+**Field Descriptions**:
+- **`id`**: UUID v7 - globally unique identifier for this entry, used for replies/references
+- **`timestamp`**: ISO 8601 with microseconds - required for deterministic ordering during replay
+- **`editor`**: Email or username - identifies who created this entry
+- **`data`**: Any type - field-specific payload (string, object, array, etc.)
 
 
 ## Metadata Notes
@@ -98,7 +159,7 @@ refs/notes/reviews/{review-id}/
 **Structure**:
 ```json
 {
-  "id": "john_2026-04-23T13:00:00.456789Z_0001",
+  "id": "01890a5d-ac96-774b-bcce-b302099a8057",
   "timestamp": "2026-04-23T13:00:00.456789Z",
   "editor": "john@example.com",
   "data": "Add OAuth2 login flow"
@@ -112,7 +173,7 @@ refs/notes/reviews/{review-id}/
 **Structure**:
 ```json
 {
-  "id": "john_2026-04-23T13:05:00.123456Z_0002",
+  "id": "01890a5d-b1a2-774b-bcce-c4f3d89b1234",
   "timestamp": "2026-04-23T13:05:00.123456Z",
   "editor": "john@example.com",
   "data": "Implements OAuth2 with PKCE flow for enhanced security..."
@@ -126,7 +187,7 @@ refs/notes/reviews/{review-id}/
 **Structure**:
 ```json
 {
-  "id": "john_2026-04-23T13:10:00.123456Z_0003",
+  "id": "01890a5d-c3e4-774b-bcce-d6a8f12e5678",
   "timestamp": "2026-04-23T13:10:00.123456Z",
   "editor": "john@example.com",
   "data": "pending"
@@ -148,7 +209,7 @@ refs/notes/reviews/{review-id}/
 **Structure**:
 ```json
 {
-  "id": "john_2026-04-23T13:15:00.123456Z_0004",
+  "id": "01890a5d-d5f6-774b-bcce-e8b9a23f6789",
   "timestamp": "2026-04-23T13:15:00.123456Z",
   "editor": "john@example.com",
   "data": [
@@ -162,14 +223,10 @@ refs/notes/reviews/{review-id}/
 ### ReviewStrategy
 **Storage**: `refs/notes/reviews/{uuid}/metadata/reviewStrategy`
 
-Two formats will be supported:
-- `branch`
-- `commit`
-
-**Branch Structure**:
+**Structure**:
 ```json
 {
-  "id": "john_2026-04-23T13:20:00.123456Z_0005",
+  "id": "01890a5d-e7g8-774b-bcce-f1c2d34e7890",
   "timestamp": "2026-04-23T13:20:00.123456Z",
   "editor": "john@example.com",
   "data": {
@@ -179,21 +236,6 @@ Two formats will be supported:
 }
 ```
 
-**Commit Structure**:
-```json
-{
-  "id": "john_2026-04-23T13:20:00.123456Z_0005",
-  "timestamp": "2026-04-23T13:20:00.123456Z",
-  "editor": "john@example.com",
-  "data": {
-    "commits": [
-      "abc123def456789...",
-      "def456ghi789012...",
-      "ghi789jkl012345..."
-    ]
-  }
-}
-```
 
 ---
 
@@ -206,7 +248,7 @@ Two formats will be supported:
 **Structure**:
 ```json
 {
-  "id": "jane_2026-04-23T16:00:00.234567Z_0002",
+  "id": "01890a5e-f9h0-774b-bcce-g3d4e56f8901",
   "timestamp": "2026-04-23T16:00:00.234567Z",
   "editor": "jane@example.com",
   "data": {
@@ -225,16 +267,16 @@ Two formats will be supported:
 **Example** (append entries in single reviewer stream):
 ```
 refs/notes/reviews/550e8400-.../reviewers
-  {"id":"alice_..._0001","timestamp":"2026-04-23T15:00:00.123456Z","editor":"alice@example.com","data":{"status":"pending",...}}
-  {"id":"alice_..._0002","timestamp":"2026-04-23T16:00:00.234567Z","editor":"alice@example.com","data":{"status":"approved",...}}
-  {"id":"bob_..._0001","timestamp":"2026-04-23T15:30:00.345678Z","editor":"bob@example.com","data":{"status":"pending",...}}
-  {"id":"bob_..._0002","timestamp":"2026-04-23T17:15:00.456789Z","editor":"bob@example.com","data":{"status":"changes_requested",...}}
+  {"id":"01890a5e-a1b2-774b-bcce-c3d4e5f67890","timestamp":"2026-04-23T15:00:00.123456Z","editor":"alice@example.com","data":{"status":"pending",...}}
+  {"id":"01890a5e-b2c3-774b-bcce-d4e5f6g78901","timestamp":"2026-04-23T16:00:00.234567Z","editor":"alice@example.com","data":{"status":"approved",...}}
+  {"id":"01890a5e-c3d4-774b-bcce-e5f6g7h89012","timestamp":"2026-04-23T15:30:00.345678Z","editor":"bob@example.com","data":{"status":"pending",...}}
+  {"id":"01890a5e-d4e5-774b-bcce-f6g7h8i90123","timestamp":"2026-04-23T17:15:00.456789Z","editor":"bob@example.com","data":{"status":"changes_requested",...}}
 ```
 ---
 
 
 
-### 2. Comment
+### Comment
 
 **Purpose**: Comments and discussions on specific parts of the code
 
@@ -243,7 +285,7 @@ refs/notes/reviews/550e8400-.../reviewers
 **Structure**:
 ```json
 {
-  "id": "john_2026-04-23T13:00:00.456789Z_0001",
+  "id": "01890a5f-g1h2-774b-bcce-h4i5j6k78901",
   "timestamp": "2026-04-23T13:00:00.456789Z",
   "editor": "john@example.com",
   "data": {
@@ -255,7 +297,7 @@ refs/notes/reviews/550e8400-.../reviewers
       "line_end": 45,
       "code_snippet": "if user.id:"
     },
-    "reply_to": "janesmith_2026-04-23T13:00:00.456789Z_0001",
+    "reply_to": "01890a5f-e9f0-774b-bcce-g2h3i4j56789",
     "resolved": false,
     "type": "suggestion"
   }
