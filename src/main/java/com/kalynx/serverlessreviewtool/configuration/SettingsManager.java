@@ -29,6 +29,7 @@ public class SettingsManager {
     private final RepositoryManager repositoryManager;
     private AppSettings currentSettings;
     private final Set<Consumer<String>> userNameListeners = new HashSet<>();
+    private final Set<Runnable> pollingSettingsListeners = new HashSet<>();
 
     public SettingsManager(RepositoryManager repositoryManager) {
         this.gson = new GsonBuilder().setPrettyPrinting().create();
@@ -112,11 +113,13 @@ public class SettingsManager {
     public void updatePollingInterval(int minutes) {
         currentSettings.setPollingIntervalMinutes(minutes);
         saveSettings();
+        notifyPollingSettingsListeners();
     }
 
     public void updateEnablePolling(boolean enable) {
         currentSettings.setEnablePolling(enable);
         saveSettings();
+        notifyPollingSettingsListeners();
     }
 
     public void updateTheme(String theme) {
@@ -143,6 +146,27 @@ public class SettingsManager {
     public void updateUseGitConfig(boolean useGitConfig) {
         currentSettings.setUseGitConfig(useGitConfig);
         saveSettings();
+    }
+
+    public void addRepository(AppSettings.RepositoryConfig config) {
+        currentSettings.getRepositories().add(config);
+        saveSettings();
+        repositoryManager.updateRepositories(currentSettings.getRepositories());
+        notifyPollingSettingsListeners();
+    }
+
+    public void updateRepository(int index, AppSettings.RepositoryConfig updated) {
+        currentSettings.getRepositories().set(index, updated);
+        saveSettings();
+        repositoryManager.updateRepositories(currentSettings.getRepositories());
+        notifyPollingSettingsListeners();
+    }
+
+    public void removeRepository(int index) {
+        currentSettings.getRepositories().remove(index);
+        saveSettings();
+        repositoryManager.updateRepositories(currentSettings.getRepositories());
+        notifyPollingSettingsListeners();
     }
 
     public String getCurrentUserName() {
@@ -189,6 +213,18 @@ public class SettingsManager {
     private void notifyUserNameListeners() {
         String currentUserName = getCurrentUserName();
         userNameListeners.forEach(listener -> listener.accept(currentUserName));
+    }
+
+    public void addPollingSettingsListener(Runnable listener) {
+        pollingSettingsListeners.add(listener);
+    }
+
+    public void removePollingSettingsListener(Runnable listener) {
+        pollingSettingsListeners.remove(listener);
+    }
+
+    private void notifyPollingSettingsListeners() {
+        pollingSettingsListeners.forEach(Runnable::run);
     }
 
     /**

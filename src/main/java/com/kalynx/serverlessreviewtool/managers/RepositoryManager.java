@@ -46,6 +46,16 @@ public class RepositoryManager {
         return List.copyOf(repositories);
     }
 
+    public void updateBranchesForRepository(String repositoryName, List<String> branches) {
+        for (Repository repo : repositories) {
+            if (repo.getName().equals(repositoryName)) {
+                repo.setBranches(branches);
+                notifyListeners();
+                break;
+            }
+        }
+    }
+
     public void addListener(Consumer<List<Repository>> listener) {
         listeners.add(listener);
         listener.accept(List.copyOf(repositories));

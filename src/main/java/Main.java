@@ -4,6 +4,7 @@ import com.kalynx.serverlessreviewtool.git.Git;
 import com.kalynx.serverlessreviewtool.git.GitImpl;
 import com.kalynx.serverlessreviewtool.git.RepositoryLoader;
 import com.kalynx.serverlessreviewtool.git.ReviewItemLoader;
+import com.kalynx.serverlessreviewtool.managers.PollingService;
 import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
 import com.kalynx.serverlessreviewtool.managers.ReviewContextManager;
 import com.kalynx.serverlessreviewtool.managers.ReviewItemManager;
@@ -66,6 +67,9 @@ public class Main {
 
             setupReviewFormModelUpdaters(reviewFormModels, repositoryManager, settingsManager);
             setupReviewSelectionPanelModelUpdaters(reviewSelectionPanelModel, reviewItemManager, settingsManager);
+
+            // Initialize polling service for automatic repository syncing
+            PollingService pollingService = new PollingService(gitImpl, settingsManager, reviewItemManager);
 
             // Load initial review data from repositories
             reviewItemManager.refresh();

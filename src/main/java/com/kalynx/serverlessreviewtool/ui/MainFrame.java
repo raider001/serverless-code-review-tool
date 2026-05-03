@@ -99,7 +99,7 @@ public class MainFrame extends ThemedFrame {
     private void initializePanels() {
         reviewSelectionPanel = new ReviewSelectionPanel(repositoryManager, reviewItemManager, reviewSelectionPanelModel, reviewFormModels, git);
         reviewPanel = new ReviewPanel(reviewContextManager, repositoryManager, userManager, reviewFormModels, reviewPanelModel, git);
-        settingsPanel = new SettingsPanel(settingsManager);
+        settingsPanel = new SettingsPanel(settingsManager, git);
         helpPanel = new HelpPanel();
     }
 

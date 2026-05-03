@@ -1,6 +1,7 @@
 package com.kalynx.serverlessreviewtool.ui.mainpanels;
 
 import com.kalynx.serverlessreviewtool.configuration.SettingsManager;
+import com.kalynx.serverlessreviewtool.git.Git;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedScrollPane;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.settingspanel.CacheManagementPanel;
@@ -17,9 +18,11 @@ import java.awt.*;
 public class SettingsPanel extends ThemedPanel {
 
     private final SettingsManager settingsManager;
+    private final Git git;
 
-    public SettingsPanel(SettingsManager settingsManager) {
+    public SettingsPanel(SettingsManager settingsManager, Git git) {
         this.settingsManager = settingsManager;
+        this.git = git;
         setLayout(new BorderLayout());
         initializeComponents();
     }
@@ -38,7 +41,7 @@ public class SettingsPanel extends ThemedPanel {
         WindowSettingsPanel windowSettings = new WindowSettingsPanel(settingsManager);
         NotificationServiceSettingsPanel notificationService = new NotificationServiceSettingsPanel(settingsManager);
         RepositoriesPanel repositories = new RepositoriesPanel(settingsManager);
-        PollingSettingsPanel polling = new PollingSettingsPanel(settingsManager);
+        PollingSettingsPanel polling = new PollingSettingsPanel(settingsManager, git);
         CacheManagementPanel cacheManagement = new CacheManagementPanel();
 
         // Add sections to content panel
