@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Objects;
 
 public class ReviewItem {
+    private final String       reviewId;
     private final String       title;
     private final String       author;
     private final String       repository;
@@ -13,7 +14,8 @@ public class ReviewItem {
     private final long       lastUpdate;
     private final List<String> reviewers;
 
-    public ReviewItem(String title, String author, String repository, ReviewStatus status, long lastUpdate, List<String> reviewers) {
+    public ReviewItem(String reviewId, String title, String author, String repository, ReviewStatus status, long lastUpdate, List<String> reviewers) {
+        this.reviewId   = reviewId;
         this.title      = title;
         this.author     = author;
         this.repository = repository;
@@ -23,9 +25,10 @@ public class ReviewItem {
     }
 
     public ReviewItem(ReviewItem reviewItem) {
-        this(reviewItem.title, reviewItem.author, reviewItem.repository, reviewItem.status, reviewItem.lastUpdate, reviewItem.reviewers);
+        this(reviewItem.reviewId, reviewItem.title, reviewItem.author, reviewItem.repository, reviewItem.status, reviewItem.lastUpdate, reviewItem.reviewers);
     }
 
+    public String       getReviewId()   { return reviewId; }
     public String       getTitle()      { return title; }
     public String       getAuthor()     { return author; }
     public String       getRepository() { return repository; }
@@ -38,7 +41,8 @@ public class ReviewItem {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         ReviewItem that = (ReviewItem) o;
-        return Objects.equals(title, that.title) &&
+        return Objects.equals(reviewId, that.reviewId) &&
+               Objects.equals(title, that.title) &&
                Objects.equals(author, that.author) &&
                Objects.equals(repository, that.repository) &&
                status == that.status &&
@@ -48,6 +52,6 @@ public class ReviewItem {
 
     @Override
     public int hashCode() {
-        return Objects.hash(title, author, repository, status, lastUpdate, reviewers);
+        return Objects.hash(reviewId, title, author, repository, status, lastUpdate, reviewers);
     }
 }

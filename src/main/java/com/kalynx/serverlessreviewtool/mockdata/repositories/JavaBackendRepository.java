@@ -49,6 +49,9 @@ public class JavaBackendRepository extends BaseRepository {
         addGitNote(repoPath, commitHash, "refs/notes/reviews/review-001/metadata/title",
             "{\"id\":\"01933ea1-8f47-7a3c-b8f1-d5e2c3a4b5c6\",\"timestamp\":\"2026-01-15T10:00:00Z\",\"editor\":\"john.doe\",\"data\":\"Refactor user service layer\"}");
 
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-001/metadata/description",
+            "{\"id\":\"01933ea1-8f47-7a3c-b8f1-d5e2c3a4b5c9\",\"timestamp\":\"2026-01-15T10:00:00Z\",\"editor\":\"john.doe\",\"data\":\"Refactored the user service to improve maintainability and add proper error handling. Split monolithic functions into smaller, testable components.\"}");
+
         addGitNote(repoPath, commitHash, "refs/notes/reviews/review-001/metadata/author",
             "{\"id\":\"01933ea1-8f47-7a3c-b8f1-d5e2c3a4b5c7\",\"timestamp\":\"2026-01-15T10:00:00Z\",\"editor\":\"john.doe\",\"data\":\"john.doe\"}");
 
@@ -57,6 +60,9 @@ public class JavaBackendRepository extends BaseRepository {
 
         addGitNote(repoPath, commitHash, "refs/notes/reviews/review-002/metadata/title",
             "{\"id\":\"01933ea2-9f57-8b4d-c9g2-e6f3d4b5c6d7\",\"timestamp\":\"2026-01-16T14:30:00Z\",\"editor\":\"jane.smith\",\"data\":\"Security fixes for auth controller\"}");
+
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-002/metadata/description",
+            "{\"id\":\"01933ea2-9f57-8b4d-c9g2-e6f3d4b5c6da\",\"timestamp\":\"2026-01-16T14:30:00Z\",\"editor\":\"jane.smith\",\"data\":\"Fixed authentication bypass vulnerability and added rate limiting to prevent brute force attacks. Updated input validation for user credentials.\"}");
 
         addGitNote(repoPath, commitHash, "refs/notes/reviews/review-002/metadata/author",
             "{\"id\":\"01933ea2-9f57-8b4d-c9g2-e6f3d4b5c6d8\",\"timestamp\":\"2026-01-16T14:30:00Z\",\"editor\":\"jane.smith\",\"data\":\"jane.smith\"}");

@@ -49,6 +49,9 @@ public class ReactFrontendRepository extends BaseRepository {
         addGitNote(repoPath, commitHash, "refs/notes/reviews/review-101/metadata/title",
             "{\"id\":\"01933ea3-af67-9c5e-daf3-g7h4e5c6d7e8\",\"timestamp\":\"2026-01-17T09:15:00Z\",\"editor\":\"mike.wilson\",\"data\":\"UI component refactoring\"}");
 
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-101/metadata/description",
+            "{\"id\":\"01933ea3-af67-9c5e-daf3-g7h4e5c6d7f1\",\"timestamp\":\"2026-01-17T09:15:00Z\",\"editor\":\"mike.wilson\",\"data\":\"Refactored React components to use hooks and functional components. Improved type safety with TypeScript interfaces and reduced prop drilling with context API.\"}");
+
         addGitNote(repoPath, commitHash, "refs/notes/reviews/review-101/metadata/author",
             "{\"id\":\"01933ea3-af67-9c5e-daf3-g7h4e5c6d7e9\",\"timestamp\":\"2026-01-17T09:15:00Z\",\"editor\":\"mike.wilson\",\"data\":\"mike.wilson\"}");
 

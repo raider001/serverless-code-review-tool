@@ -49,6 +49,9 @@ public class PythonApiRepository extends BaseRepository {
         addGitNote(repoPath, commitHash, "refs/notes/reviews/review-201/metadata/title",
             "{\"id\":\"01933ea4-bf77-ad6f-ebg4-h8i5f6d7e8f9\",\"timestamp\":\"2026-01-18T11:30:00Z\",\"editor\":\"sarah.chen\",\"data\":\"Database connection pooling\"}");
 
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-201/metadata/description",
+            "{\"id\":\"01933ea4-bf77-ad6f-ebg4-h8i5f6d7e8g2\",\"timestamp\":\"2026-01-18T11:30:00Z\",\"editor\":\"sarah.chen\",\"data\":\"Implemented connection pooling for database to improve performance and reduce connection overhead. Added configuration options for pool size and timeout settings.\"}");
+
         addGitNote(repoPath, commitHash, "refs/notes/reviews/review-201/metadata/author",
             "{\"id\":\"01933ea4-bf77-ad6f-ebg4-h8i5f6d7e8g0\",\"timestamp\":\"2026-01-18T11:30:00Z\",\"editor\":\"sarah.chen\",\"data\":\"sarah.chen\"}");
 
@@ -57,6 +60,9 @@ public class PythonApiRepository extends BaseRepository {
 
         addGitNote(repoPath, commitHash, "refs/notes/reviews/review-202/metadata/title",
             "{\"id\":\"01933ea5-cf87-be7g-fch5-i9j6g7e8f9g0\",\"timestamp\":\"2026-01-19T14:45:00Z\",\"editor\":\"alex.kumar\",\"data\":\"API authentication enhancements\"}");
+
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-202/metadata/description",
+            "{\"id\":\"01933ea5-cf87-be7g-fch5-i9j6g7e8f9g3\",\"timestamp\":\"2026-01-19T14:45:00Z\",\"editor\":\"alex.kumar\",\"data\":\"Enhanced JWT-based authentication with refresh token support and improved session management. Added rate limiting and IP-based access control.\"}");
 
         addGitNote(repoPath, commitHash, "refs/notes/reviews/review-202/metadata/author",
             "{\"id\":\"01933ea5-cf87-be7g-fch5-i9j6g7e8f9g1\",\"timestamp\":\"2026-01-19T14:45:00Z\",\"editor\":\"alex.kumar\",\"data\":\"alex.kumar\"}");

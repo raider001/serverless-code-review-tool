@@ -74,9 +74,18 @@ public class ReviewDetailPanel extends ThemedPanel {
     }
 
     private void configureReviewContextListeners() {
-        reviewContextManager.addListener(context -> setLabelText(titleLabel, () -> context == null ? "" : context.title));
-        reviewContextManager.addListener(context -> setLabelText(authorLabel, () -> context == null ? "" : context.author));
-        reviewContextManager.addListener(context -> setLabelText(summaryLabel, () -> context == null ? "" : context.summary));
+        reviewContextManager.addListener(context -> {
+            System.out.println("DEBUG - ReviewDetailPanel listener fired");
+            System.out.println("  context: " + (context == null ? "null" : "not null"));
+            if (context != null) {
+                System.out.println("  context.title: " + context.title);
+                System.out.println("  context.author: " + context.author);
+                System.out.println("  context.summary: " + context.summary);
+            }
+            setLabelText(titleLabel, () -> context == null ? "" : (context.title != null ? context.title : ""));
+        });
+        reviewContextManager.addListener(context -> setLabelText(authorLabel, () -> context == null ? "" : (context.author != null ? context.author : "")));
+        reviewContextManager.addListener(context -> setLabelText(summaryLabel, () -> context == null ? "" : (context.summary != null ? context.summary : "")));
         reviewContextManager.addListener(this::updateStatusBadge);
         reviewContextManager.addListener(this::updateReviewers);
         reviewContextManager.addListener(ignored -> updateButtonStates());
@@ -194,8 +203,11 @@ public class ReviewDetailPanel extends ThemedPanel {
     private void setLabelText(ThemedLabel label, Supplier<String> textSetter) {
         SwingUtilities.invokeLater(() -> {
             if (reviewContextManager.getReviewContext() != null) {
-                label.setText(textSetter.get());
+                String text = textSetter.get();
+                System.out.println("DEBUG - setLabelText: setting text to '" + text + "'");
+                label.setText(text);
             } else {
+                System.out.println("DEBUG - setLabelText: context is null, clearing label");
                 label.setText("");
             }
         });

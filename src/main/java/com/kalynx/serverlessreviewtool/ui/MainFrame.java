@@ -7,6 +7,7 @@ import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
 import com.kalynx.serverlessreviewtool.managers.ReviewContextManager;
 import com.kalynx.serverlessreviewtool.managers.ReviewItemManager;
 import com.kalynx.serverlessreviewtool.managers.UserManager;
+import com.kalynx.serverlessreviewtool.models.ReviewItem;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.QuickButton;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedFrame;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
@@ -15,6 +16,7 @@ import com.kalynx.serverlessreviewtool.theme.icons.RefreshIcon;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.ReviewPanel;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.ReviewSelectionPanel;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.SettingsPanel;
+import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewpanel.ReviewPanelModel;
 import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewselectionpanel.ReviewSelectionPanelModel;
 import com.kalynx.serverlessreviewtool.ui.models.reviewpanel.reviewformdialog.ReviewFormModels;
 
@@ -34,6 +36,7 @@ public class MainFrame extends ThemedFrame {
     private final ReviewContextManager reviewContextManager;
     private final ReviewFormModels reviewFormModels;
     private final ReviewSelectionPanelModel reviewSelectionPanelModel;
+    private final ReviewPanelModel reviewPanelModel;
     private final Git git;
 
     private ReviewSelectionPanel reviewSelectionPanel;
@@ -52,6 +55,7 @@ public class MainFrame extends ThemedFrame {
             ReviewContextManager reviewContextManager,
             ReviewFormModels reviewFormModels,
             ReviewSelectionPanelModel reviewSelectionPanelModel,
+            ReviewPanelModel reviewPanelModel,
             Git git) {
         super("Serverless Review Tool",
               settingsManager.getSettings().getWindow().getDefaultWidth(),
@@ -63,11 +67,13 @@ public class MainFrame extends ThemedFrame {
         this.reviewContextManager = reviewContextManager;
         this.reviewFormModels = reviewFormModels;
         this.reviewSelectionPanelModel = reviewSelectionPanelModel;
+        this.reviewPanelModel = reviewPanelModel;
         this.git = git;
         setApplicationIcon(AppIcon.createIconImages());
         initializePanels();
         setupMenuItems();
         setupRefreshButton();
+        setupReviewDoubleClickHandler();
         showReviewPanel();
     }
 
@@ -92,9 +98,18 @@ public class MainFrame extends ThemedFrame {
 
     private void initializePanels() {
         reviewSelectionPanel = new ReviewSelectionPanel(repositoryManager, reviewItemManager, reviewSelectionPanelModel, reviewFormModels, git);
-        reviewPanel = new ReviewPanel(reviewContextManager, repositoryManager, userManager, reviewFormModels, git);
+        reviewPanel = new ReviewPanel(reviewContextManager, repositoryManager, userManager, reviewFormModels, reviewPanelModel, git);
         settingsPanel = new SettingsPanel(settingsManager);
         helpPanel = new HelpPanel();
+    }
+
+    private void setupReviewDoubleClickHandler() {
+        reviewSelectionPanel.setOnReviewDoubleClick(this::onReviewDoubleClicked);
+    }
+
+    private void onReviewDoubleClicked(ReviewItem reviewItem) {
+        reviewPanel.loadReview(reviewItem.getReviewId(), reviewItem.getRepository());
+        showCodeReviewPanel();
     }
 
     private void setupMenuItems() {

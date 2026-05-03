@@ -108,7 +108,7 @@ public class ReviewItemLoader {
                 ReviewStatus status = parseStatus(statusStr);
                 long lastUpdate = System.currentTimeMillis();
 
-                return new ReviewItem(title, author, repositoryName, status, lastUpdate, reviewers);
+                return new ReviewItem(reviewId, title, author, repositoryName, status, lastUpdate, reviewers);
             })
             .exceptionally(ex -> {
                 System.err.println("Failed to load review " + reviewId + " from " + repositoryName + ": " + ex.getMessage());

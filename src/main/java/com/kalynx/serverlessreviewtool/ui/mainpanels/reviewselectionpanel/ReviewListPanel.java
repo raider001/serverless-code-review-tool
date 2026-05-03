@@ -9,6 +9,7 @@ import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;
 import java.util.List;
+import java.util.function.Consumer;
 
 public class ReviewListPanel extends ThemedPanel {
 
@@ -29,8 +30,6 @@ public class ReviewListPanel extends ThemedPanel {
     private void configureLayout() {
          setLayout(new MigLayout("", "[grow]", "[grow]"));
 
-         ThemedScrollPane allReviewsScrollPane = new ThemedScrollPane(allReviewsList);
-         tabbedPane.addTab("All Reviews", allReviewsScrollPane);
          ThemedScrollPane myReviewsScrollPane = new ThemedScrollPane(myReviewsList);
          tabbedPane.addTab("My Reviews", myReviewsScrollPane);
          ThemedScrollPane myOpenReviewsScrollPane = new ThemedScrollPane(myOpenReviewsList);
@@ -38,6 +37,9 @@ public class ReviewListPanel extends ThemedPanel {
 
          ThemedScrollPane completedReviewsScrollPane = new ThemedScrollPane(completedReviewsList);
          tabbedPane.addTab("Completed Reviews", completedReviewsScrollPane);
+
+         ThemedScrollPane allReviewsScrollPane = new ThemedScrollPane(allReviewsList);
+         tabbedPane.addTab("All Reviews", allReviewsScrollPane);
 
          add(tabbedPane, "cell 0 0, grow");
      }
@@ -54,6 +56,13 @@ public class ReviewListPanel extends ThemedPanel {
         model.myReviews.addChangeListener(reviews -> updateList(myReviewsList, reviews));
         model.openReviews.addChangeListener(reviews -> updateList(myOpenReviewsList, reviews));
         model.completedReviews.addChangeListener(reviews -> updateList(completedReviewsList, reviews));
+    }
+
+    public void setOnReviewDoubleClick(Consumer<ReviewItem> callback) {
+        allReviewsList.onDoubleClick(callback);
+        myReviewsList.onDoubleClick(callback);
+        myOpenReviewsList.onDoubleClick(callback);
+        completedReviewsList.onDoubleClick(callback);
     }
 
     public void applyFilters(String titleFilter, String authorFilter, List<String> repositoryFilter) {

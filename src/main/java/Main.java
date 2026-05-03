@@ -12,6 +12,7 @@ import com.kalynx.serverlessreviewtool.mockdata.UserMockData;
 import com.kalynx.serverlessreviewtool.models.Repository;
 import com.kalynx.serverlessreviewtool.models.User;
 import com.kalynx.serverlessreviewtool.ui.MainFrame;
+import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewpanel.ReviewPanelModel;
 import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewselectionpanel.ReviewSelectionPanelModel;
 import com.kalynx.serverlessreviewtool.ui.models.reviewpanel.reviewformdialog.ReviewFormModels;
 import org.slf4j.Logger;
@@ -48,11 +49,15 @@ public class Main {
             // Initialize ReviewItemLoader before ReviewItemManager (dependency)
             di.inject(ReviewItemLoader.class);
             ReviewItemManager reviewItemManager = di.inject(ReviewItemManager.class);
-            di.inject(ReviewContextManager.class);
+            ReviewContextManager reviewContextManager = di.inject(ReviewContextManager.class);
 
             // Register all models
             ReviewFormModels reviewFormModels = di.inject(ReviewFormModels.class);
             ReviewSelectionPanelModel reviewSelectionPanelModel = di.inject(ReviewSelectionPanelModel.class);
+            ReviewPanelModel reviewPanelModel = di.inject(ReviewPanelModel.class);
+
+            // Wire ReviewPanelModel to ReviewContextManager
+            reviewContextManager.setReviewPanelModel(reviewPanelModel);
 
             UserManager userManager = di.inject(UserManager.class);
             userManager.addListener(users -> reviewFormModels.availableReviewers.setValue(users.stream().map(User::getName).toList()));

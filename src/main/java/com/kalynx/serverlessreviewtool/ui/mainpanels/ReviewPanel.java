@@ -10,6 +10,7 @@ import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPa
 import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel.CodePanel;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel.RejectApprovePanel;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel.ReviewDetailPanel;
+import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewpanel.ReviewPanelModel;
 import com.kalynx.serverlessreviewtool.ui.models.reviewpanel.reviewformdialog.ReviewFormModels;
 import net.miginfocom.swing.MigLayout;
 
@@ -24,6 +25,8 @@ public class ReviewPanel extends ThemedPanel {
 
     private final ReviewContextManager reviewContextManager;
     private final RepositoryManager repositoryManager;
+    private final ReviewPanelModel model;
+    private final Git git;
 
     private final ReviewDetailPanel reviewDetailPanel;
     private final CodePanel codePanel;
@@ -33,11 +36,14 @@ public class ReviewPanel extends ThemedPanel {
                       RepositoryManager repositoryManager,
                       UserManager userManager,
                       ReviewFormModels reviewFormModels,
+                      ReviewPanelModel reviewPanelModel,
                       Git git) {
         this.reviewContextManager = reviewContextManager;
         this.repositoryManager = repositoryManager;
+        this.model = reviewPanelModel;
+        this.git = git;
         this.reviewDetailPanel = new ReviewDetailPanel(reviewContextManager, reviewFormModels, repositoryManager, git);
-        this.codePanel = new CodePanel(reviewContextManager);
+        this.codePanel = new CodePanel(reviewContextManager, reviewPanelModel.codeViewerModel);
         initializeSampleReviewContext();
         configureLayout();
     }
@@ -48,6 +54,19 @@ public class ReviewPanel extends ThemedPanel {
         add(reviewDetailPanel, "growx, wrap");
         add(codePanel, "grow, wrap");
         add(rejectApprovePanel, "growx");
+    }
+
+    public void loadReview(String reviewId, String repositoryName) {
+        if (reviewId == null || reviewId.isEmpty()) {
+            model.clear();
+            return;
+        }
+
+        reviewContextManager.loadReview(reviewId, repositoryName)
+            .exceptionally(error -> {
+                System.err.println("Failed to load review in ReviewPanel: " + error.getMessage());
+                return null;
+            });
     }
 
     private void initializeSampleReviewContext() {

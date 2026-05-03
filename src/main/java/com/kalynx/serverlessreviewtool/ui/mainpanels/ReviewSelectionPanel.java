@@ -3,6 +3,7 @@ package com.kalynx.serverlessreviewtool.ui.mainpanels;
 import com.kalynx.serverlessreviewtool.git.Git;
 import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
 import com.kalynx.serverlessreviewtool.managers.ReviewItemManager;
+import com.kalynx.serverlessreviewtool.models.ReviewItem;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedButton;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
 import com.kalynx.serverlessreviewtool.theme.LoadingStateManager;
@@ -15,6 +16,7 @@ import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewselectionpanel.Review
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;
+import java.util.function.Consumer;
 
 /**
  * ReviewSelectionPanel - Main UI for selecting and filtering code reviews
@@ -60,6 +62,10 @@ public class ReviewSelectionPanel extends ThemedPanel implements Refreshable {
 
     private void configureActions() {
         createReviewButton.addActionListener(ignored -> onCreateReview());
+    }
+
+    public void setOnReviewDoubleClick(Consumer<ReviewItem> callback) {
+        listPanel.setOnReviewDoubleClick(callback);
     }
 
     /**

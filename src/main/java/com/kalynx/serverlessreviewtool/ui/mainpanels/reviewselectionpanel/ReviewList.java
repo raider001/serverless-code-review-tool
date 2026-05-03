@@ -6,16 +6,43 @@ import com.kalynx.serverlessreviewtool.models.ReviewItem;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedList;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewselectionpanel.reviewitem.ReviewItemCellRenderer;
 
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.List;
+import java.util.function.Consumer;
 
 public class ReviewList extends ThemedList<ReviewItem> {
     @Serial
     private static final long serialVersionUID = 1L;
 
+    private transient Consumer<ReviewItem> doubleClickCallback;
+
     public ReviewList() {
         super(new ReviewItemFilterableModel());
         setCellRenderer(new ReviewItemCellRenderer());
         onItemSelected(this::onReviewSelected);
+        setupDoubleClickListener();
+    }
+
+    private void setupDoubleClickListener() {
+        addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2 && doubleClickCallback != null) {
+                    int index = locationToIndex(e.getPoint());
+                    if (index >= 0) {
+                        ReviewItem item = getModel().getElementAt(index);
+                        if (item != null) {
+                            doubleClickCallback.accept(item);
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    public void onDoubleClick(Consumer<ReviewItem> callback) {
+        this.doubleClickCallback = callback;
     }
 
     private void onReviewSelected(ReviewItem reviewItem) {

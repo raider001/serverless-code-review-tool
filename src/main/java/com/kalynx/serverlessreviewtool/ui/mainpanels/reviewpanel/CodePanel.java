@@ -9,6 +9,7 @@ import com.kalynx.serverlessreviewtool.models.ReviewContext;
 import com.kalynx.serverlessreviewtool.models.ReviewFile;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedSplitPane;
+import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewpanel.CodeViewerModel;
 import com.kalynx.serverlessreviewtool.ui.review.*;
 import net.miginfocom.swing.MigLayout;
 
@@ -25,20 +26,21 @@ public class CodePanel extends ThemedPanel {
     private static final long serialVersionUID = 1L;
 
     private transient final ReviewContextManager reviewContextManager;
+    private transient final CodeViewerModel codeViewerModel;
 
     private final CommitSelectorPanel commitSelectorPanel;
     private final FileNavigationPanel fileNavigationPanel;
     private final DiffViewerPanel diffViewerPanel = new DiffViewerPanel();
     private final ThemedSplitPane fileAndDiffSplitPane = new ThemedSplitPane(JSplitPane.HORIZONTAL_SPLIT);
 
-    private transient ReviewFile currentFile;
-
-    public CodePanel(ReviewContextManager reviewContextManager) {
+    public CodePanel(ReviewContextManager reviewContextManager, CodeViewerModel codeViewerModel) {
         this.reviewContextManager = reviewContextManager;
+        this.codeViewerModel = codeViewerModel;
         this.commitSelectorPanel = new CommitSelectorPanel(reviewContextManager);
         this.fileNavigationPanel = new FileNavigationPanel(reviewContextManager);
         configureLayout();
         setupListeners();
+        setupModelListeners();
         setupCommentIntegration();
     }
 
@@ -60,17 +62,50 @@ public class CodePanel extends ThemedPanel {
         fileNavigationPanel.addFileSelectionListener(this::onFileSelected);
     }
 
+    private void setupModelListeners() {
+        codeViewerModel.selectedFile.addChangeListener(this::onModelFileChanged);
+        codeViewerModel.startCommit.addChangeListener(commit -> loadDiffForCurrentState());
+        codeViewerModel.endCommit.addChangeListener(commit -> loadDiffForCurrentState());
+        codeViewerModel.diffMode.addChangeListener(mode -> {
+            if (mode != null) {
+                diffViewerPanel.setViewMode(mode == CodeViewerModel.DiffMode.SIDE_BY_SIDE
+                    ? DiffViewMode.SIDE_BY_SIDE
+                    : DiffViewMode.UNIFIED);
+            }
+        });
+    }
+
+    private void onModelFileChanged(ReviewFile file) {
+        if (file != null) {
+            loadDiffForCurrentState();
+            loadCommentsForCurrentFile();
+        }
+    }
+
+    private void loadDiffForCurrentState() {
+        ReviewFile file = codeViewerModel.selectedFile.getValue();
+        Commit start = codeViewerModel.startCommit.getValue();
+        Commit end = codeViewerModel.endCommit.getValue();
+
+        if (file != null && start != null && end != null) {
+            diffViewerPanel.showDiff(file, start, end);
+        }
+    }
+
     private void setupCommentIntegration() {
         diffViewerPanel.setOnLineDoubleClickListener(lineNumber -> {
-            if (currentFile != null) {
+            ReviewFile file = codeViewerModel.selectedFile.getValue();
+            if (file != null) {
+                codeViewerModel.selectLine(lineNumber);
                 showInlineCommentDialog(lineNumber);
             }
         });
 
         reviewContextManager.addListener(context -> {
-            if (context != null && currentFile != null) {
+            ReviewFile file = codeViewerModel.selectedFile.getValue();
+            if (context != null && file != null) {
                 List<com.kalynx.serverlessreviewtool.models.ReviewComment> comments =
-                    context.getCommentsForFile(currentFile.getPath());
+                    context.getCommentsForFile(file.getPath());
                 diffViewerPanel.setCommentsForCurrentFile(comments);
             }
         });
@@ -78,12 +113,13 @@ public class CodePanel extends ThemedPanel {
 
     private void showInlineCommentDialog(int lineNumber) {
         ReviewContext context = reviewContextManager.getReviewContext();
-        if (context == null || currentFile == null) return;
+        ReviewFile file = codeViewerModel.selectedFile.getValue();
+        if (context == null || file == null) return;
 
         InlineCommentDialog dialog = new InlineCommentDialog(
             SwingUtilities.getWindowAncestor(this),
             context,
-            currentFile,
+            file,
             lineNumber,
             this::loadCommentsForCurrentFile
         );
@@ -91,6 +127,8 @@ public class CodePanel extends ThemedPanel {
     }
 
     private void onCommitRangeChanged(Commit startCommit, Commit endCommit) {
+        codeViewerModel.setCommitRange(startCommit, endCommit);
+
         ReviewFile selectedFile = fileNavigationPanel.getSelectedFile();
         if (selectedFile != null) {
             diffViewerPanel.showDiff(selectedFile, startCommit, endCommit);
@@ -99,11 +137,15 @@ public class CodePanel extends ThemedPanel {
     }
 
     private void onViewModeChanged(DiffViewMode mode) {
+        CodeViewerModel.DiffMode modelMode = mode == DiffViewMode.SIDE_BY_SIDE
+            ? CodeViewerModel.DiffMode.SIDE_BY_SIDE
+            : CodeViewerModel.DiffMode.UNIFIED;
+        codeViewerModel.setDiffMode(modelMode);
         diffViewerPanel.setViewMode(mode);
     }
 
     private void onFileSelected(ReviewFile file) {
-        this.currentFile = file;
+        codeViewerModel.selectFile(file);
 
         Repository repository = findRepositoryForFile(file);
         if (repository != null) {
@@ -121,12 +163,13 @@ public class CodePanel extends ThemedPanel {
     }
 
     private void loadCommentsForCurrentFile() {
-        if (currentFile == null) return;
+        ReviewFile file = codeViewerModel.selectedFile.getValue();
+        if (file == null) return;
 
         ReviewContext context = reviewContextManager.getReviewContext();
         if (context != null) {
             List<com.kalynx.serverlessreviewtool.models.ReviewComment> comments =
-                context.getCommentsForFile(currentFile.getPath());
+                context.getCommentsForFile(file.getPath());
             diffViewerPanel.setCommentsForCurrentFile(comments);
             fileNavigationPanel.refreshDisplay();
         }
