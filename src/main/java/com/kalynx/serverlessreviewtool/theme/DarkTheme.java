@@ -34,7 +34,7 @@ public class DarkTheme implements Theme {
     // Diff colors - more visible, elevated with moderate transparency
     private static final Color ADDED = new Color(60, 100, 75, 140);     // Visible dark green
     private static final Color REMOVED = new Color(100, 50, 50, 140);   // Visible dark red
-    private static final Color MODIFIED = new Color(80, 75, 55, 140);   // Visible dark olive
+    private static final Color MODIFIED = new Color(120, 95, 40, 180);  // Pronounced orange/amber
 
     @Override
     public Color getBackgroundColor() {

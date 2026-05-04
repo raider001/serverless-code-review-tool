@@ -34,7 +34,7 @@ public class LightTheme implements Theme {
     // Diff colors - warm pastels harmonizing with cream background and warm palette
     private static final Color ADDED = new Color(225, 242, 220);    // Warm sage - yellowy green
     private static final Color REMOVED = new Color(245, 210, 210);  // Warm coral rose
-    private static final Color MODIFIED = new Color(248, 240, 215); // Warm sand
+    private static final Color MODIFIED = new Color(255, 230, 180); // Pronounced warm orange/peach
 
     @Override
     public Color getBackgroundColor() {
