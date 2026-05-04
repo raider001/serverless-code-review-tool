@@ -85,6 +85,13 @@ public class ReviewItemLoader {
             })
             .exceptionally(ex -> "Unknown");
 
+        CompletableFuture<String> primaryRepoFuture = notesManager.readPrimaryRepository(reviewId)
+            .thenApply(entries -> {
+                String value = getLatestValue(entries);
+                return value != null ? value : repositoryName;
+            })
+            .exceptionally(ex -> repositoryName);
+
         CompletableFuture<String> statusFuture = notesManager.readStatuses(reviewId)
             .thenApply(entries -> {
                 String value = getLatestValue(entries);
@@ -99,16 +106,17 @@ public class ReviewItemLoader {
                 .collect(java.util.stream.Collectors.toList()))
             .exceptionally(ex -> new ArrayList<>());
 
-        return CompletableFuture.allOf(titleFuture, authorFuture, statusFuture, reviewersFuture)
+        return CompletableFuture.allOf(titleFuture, authorFuture, primaryRepoFuture, statusFuture, reviewersFuture)
             .thenApply(ignored -> {
                 String title = titleFuture.join();
                 String author = authorFuture.join();
+                String primaryRepo = primaryRepoFuture.join();
                 String statusStr = statusFuture.join();
                 List<String> reviewers = reviewersFuture.join();
                 ReviewStatus status = parseStatus(statusStr);
                 long lastUpdate = System.currentTimeMillis();
 
-                return new ReviewItem(reviewId, title, author, repositoryName, status, lastUpdate, reviewers);
+                return new ReviewItem(reviewId, title, author, primaryRepo, List.of(repositoryName), status, lastUpdate, reviewers);
             })
             .exceptionally(ex -> {
                 System.err.println("Failed to load review " + reviewId + " from " + repositoryName + ": " + ex.getMessage());

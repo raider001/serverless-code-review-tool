@@ -51,6 +51,16 @@ public class RepositoryManager {
         return List.copyOf(repositories);
     }
 
+    public Repository getRepositoryByName(String name) {
+        if (name == null) {
+            return null;
+        }
+        return repositories.stream()
+            .filter(repo -> repo.getName().equals(name))
+            .findFirst()
+            .orElse(null);
+    }
+
     public void updateBranchesForRepository(String repositoryName, List<String> branches) {
         for (Repository repo : repositories) {
             if (repo.getName().equals(repositoryName)) {

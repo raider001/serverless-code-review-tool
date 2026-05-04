@@ -92,7 +92,7 @@ public class ReviewSelectionPanelModel {
             review.getAuthor().toLowerCase().contains(author.toLowerCase());
 
         boolean repoMatch = repos == null || repos.isEmpty() ||
-            repos.contains(review.getRepository());
+            review.getRepositories().stream().anyMatch(repos::contains);
 
         return titleMatch && authorMatch && repoMatch;
     }

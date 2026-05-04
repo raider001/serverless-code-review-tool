@@ -21,7 +21,7 @@ public class TestReviewLoading {
             for (ReviewItem review : reviews) {
                 System.out.println("  - Title: " + review.getTitle());
                 System.out.println("    Author: " + review.getAuthor());
-                System.out.println("    Repository: " + review.getRepository());
+                System.out.println("    Repositories: " + String.join(", ", review.getRepositories()));
                 System.out.println("    Status: " + review.getStatus());
                 System.out.println();
             }
@@ -34,7 +34,7 @@ public class TestReviewLoading {
             for (ReviewItem review : reviews) {
                 System.out.println("  - Title: " + review.getTitle());
                 System.out.println("    Author: " + review.getAuthor());
-                System.out.println("    Repository: " + review.getRepository());
+                System.out.println("    Repositories: " + String.join(", ", review.getRepositories()));
                 System.out.println("    Status: " + review.getStatus());
                 System.out.println();
             }
@@ -47,7 +47,7 @@ public class TestReviewLoading {
             for (ReviewItem review : reviews) {
                 System.out.println("  - Title: " + review.getTitle());
                 System.out.println("    Author: " + review.getAuthor());
-                System.out.println("    Repository: " + review.getRepository());
+                System.out.println("    Repositories: " + String.join(", ", review.getRepositories()));
                 System.out.println("    Status: " + review.getStatus());
                 System.out.println();
             }

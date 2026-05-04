@@ -56,7 +56,7 @@ public class CodeViewerModel {
     public void setAvailableFiles(List<ReviewFile> files) {
         availableFiles.setValue(files != null ? new ArrayList<>(files) : new ArrayList<>());
         if (files != null && !files.isEmpty() && selectedFile.getValue() == null) {
-            selectedFile.setValue(files.get(0));
+            selectedFile.setValue(files.getFirst());
         }
     }
 

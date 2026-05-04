@@ -8,8 +8,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -39,16 +41,63 @@ public class ReviewItemManager {
 
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
             .thenApply(ignored -> {
-                List<ReviewItem> allReviews = new ArrayList<>();
+                Map<String, ReviewItem> reviewMap = new HashMap<>();
+
                 for (CompletableFuture<List<ReviewItem>> future : futures) {
-                    allReviews.addAll(future.join());
+                    List<ReviewItem> repoReviews = future.join();
+
+                    for (ReviewItem review : repoReviews) {
+                        String reviewId = review.getReviewId();
+
+                        if (reviewMap.containsKey(reviewId)) {
+                            ReviewItem existing = reviewMap.get(reviewId);
+                            List<String> mergedRepos = new ArrayList<>(existing.getRepositories());
+                            mergedRepos.addAll(review.getRepositories());
+
+                            String primaryRepo = determinePrimaryRepository(existing, review);
+
+                            ReviewItem merged = new ReviewItem(
+                                reviewId,
+                                review.getTitle(),
+                                review.getAuthor(),
+                                primaryRepo,
+                                mergedRepos,
+                                review.getStatus(),
+                                Math.max(existing.getLastUpdate(), review.getLastUpdate()),
+                                review.getReviewers()
+                            );
+                            reviewMap.put(reviewId, merged);
+
+                            LOGGER.debug("Merged review '{}' from additional repository. Primary: {}, Total repos: {}",
+                                reviewId, primaryRepo, mergedRepos.size());
+                        } else {
+                            reviewMap.put(reviewId, review);
+                        }
+                    }
                 }
-                return allReviews;
+
+                return new ArrayList<>(reviewMap.values());
             })
             .thenAccept(items -> {
                 updateReviewItems(items);
                 LoadingStateManager.getInstance().stopLoading("refresh-review-items");
             });
+    }
+
+    private String determinePrimaryRepository(ReviewItem existing, ReviewItem incoming) {
+        String existingPrimary = existing.getPrimaryRepository();
+        String incomingPrimary = incoming.getPrimaryRepository();
+
+        if (existingPrimary == null && incomingPrimary == null) {
+            return existing.getRepositories().isEmpty() ? null : existing.getRepositories().get(0);
+        }
+
+        if (existingPrimary != null && incomingPrimary != null && !existingPrimary.equals(incomingPrimary)) {
+            LOGGER.warn("Review '{}' has conflicting primary repositories: '{}' vs '{}'. Using '{}'.",
+                existing.getReviewId(), existingPrimary, incomingPrimary, existingPrimary);
+        }
+
+        return existingPrimary != null ? existingPrimary : incomingPrimary;
     }
 
     public void updateReviewItems(List<ReviewItem> reviewItems) {

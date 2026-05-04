@@ -25,6 +25,7 @@ import com.kalynx.serverlessreviewtool.utils.TeeOutputStream;
 import javax.swing.*;
 import java.awt.*;
 import java.io.PrintStream;
+import java.util.List;
 
 /**
  * MainFrame - The main application window
@@ -126,7 +127,7 @@ public class MainFrame extends ThemedFrame {
     }
 
     private void onReviewDoubleClicked(ReviewItem reviewItem) {
-        reviewPanel.loadReview(reviewItem.getReviewId(), reviewItem.getRepository());
+        reviewPanel.loadReview(reviewItem);
         showCodeReviewPanel();
     }
 
@@ -172,7 +173,8 @@ public class MainFrame extends ThemedFrame {
         currentPanel = newPanel;
         getContentPanel().add(currentPanel, BorderLayout.CENTER);
         updateRefreshButtonVisibility();
-
+        revalidate();
+        repaint();
         if (newPanel instanceof ReviewSelectionPanel) {
             ((ReviewSelectionPanel) newPanel).onPanelShown();
         }

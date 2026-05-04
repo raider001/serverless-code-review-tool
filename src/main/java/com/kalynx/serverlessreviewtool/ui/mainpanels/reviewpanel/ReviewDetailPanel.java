@@ -1,26 +1,18 @@
 package com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel;
 
-import com.kalynx.serverlessreviewtool.git.Git;
-import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
-import com.kalynx.serverlessreviewtool.managers.ReviewContextManager;
 import com.kalynx.serverlessreviewtool.models.ReviewContext;
 import com.kalynx.serverlessreviewtool.models.ReviewerInfo;
-import com.kalynx.serverlessreviewtool.models.ReviewerStatus;
-import com.kalynx.serverlessreviewtool.models.ReviewStatus;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedBadge;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedButton;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedLabel;
-import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedMenuItem;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
-import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPopupMenu;
-import com.kalynx.serverlessreviewtool.ui.models.reviewpanel.reviewformdialog.ReviewFormModels;
-import com.kalynx.serverlessreviewtool.ui.review.EditReviewDialog;
+import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewpanel.ReviewDetailModel;
 import net.miginfocom.swing.MigLayout;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.util.function.Supplier;
 
 /**
@@ -31,10 +23,9 @@ import java.util.function.Supplier;
  */
 public class ReviewDetailPanel extends ThemedPanel {
 
-    private final ReviewContextManager reviewContextManager;
-    private final ReviewFormModels reviewFormModels;
-    private final RepositoryManager repositoryManager;
-    private final Git git;
+    private static final Logger LOGGER = LoggerFactory.getLogger(ReviewDetailPanel.class);
+
+    private final ReviewDetailModel reviewDetailModel;
 
     private final ThemedBadge headerStatusBadge = new ThemedBadge("Status").setCustomColor(Color.DARK_GRAY);
     private final ThemedLabel titleLabel = new ThemedLabel("");
@@ -46,14 +37,8 @@ public class ReviewDetailPanel extends ThemedPanel {
 
     private final ThemedPanel reviewerPanel = new ThemedPanel();
 
-    public ReviewDetailPanel(ReviewContextManager reviewContextManager,
-                            ReviewFormModels reviewFormModels,
-                            RepositoryManager repositoryManager,
-                            Git git) {
-        this.reviewContextManager = reviewContextManager;
-        this.reviewFormModels = reviewFormModels;
-        this.repositoryManager = repositoryManager;
-        this.git = git;
+    public ReviewDetailPanel(ReviewDetailModel reviewDetailModel) {
+        this.reviewDetailModel = reviewDetailModel;
         configureLayout();
         configureReviewContextListeners();
         setupListeners();
@@ -74,47 +59,23 @@ public class ReviewDetailPanel extends ThemedPanel {
     }
 
     private void configureReviewContextListeners() {
-        reviewContextManager.addListener(context -> {
-            setLabelText(titleLabel, () -> context == null ? "" : (context.title != null ? context.title : ""));
-        });
-        reviewContextManager.addListener(context -> setLabelText(authorLabel, () -> context == null ? "" : (context.author != null ? context.author : "")));
-        reviewContextManager.addListener(context -> setLabelText(summaryLabel, () -> context == null ? "" : (context.summary != null ? context.summary : "")));
-        reviewContextManager.addListener(this::updateStatusBadge);
-        reviewContextManager.addListener(this::updateReviewers);
-        reviewContextManager.addListener(ignored -> updateButtonStates());
-    }
 
-    private void updateReviewers(ReviewContext context) {
-        reviewerPanel.removeAll();
-        if (context != null) {
-            context.reviewers.forEach(reviewer -> reviewerPanel.add(createReviewerBadge(reviewer)));
-        }
-        reviewerPanel.revalidate();
-        reviewerPanel.repaint();
+        reviewDetailModel.title.addChangeListener(val -> setLabelText(titleLabel, () -> val != null ? val : ""));
+        reviewDetailModel.author.addChangeListener(val -> setLabelText(authorLabel, () -> val != null ? val : ""));
+        reviewDetailModel.summary.addChangeListener(val -> setLabelText(summaryLabel, () -> val != null ? val : ""));
+
+        reviewDetailModel.reviewers.addChangeListener(val -> {
+            reviewerPanel.removeAll();
+            if (val != null) {
+                val.forEach(reviewer -> reviewerPanel.add(createReviewerBadge(reviewer)));
+            }
+        });
     }
 
     private ThemedBadge createReviewerBadge(ReviewerInfo reviewer) {
         ThemedBadge badge = new ThemedBadge(
             reviewer.getName() + "  ·  " + reviewer.getStatus().getDisplayName());
         badge.setCustomColor(reviewer.getStatus().getColor());
-        badge.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        badge.setToolTipText("Click to change status");
-
-        badge.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                ThemedPopupMenu menu = new ThemedPopupMenu();
-                for (ReviewerStatus status : ReviewerStatus.values()) {
-                    ThemedMenuItem item = new ThemedMenuItem(status.getDisplayName());
-                    item.addActionListener(ignored -> {
-                        reviewer.setStatus(status);
-                        reviewContextManager.setReviewContext(reviewContextManager.getReviewContext());
-                    });
-                    menu.add(item);
-                }
-                menu.show(badge, e.getX(), e.getY());
-            }
-        });
         return badge;
     }
 
@@ -129,18 +90,7 @@ public class ReviewDetailPanel extends ThemedPanel {
     }
 
     private void updateButtonStates() {
-        ReviewContext context = reviewContextManager.getReviewContext();
-        if (context != null) {
-            boolean allApproved = !context.reviewers.isEmpty()
-                && context.reviewers.stream().allMatch(r -> r.getStatus() == ReviewerStatus.APPROVED);
-            closeReviewButton.setEnabled(allApproved);
-            closeReviewButton.setToolTipText(allApproved
-                ? "All reviewers have approved – close the review"
-                : "All reviewers must approve before closing");
-        } else {
-            closeReviewButton.setEnabled(false);
-            closeReviewButton.setToolTipText("No review context available");
-        }
+        LOGGER.info("TODO: Implement updateButtonStates");
     }
 
 
@@ -150,56 +100,16 @@ public class ReviewDetailPanel extends ThemedPanel {
     }
 
     private void handleEditReview() {
-        ReviewContext context = reviewContextManager.getReviewContext();
-        if (context == null) return;
-
-        EditReviewDialog dialog = new EditReviewDialog(
-            SwingUtilities.getWindowAncestor(this),
-            context,
-            reviewFormModels,
-            repositoryManager,
-            git
-        );
-        dialog.setVisible(true);
-
-        if (dialog.isConfirmed()) {
-            ReviewContext updatedContext = dialog.getUpdatedContext();
-            reviewContextManager.setReviewContext(updatedContext);
-        }
+        LOGGER.info("TODO: Implement handleEditReview");
     }
 
     private void handleCloseReview() {
-        ReviewContext context = reviewContextManager.getReviewContext();
-        if (context == null) return;
-
-        if (context.status == ReviewStatus.COMPLETED) {
-            JOptionPane.showMessageDialog(
-                SwingUtilities.getWindowAncestor(this),
-                "Review is already completed.",
-                "Close Review",
-                JOptionPane.INFORMATION_MESSAGE
-            );
-            return;
-        }
-
-        context.status = ReviewStatus.COMPLETED;
-        reviewContextManager.setReviewContext(context);
-
-        JOptionPane.showMessageDialog(
-            SwingUtilities.getWindowAncestor(this),
-            "Review has been marked as completed.",
-            "Close Review",
-            JOptionPane.INFORMATION_MESSAGE
-        );
+        LOGGER.info("TODO: Implement close review action");
     }
 
     private void setLabelText(ThemedLabel label, Supplier<String> textSetter) {
         SwingUtilities.invokeLater(() -> {
-            if (reviewContextManager.getReviewContext() != null) {
-                label.setText(textSetter.get());
-            } else {
-                label.setText("");
-            }
+            label.setText(textSetter.get());
         });
     }
 }

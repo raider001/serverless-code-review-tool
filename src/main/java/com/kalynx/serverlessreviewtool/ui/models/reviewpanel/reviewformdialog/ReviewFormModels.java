@@ -1,5 +1,6 @@
 package com.kalynx.serverlessreviewtool.ui.models.reviewpanel.reviewformdialog;
 
+import com.kalynx.serverlessreviewtool.models.ReviewerInfo;
 import com.kalynx.serverlessreviewtool.swingextensions.ComponentModel;
 import com.kalynx.serverlessreviewtool.utils.UuidV7Generator;
 
@@ -17,7 +18,7 @@ public class ReviewFormModels {
     public final ComponentModel<String> selectedBaseBranchModel = new ComponentModel<>();
 
     public final ComponentModel<List<String>> selectedRepositories = new ComponentModel<>();
-    public final ComponentModel<List<String>> selectedReviewers = new ComponentModel<>();
+    public final ComponentModel<List<ReviewerInfo>> selectedReviewers = new ComponentModel<>();
 
     public final ComponentModel<List<String>> availableRepositories = new ComponentModel<>();
     public final ComponentModel<List<String>> availableReviewers = new ComponentModel<>();
@@ -28,7 +29,7 @@ public class ReviewFormModels {
 
     private void initializeDefaults() {
         reviewId.setValue(UuidV7Generator.generate());
-        title.setValue("");
+        title.setValue("Loading...");
         summary.setValue("");
         selectedBranchModel.setValue("");
         selectedBaseBranchModel.setValue("main");

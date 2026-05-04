@@ -1,21 +1,23 @@
 package com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewpanel;
 
+import com.kalynx.serverlessreviewtool.models.Repository;
 import com.kalynx.serverlessreviewtool.swingextensions.ComponentModel;
+
+import java.util.List;
 
 public class ReviewPanelModel {
 
     public final ComponentModel<String> currentReviewId = new ComponentModel<>();
     public final ComponentModel<Boolean> hasActiveReview = new ComponentModel<>();
     public final ComponentModel<String> errorMessage = new ComponentModel<>();
+    public final ComponentModel<List<Repository>> repositories = new ComponentModel<>();
 
-    public final CodeViewerModel codeViewerModel;
-    public final CommentsPanelModel commentsPanelModel;
-    public final ReviewActionModel reviewActionModel;
+    public final ReviewDetailModel reviewDetailModel = new ReviewDetailModel();
+    public final CodeViewerModel codeViewerModel = new CodeViewerModel();
+    public final CommentsPanelModel commentsPanelModel = new CommentsPanelModel();
+    public final ReviewActionModel reviewActionModel = new ReviewActionModel();
 
     public ReviewPanelModel() {
-        this.codeViewerModel = new CodeViewerModel();
-        this.commentsPanelModel = new CommentsPanelModel();
-        this.reviewActionModel = new ReviewActionModel();
         initializeDefaults();
     }
 
@@ -23,6 +25,7 @@ public class ReviewPanelModel {
         currentReviewId.setValue(null);
         hasActiveReview.setValue(false);
         errorMessage.setValue("");
+        repositories.setValue(List.of());
     }
 
     public void setCurrentReview(String reviewId) {
@@ -33,10 +36,16 @@ public class ReviewPanelModel {
         }
     }
 
+    public void setRepositories(List<Repository> repos) {
+        repositories.setValue(repos != null ? repos : List.of());
+    }
+
     public void clear() {
         currentReviewId.setValue(null);
         hasActiveReview.setValue(false);
         errorMessage.setValue("");
+        repositories.setValue(List.of());
+        reviewDetailModel.clear();
         codeViewerModel.clear();
         commentsPanelModel.clear();
         reviewActionModel.clear();
@@ -46,4 +55,3 @@ public class ReviewPanelModel {
         errorMessage.setValue(error != null ? error : "");
     }
 }
-

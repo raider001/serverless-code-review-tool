@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Stream;
 
 public class GitReviewNotesManager {
 
@@ -63,7 +64,9 @@ public class GitReviewNotesManager {
                                                  String description,
                                                  String status,
                                                  List<String> commits,
-                                                 List<String> reviewers) {
+                                                 List<String> reviewers,
+                                                 String branch,
+                                                 String baseBranch) {
         if (commits == null || commits.isEmpty()) {
             return CompletableFuture.failedFuture(
                 new IllegalArgumentException("Cannot create review without commits")
@@ -76,6 +79,9 @@ public class GitReviewNotesManager {
             "metadata/description",
             "metadata/status",
             "metadata/commits",
+            "metadata/primaryRepository",
+            "metadata/branch",
+            "metadata/baseBranch",
             "reviewers"
         );
 
@@ -88,6 +94,9 @@ public class GitReviewNotesManager {
                     ReviewStreamHelper.writeDescription(getStreamPath(reviewId, "metadata/description"), editor, description);
                     ReviewStreamHelper.writeStatus(getStreamPath(reviewId, "metadata/status"), editor, status);
                     ReviewStreamHelper.writeCommits(getStreamPath(reviewId, "metadata/commits"), editor, commits);
+                    ReviewStreamHelper.writePrimaryRepository(getStreamPath(reviewId, "metadata/primaryRepository"), editor, "true");
+                    ReviewStreamHelper.writeBranch(getStreamPath(reviewId, "metadata/branch"), editor, branch);
+                    ReviewStreamHelper.writeBaseBranch(getStreamPath(reviewId, "metadata/baseBranch"), editor, baseBranch);
 
                     for (String reviewer : reviewers) {
                         ReviewerData reviewerData = new ReviewerData(
@@ -107,6 +116,93 @@ public class GitReviewNotesManager {
                 }
             })
             .thenCompose(ignored -> pushAllNotes(reviewId, streamPaths));
+    }
+
+    public CompletableFuture<Void> createReviewAcrossRepositories(String reviewId,
+                                                                   String editor,
+                                                                   String title,
+                                                                   String author,
+                                                                   String description,
+                                                                   String status,
+                                                                   Map<String, List<String>> commitsByRepository,
+                                                                   List<String> reviewers,
+                                                                   List<String> repositories,
+                                                                   String branch,
+                                                                   String baseBranch) {
+        if (repositories == null || repositories.isEmpty()) {
+            return CompletableFuture.failedFuture(
+                new IllegalArgumentException("Cannot create review without repositories")
+            );
+        }
+
+        String primaryRepo = repositories.getFirst();
+        List<String> secondaryRepos = repositories.subList(1, repositories.size());
+
+        List<String> primaryCommits = commitsByRepository.getOrDefault(primaryRepo, List.of());
+
+        GitReviewNotesManager primaryManager = new GitReviewNotesManager(git, primaryRepo);
+        CompletableFuture<Void> primaryFuture = primaryManager.createReview(
+            reviewId, editor, title, author, description, status, primaryCommits, reviewers, branch, baseBranch
+        );
+
+        if (secondaryRepos.isEmpty()) {
+            return primaryFuture;
+        }
+
+        List<CompletableFuture<Void>> secondaryFutures = secondaryRepos.stream()
+            .map(repoName -> {
+                List<String> repoCommits = commitsByRepository.getOrDefault(repoName, List.of());
+                return createSecondaryReviewReference(repoName, reviewId, editor, repoCommits, branch, baseBranch);
+            })
+            .toList();
+
+        return CompletableFuture.allOf(
+            Stream.concat(
+                Stream.of(primaryFuture),
+                secondaryFutures.stream()
+            ).toArray(CompletableFuture[]::new)
+        );
+    }
+
+    private CompletableFuture<Void> createSecondaryReviewReference(String repoName, String reviewId, String editor, List<String> commits, String branch, String baseBranch) {
+        GitReviewNotesManager secondaryManager = new GitReviewNotesManager(git, repoName);
+
+        List<String> streamPaths = new ArrayList<>();
+        streamPaths.add("metadata/primaryRepository");
+        streamPaths.add("metadata/branch");
+        streamPaths.add("metadata/baseBranch");
+        if (commits != null && !commits.isEmpty()) {
+            streamPaths.add("metadata/commits");
+        }
+
+        return secondaryManager.fetchAllNotes(reviewId, streamPaths)
+            .thenCompose(ignored -> secondaryManager.getRepositoryRootCommit())
+            .thenCompose(anchorCommit -> {
+                try {
+                    Path primaryRepoPath = secondaryManager.getStreamPath(reviewId, "metadata/primaryRepository");
+                    ReviewStreamHelper.writePrimaryRepository(primaryRepoPath, editor, "false");
+                    secondaryManager.resolveAndNormalize(primaryRepoPath);
+
+                    Path branchPath = secondaryManager.getStreamPath(reviewId, "metadata/branch");
+                    ReviewStreamHelper.writeBranch(branchPath, editor, branch);
+                    secondaryManager.resolveAndNormalize(branchPath);
+
+                    Path baseBranchPath = secondaryManager.getStreamPath(reviewId, "metadata/baseBranch");
+                    ReviewStreamHelper.writeBaseBranch(baseBranchPath, editor, baseBranch);
+                    secondaryManager.resolveAndNormalize(baseBranchPath);
+
+                    if (commits != null && !commits.isEmpty()) {
+                        Path commitsPath = secondaryManager.getStreamPath(reviewId, "metadata/commits");
+                        ReviewStreamHelper.writeCommits(commitsPath, editor, commits);
+                        secondaryManager.resolveAndNormalize(commitsPath);
+                    }
+
+                    return secondaryManager.addAllNotesToGit(reviewId, streamPaths, anchorCommit);
+                } catch (IOException e) {
+                    return CompletableFuture.failedFuture(e);
+                }
+            })
+            .thenCompose(ignored -> secondaryManager.pushAllNotes(reviewId, streamPaths));
     }
 
     private CompletableFuture<String> getRepositoryRootCommit() {
@@ -294,6 +390,11 @@ public class GitReviewNotesManager {
                 ReviewStreamHelper::readAuthors);
     }
 
+    public CompletableFuture<List<StreamEntry<String>>> readPrimaryRepository(String reviewId) {
+        return readStream(reviewId, "metadata/primaryRepository",
+                ReviewStreamHelper::readPrimaryRepository);
+    }
+
     public CompletableFuture<List<StreamEntry<String>>> readStatuses(String reviewId) {
         return readStream(reviewId, "metadata/status",
                 ReviewStreamHelper::readStatuses);
@@ -313,6 +414,85 @@ public class GitReviewNotesManager {
         return readStream(reviewId, "comments",
                 ReviewStreamHelper::readComments);
     }
+
+    /**
+     * Read all review metadata in a single batch operation for improved performance.
+     * This method fetches all required notes refs at once and reads them in parallel,
+     * significantly reducing the number of Git operations compared to individual reads.
+     *
+     * @param reviewId the review identifier
+     * @return future containing all metadata (title, description, author, status, reviewers)
+     */
+    public CompletableFuture<ReviewMetadata> readAllMetadata(String reviewId) {
+        List<String> streamPaths = List.of(
+            "metadata/title",
+            "metadata/description",
+            "metadata/author",
+            "metadata/primaryRepository",
+            "metadata/branch",
+            "metadata/baseBranch",
+            "metadata/status",
+            "reviewers"
+        );
+
+        return fetchAllNotes(reviewId, streamPaths)
+            .thenCompose(ignored -> getAnchorCommit(reviewId))
+            .thenCompose(anchorCommit -> {
+                List<CompletableFuture<Path>> extractFutures = streamPaths.stream()
+                    .map(streamPath -> extractNoteToFile(reviewId, streamPath, anchorCommit))
+                    .toList();
+
+                return CompletableFuture.allOf(extractFutures.toArray(new CompletableFuture[0]))
+                    .thenApply(ignored2 -> {
+                        try {
+                            Path titlePath = extractFutures.get(0).join();
+                            Path descPath = extractFutures.get(1).join();
+                            Path authorPath = extractFutures.get(2).join();
+                            Path primaryRepoPath = extractFutures.get(3).join();
+                            Path branchPath = extractFutures.get(4).join();
+                            Path baseBranchPath = extractFutures.get(5).join();
+                            Path statusPath = extractFutures.get(6).join();
+                            Path reviewersPath = extractFutures.get(7).join();
+
+                            resolveAndNormalize(titlePath);
+                            resolveAndNormalize(descPath);
+                            resolveAndNormalize(authorPath);
+                            resolveAndNormalize(primaryRepoPath);
+                            resolveAndNormalize(branchPath);
+                            resolveAndNormalize(baseBranchPath);
+                            resolveAndNormalize(statusPath);
+                            resolveAndNormalize(reviewersPath);
+
+                            return new ReviewMetadata(
+                                ReviewStreamHelper.readTitles(titlePath),
+                                ReviewStreamHelper.readDescriptions(descPath),
+                                ReviewStreamHelper.readAuthors(authorPath),
+                                ReviewStreamHelper.readPrimaryRepository(primaryRepoPath),
+                                ReviewStreamHelper.readBranch(branchPath),
+                                ReviewStreamHelper.readBaseBranch(baseBranchPath),
+                                ReviewStreamHelper.readStatuses(statusPath),
+                                ReviewStreamHelper.readReviewers(reviewersPath)
+                            );
+                        } catch (IOException e) {
+                            throw new RuntimeException("Failed to read metadata: " + e.getMessage(), e);
+                        }
+                    });
+            });
+    }
+
+    /**
+     * Container for all review metadata retrieved in a single batch operation.
+     */
+    public record ReviewMetadata(
+        List<StreamEntry<String>> titles,
+        List<StreamEntry<String>> descriptions,
+        List<StreamEntry<String>> authors,
+        List<StreamEntry<String>> primaryRepository,
+        List<StreamEntry<String>> branches,
+        List<StreamEntry<String>> baseBranches,
+        List<StreamEntry<String>> statuses,
+        List<StreamEntry<ReviewerData>> reviewers
+    ) {}
 
     private <T> CompletableFuture<List<StreamEntry<T>>> readStream(
             String reviewId,

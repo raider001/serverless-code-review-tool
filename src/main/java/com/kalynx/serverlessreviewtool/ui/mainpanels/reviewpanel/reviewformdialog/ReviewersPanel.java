@@ -1,6 +1,6 @@
 package com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel.reviewformdialog;
 
-import com.kalynx.serverlessreviewtool.swingextensions.BindingLifecycleHelper;
+import com.kalynx.serverlessreviewtool.models.ReviewerInfo;
 import com.kalynx.serverlessreviewtool.swingextensions.ComponentModel;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.*;
 import net.miginfocom.swing.MigLayout;
@@ -16,11 +16,11 @@ public class ReviewersPanel extends ThemedPanel {
     private final ThemedButton addButton = new ThemedButton("Add");
     private final ThemedPanel badgesPanel = new ThemedPanel();
 
-    private final ComponentModel<List<String>> selectedReviewersModel;
+    private final ComponentModel<List<ReviewerInfo>> selectedReviewersModel;
     private final ComponentModel<List<String>> availableReviewersModel;
 
     public ReviewersPanel(ComponentModel<List<String>> availableReviewersModel,
-                         ComponentModel<List<String>> selectedReviewersModel) {
+                         ComponentModel<List<ReviewerInfo>> selectedReviewersModel) {
         this.availableReviewersModel = availableReviewersModel;
         this.selectedReviewersModel = selectedReviewersModel;
 
@@ -60,7 +60,7 @@ public class ReviewersPanel extends ThemedPanel {
 
         reviewerSelector.setOnApply(item -> {
             if (item != null && !item.trim().isEmpty()) {
-                BindingLifecycleHelper.addToBadgeList(selectedReviewersModel, item);
+                addReviewer(item);
                 reviewerSelector.setSelectedIndex(-1);
             }
         });
@@ -68,19 +68,36 @@ public class ReviewersPanel extends ThemedPanel {
         addButton.addActionListener(ignored -> {
             Object selected = reviewerSelector.getSelectedItem();
             if (selected != null && !selected.toString().trim().isEmpty()) {
-                BindingLifecycleHelper.addToBadgeList(selectedReviewersModel, selected.toString());
+                addReviewer(selected.toString());
                 reviewerSelector.setSelectedIndex(-1);
             }
         });
     }
 
+    private void addReviewer(String name) {
+        List<ReviewerInfo> current = selectedReviewersModel.getValue();
+        if (current == null) {
+            current = new ArrayList<>();
+        }
+
+        boolean alreadyExists = current.stream()
+            .anyMatch(reviewer -> reviewer.getName().equals(name));
+
+        if (!alreadyExists) {
+            List<ReviewerInfo> updated = new ArrayList<>(current);
+            updated.add(new ReviewerInfo(name));
+            selectedReviewersModel.setValue(updated);
+        }
+    }
+
     private void updateBadges() {
         badgesPanel.removeAll();
-        List<String> selected = selectedReviewersModel.getValue();
+        List<ReviewerInfo> selected = selectedReviewersModel.getValue();
         if (selected != null) {
-            for (String item : selected) {
-                badgesPanel.add(new ThemedBadge(item, () ->
-                    BindingLifecycleHelper.removeFromBadgeList(selectedReviewersModel, item)));
+            for (ReviewerInfo reviewer : selected) {
+                ThemedBadge badge = new ThemedBadge(reviewer.getName(), () -> removeReviewer(reviewer));
+                badge.setCustomColor(reviewer.getStatus().getColor());
+                badgesPanel.add(badge);
             }
         }
         badgesPanel.revalidate();
@@ -93,5 +110,13 @@ public class ReviewersPanel extends ThemedPanel {
         }
     }
 
+    private void removeReviewer(ReviewerInfo reviewer) {
+        List<ReviewerInfo> current = selectedReviewersModel.getValue();
+        if (current != null) {
+            List<ReviewerInfo> updated = new ArrayList<>(current);
+            updated.removeIf(r -> r.getName().equals(reviewer.getName()));
+            selectedReviewersModel.setValue(updated);
+        }
+    }
 }
 

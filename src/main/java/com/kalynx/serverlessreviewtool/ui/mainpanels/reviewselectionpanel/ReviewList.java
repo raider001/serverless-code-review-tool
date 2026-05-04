@@ -76,7 +76,8 @@ public class ReviewList extends ThemedList<ReviewItem> {
             }
 
             if (repositoryFilter != null && !repositoryFilter.isEmpty()) {
-                return repositoryFilter.contains(item.getRepository());
+                return item.getRepositories().stream()
+                    .anyMatch(repositoryFilter::contains);
             }
 
             return true;

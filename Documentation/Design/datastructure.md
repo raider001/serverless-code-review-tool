@@ -312,6 +312,7 @@ refs/notes/reviews/550e8400-.../reviewers
 - Author: `refs/notes/reviews/{uuid}/metadata/author`
 - Title: `refs/notes/reviews/{uuid}/metadata/title`
 - Description: `refs/notes/reviews/{uuid}/metadata/description`
+- Primary Repository: `refs/notes/reviews/{uuid}/metadata/primaryRepository`
 - Status: `refs/notes/reviews/{uuid}/metadata/status`
 - Commits: `refs/notes/reviews/{uuid}/metadata/commits`
 - Reviewers: `refs/notes/reviews/{uuid}/reviewers`

@@ -7,6 +7,7 @@ import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.*;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel.reviewformdialog.*;
 import com.kalynx.serverlessreviewtool.ui.models.reviewpanel.reviewformdialog.ReviewFormModels;
+import com.kalynx.serverlessreviewtool.models.ReviewerInfo;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;
@@ -216,7 +217,7 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
             return;
         }
 
-        List<String> reviewers = models.selectedReviewers.getValue();
+        List<ReviewerInfo> reviewers = models.selectedReviewers.getValue();
         if (reviewers == null || reviewers.isEmpty()) {
             warn("Please select at least one reviewer");
             return;

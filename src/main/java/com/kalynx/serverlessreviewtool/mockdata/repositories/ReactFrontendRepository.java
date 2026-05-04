@@ -57,6 +57,15 @@ public class ReactFrontendRepository extends BaseRepository {
 
         addGitNote(repoPath, commitHash, "refs/notes/reviews/review-101/metadata/status",
             "{\"id\":\"01933ea3-af67-9c5e-daf3-g7h4e5c6d7f0\",\"timestamp\":\"2026-01-17T09:15:00Z\",\"editor\":\"mike.wilson\",\"data\":\"APPROVED\"}");
+
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-101/metadata/primaryRepository",
+            "{\"id\":\"01933ea3-af67-9c5e-daf3-g7h4e5c6d7f2\",\"timestamp\":\"2026-01-17T09:15:00Z\",\"editor\":\"mike.wilson\",\"data\":\"true\"}");
+
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-101/metadata/branch",
+            "{\"id\":\"01933ea3-af67-9c5e-daf3-g7h4e5c6d7f3\",\"timestamp\":\"2026-01-17T09:15:00Z\",\"editor\":\"mike.wilson\",\"data\":\"feature/dark-mode-theme\"}");
+
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-101/metadata/baseBranch",
+            "{\"id\":\"01933ea3-af67-9c5e-daf3-g7h4e5c6d7f4\",\"timestamp\":\"2026-01-17T09:15:00Z\",\"editor\":\"mike.wilson\",\"data\":\"master\"}");
     }
 
     protected static void createInitialStructure(Path repoPath) throws IOException, InterruptedException {

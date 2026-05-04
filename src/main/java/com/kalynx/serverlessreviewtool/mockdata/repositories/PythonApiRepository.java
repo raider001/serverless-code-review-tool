@@ -5,6 +5,7 @@ import com.kalynx.serverlessreviewtool.mockdata.repositories.pythonapi.ModelsFil
 import com.kalynx.serverlessreviewtool.mockdata.repositories.pythonapi.AuthFileMock;
 import com.kalynx.serverlessreviewtool.mockdata.repositories.pythonapi.DatabaseFileMock;
 import com.kalynx.serverlessreviewtool.mockdata.repositories.pythonapi.branches.FeatureLoggingBranch;
+import com.kalynx.serverlessreviewtool.mockdata.repositories.pythonapi.branches.FeatureOAuthIntegrationBranch;
 import com.kalynx.serverlessreviewtool.mockdata.repositories.pythonapi.branches.RefactorDatabaseBranch;
 
 import java.io.IOException;
@@ -38,6 +39,7 @@ public class PythonApiRepository extends BaseRepository {
 
         System.out.println("  Creating feature branches...");
         FeatureLoggingBranch.create(repoPath);
+        FeatureOAuthIntegrationBranch.create(repoPath);
         RefactorDatabaseBranch.create(repoPath);
 
         System.out.println("  Python API repository created at: " + repoPath);
@@ -58,6 +60,15 @@ public class PythonApiRepository extends BaseRepository {
         addGitNote(repoPath, commitHash, "refs/notes/reviews/review-201/metadata/status",
             "{\"id\":\"01933ea4-bf77-ad6f-ebg4-h8i5f6d7e8g1\",\"timestamp\":\"2026-01-18T11:30:00Z\",\"editor\":\"sarah.chen\",\"data\":\"CHANGES_REQUESTED\"}");
 
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-201/metadata/primaryRepository",
+            "{\"id\":\"01933ea4-bf77-ad6f-ebg4-h8i5f6d7e8g3\",\"timestamp\":\"2026-01-18T11:30:00Z\",\"editor\":\"sarah.chen\",\"data\":\"true\"}");
+
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-201/metadata/branch",
+            "{\"id\":\"01933ea4-bf77-ad6f-ebg4-h8i5f6d7e8g4\",\"timestamp\":\"2026-01-18T11:30:00Z\",\"editor\":\"sarah.chen\",\"data\":\"feature/structured-logging\"}");
+
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-201/metadata/baseBranch",
+            "{\"id\":\"01933ea4-bf77-ad6f-ebg4-h8i5f6d7e8g5\",\"timestamp\":\"2026-01-18T11:30:00Z\",\"editor\":\"sarah.chen\",\"data\":\"master\"}");
+
         addGitNote(repoPath, commitHash, "refs/notes/reviews/review-202/metadata/title",
             "{\"id\":\"01933ea5-cf87-be7g-fch5-i9j6g7e8f9g0\",\"timestamp\":\"2026-01-19T14:45:00Z\",\"editor\":\"alex.kumar\",\"data\":\"API authentication enhancements\"}");
 
@@ -69,6 +80,36 @@ public class PythonApiRepository extends BaseRepository {
 
         addGitNote(repoPath, commitHash, "refs/notes/reviews/review-202/metadata/status",
             "{\"id\":\"01933ea5-cf87-be7g-fch5-i9j6g7e8f9g2\",\"timestamp\":\"2026-01-19T14:45:00Z\",\"editor\":\"alex.kumar\",\"data\":\"IN_REVIEW\"}");
+
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-202/metadata/primaryRepository",
+            "{\"id\":\"01933ea5-cf87-be7g-fch5-i9j6g7e8f9g4\",\"timestamp\":\"2026-01-19T14:45:00Z\",\"editor\":\"alex.kumar\",\"data\":\"true\"}");
+
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-202/metadata/branch",
+            "{\"id\":\"01933ea5-cf87-be7g-fch5-i9j6g7e8f9g5\",\"timestamp\":\"2026-01-19T14:45:00Z\",\"editor\":\"alex.kumar\",\"data\":\"refactor/async-database\"}");
+
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-202/metadata/baseBranch",
+            "{\"id\":\"01933ea5-cf87-be7g-fch5-i9j6g7e8f9g6\",\"timestamp\":\"2026-01-19T14:45:00Z\",\"editor\":\"alex.kumar\",\"data\":\"master\"}");
+
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-300/metadata/title",
+            "{\"id\":\"01933ea6-df97-cf8h-gdi6-j0k7h8f9g0h1\",\"timestamp\":\"2026-01-20T16:00:00Z\",\"editor\":\"system.admin\",\"data\":\"Cross-service authentication integration\"}");
+
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-300/metadata/description",
+            "{\"id\":\"01933ea6-df97-cf8h-gdi6-j0k7h8f9g0h4\",\"timestamp\":\"2026-01-20T16:00:00Z\",\"editor\":\"system.admin\",\"data\":\"Comprehensive authentication system spanning Java backend and Python API services. Implements unified session management, token validation, and cross-service authorization checks.\"}");
+
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-300/metadata/author",
+            "{\"id\":\"01933ea6-df97-cf8h-gdi6-j0k7h8f9g0h2\",\"timestamp\":\"2026-01-20T16:00:00Z\",\"editor\":\"system.admin\",\"data\":\"system.admin\"}");
+
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-300/metadata/status",
+            "{\"id\":\"01933ea6-df97-cf8h-gdi6-j0k7h8f9g0h3\",\"timestamp\":\"2026-01-20T16:00:00Z\",\"editor\":\"system.admin\",\"data\":\"OPEN\"}");
+
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-300/metadata/primaryRepository",
+            "{\"id\":\"01933ea6-df97-cf8h-gdi6-j0k7h8f9g0h5\",\"timestamp\":\"2026-01-20T16:00:00Z\",\"editor\":\"system.admin\",\"data\":\"false\"}");
+
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-300/metadata/branch",
+            "{\"id\":\"01933ea6-df97-cf8h-gdi6-j0k7h8f9g0h6\",\"timestamp\":\"2026-01-20T16:00:00Z\",\"editor\":\"system.admin\",\"data\":\"feature/oauth-integration\"}");
+
+        addGitNote(repoPath, commitHash, "refs/notes/reviews/review-300/metadata/baseBranch",
+            "{\"id\":\"01933ea6-df97-cf8h-gdi6-j0k7h8f9g0h7\",\"timestamp\":\"2026-01-20T16:00:00Z\",\"editor\":\"system.admin\",\"data\":\"master\"}");
     }
 
     protected static void createInitialStructure(Path repoPath) throws IOException, InterruptedException {
@@ -88,5 +129,4 @@ public class PythonApiRepository extends BaseRepository {
         executeGitCommand(repoPath, "git", "commit", "-m", "Add initial dependencies");
     }
 }
-
 

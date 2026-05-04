@@ -3,6 +3,7 @@ package com.kalynx.serverlessreviewtool.ui.review;
 import com.kalynx.serverlessreviewtool.git.Git;
 import com.kalynx.serverlessreviewtool.git.GitReviewNotesManager;
 import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
+import com.kalynx.serverlessreviewtool.models.ReviewerInfo;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedOptionPane;
 import com.kalynx.serverlessreviewtool.theme.LoadingStateManager;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel.ReviewFormDialog;
@@ -15,6 +16,7 @@ import java.awt.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 public class CreateReviewDialog extends ReviewFormDialog {
 
@@ -40,7 +42,7 @@ public class CreateReviewDialog extends ReviewFormDialog {
         String branch = models.selectedBranchModel.getValue();
         String baseBranch = models.selectedBaseBranchModel.getValue();
         List<String> repositories = models.selectedRepositories.getValue();
-        List<String> reviewers = models.selectedReviewers.getValue();
+        List<ReviewerInfo> reviewerInfos = models.selectedReviewers.getValue();
 
         if (repositories == null || repositories.isEmpty()) {
             ThemedOptionPane.showWarning(this, "Please select at least one repository");
@@ -50,10 +52,15 @@ public class CreateReviewDialog extends ReviewFormDialog {
         String primaryRepo = repositories.getFirst();
         String editor = author.isEmpty() ? "unknown" : author;
 
-        createReview(primaryRepo, reviewId, editor, title, author, summary, branch, baseBranch, reviewers);
+        List<String> reviewerNames = reviewerInfos.stream()
+            .map(ReviewerInfo::getName)
+            .collect(Collectors.toList());
+
+        createReview(primaryRepo, repositories, reviewId, editor, title, author, summary, branch, baseBranch, reviewerNames);
     }
 
-    private void createReview(String repositoryName,
+    private void createReview(String primaryRepository,
+                             List<String> allRepositories,
                              String reviewId,
                              String editor,
                              String title,
@@ -64,42 +71,63 @@ public class CreateReviewDialog extends ReviewFormDialog {
                              List<String> reviewers) {
 
         LoadingStateManager.getInstance().startLoading("create-review");
-        GitReviewNotesManager notesManager = new GitReviewNotesManager(git, repositoryName);
+        GitReviewNotesManager notesManager = new GitReviewNotesManager(git, primaryRepository);
 
-        LOGGER.info("Creating review - Repository: {}, Branch: {}, Base: {}", repositoryName, branch, baseBranch);
+        LOGGER.info("Creating review - Primary Repository: {}, All Repositories: {}, Branch: {}, Base: {}",
+            primaryRepository, allRepositories, branch, baseBranch);
 
-        git.fetch(repositoryName)
+        String commitRange = baseBranch + ".." + branch;
+
+        List<CompletableFuture<java.util.Map.Entry<String, List<String>>>> commitFutures = allRepositories.stream()
+            .map(repoName ->
+                git.fetch(repoName)
+                    .thenCompose(v -> git.listCommits(repoName, commitRange, 1000))
+                    .thenApply(commitMessages -> {
+                        List<String> commitHashes = extractCommitHashes(commitMessages);
+                        return java.util.Map.entry(repoName, commitHashes);
+                    })
+            )
+            .toList();
+
+        CompletableFuture.allOf(commitFutures.toArray(new CompletableFuture[0]))
             .thenCompose(v -> {
-                String commitRange = baseBranch + ".." + branch;
-                return git.listCommits(repositoryName, commitRange, 1000);
-            })
-            .thenCompose(commitMessages -> {
-                List<String> commitHashes = extractCommitHashes(commitMessages);
+                java.util.Map<String, List<String>> commitsByRepository = commitFutures.stream()
+                    .map(CompletableFuture::join)
+                    .collect(Collectors.toMap(
+                        java.util.Map.Entry::getKey,
+                        java.util.Map.Entry::getValue
+                    ));
 
-                if (commitHashes.isEmpty()) {
-                    LOGGER.warn("No commits found between {} and {}", baseBranch, branch);
+                boolean hasCommits = commitsByRepository.values().stream()
+                    .anyMatch(commits -> !commits.isEmpty());
+
+                if (!hasCommits) {
+                    LOGGER.warn("No commits found in any repository between {} and {}", baseBranch, branch);
                     return CompletableFuture.failedFuture(
-                        new IllegalArgumentException("No commits found between '" + baseBranch +
+                        new IllegalArgumentException("No commits found in any repository between '" + baseBranch +
                             "' and '" + branch + "'. Either the branches don't exist or they are identical.")
                     );
                 }
 
-                return notesManager.createReview(
+                return notesManager.createReviewAcrossRepositories(
                     reviewId,
                     editor,
                     title,
                     author,
                     summary,
                     "open",
-                    commitHashes,
-                    reviewers
+                    commitsByRepository,
+                    reviewers,
+                    allRepositories,
+                    branch,
+                    baseBranch
                 );
             })
             .thenAccept(v -> SwingUtilities.invokeLater(() -> {
                 LoadingStateManager.getInstance().stopLoading("create-review");
                 confirmed = true;
                 dispose();
-                LOGGER.info("Review created successfully: {}", reviewId);
+                LOGGER.info("Review created successfully across {} repositories: {}", allRepositories.size(), reviewId);
             }))
             .exceptionally(ex -> {
                 LoadingStateManager.getInstance().stopLoading("create-review");
@@ -108,7 +136,7 @@ public class CreateReviewDialog extends ReviewFormDialog {
 
                 if (cause.getMessage() != null && cause.getMessage().contains("unknown revision")) {
                     errorMessage = "Branch '" + branch + "' or '" + baseBranch +
-                        "' does not exist in repository '" + repositoryName + "'.";
+                        "' does not exist in one or more repositories.";
                 } else if (cause instanceof IllegalArgumentException) {
                     errorMessage = cause.getMessage();
                 } else {

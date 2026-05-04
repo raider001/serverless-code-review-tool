@@ -101,7 +101,8 @@ public class ReviewItemCellRenderer extends ThemedPanel implements ListCellRende
         }
 
         titleLabel.setText(value.getTitle());
-        metadataLabel.setText(value.getAuthor() + "  ·  " + value.getRepository());
+        String repositories = String.join(", ", value.getRepositories());
+        metadataLabel.setText(value.getAuthor() + "  ·  " + repositories);
         timeLabel.setText(TimeFormatter.formatRelativeTime(value.getLastUpdate()));
 
         // Status pill

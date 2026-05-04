@@ -1,10 +1,7 @@
 import com.kalynx.lwdi.DependencyInjectionException;
 import com.kalynx.lwdi.DependencyInjector;
 import com.kalynx.serverlessreviewtool.configuration.SettingsManager;
-import com.kalynx.serverlessreviewtool.git.Git;
-import com.kalynx.serverlessreviewtool.git.GitImpl;
-import com.kalynx.serverlessreviewtool.git.RepositoryLoader;
-import com.kalynx.serverlessreviewtool.git.ReviewItemLoader;
+import com.kalynx.serverlessreviewtool.git.*;
 import com.kalynx.serverlessreviewtool.managers.PollingService;
 import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
 import com.kalynx.serverlessreviewtool.managers.ReviewContextManager;
@@ -13,7 +10,6 @@ import com.kalynx.serverlessreviewtool.managers.UserManager;
 import com.kalynx.serverlessreviewtool.mockdata.UserMockData;
 import com.kalynx.serverlessreviewtool.models.Repository;
 import com.kalynx.serverlessreviewtool.models.User;
-import com.kalynx.serverlessreviewtool.theme.LoadingStateManager;
 import com.kalynx.serverlessreviewtool.ui.MainFrame;
 import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewpanel.ReviewPanelModel;
 import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewselectionpanel.ReviewSelectionPanelModel;
@@ -69,38 +65,43 @@ public class Main {
         logger.info("ServerlessReviewTool - Java Application");
         logger.info("Launching application...");
 
-        try {
-            // Wire ReviewPanelModel to ReviewContextManager
-            REVIEW_CONTEXT_MANAGER.setReviewPanelModel(REVIEW_PANEL_MODEL);
+        USER_MANAGER.addListener(users -> REVIEW_FORM_MODELS.availableReviewers.setValue(users.stream().map(User::getName).toList()));
+        REPOSITORY_MANAGER.addListener(ignore -> {
+            REVIEW_ITEM_MANAGER.refresh();
+        });
 
-            USER_MANAGER.addListener(users -> REVIEW_FORM_MODELS.availableReviewers.setValue(users.stream().map(User::getName).toList()));
+        UserMockData.loadMockData(USER_MANAGER);
 
-            REPOSITORY_MANAGER.addListener(ignore -> {
-                REVIEW_ITEM_MANAGER.refresh();
-            });
-
-            UserMockData.loadMockData(USER_MANAGER);
-
-            setupReviewFormModelUpdaters();
-            setupReviewSelectionPanelModelUpdaters();
+        setupReviewFormModelUpdaters();
+        setupReviewSelectionPanelModelUpdaters();
+        setupReviewPanelModelUpdaters();
 
 
+        SwingUtilities.invokeLater(() -> {
+            try {
+                MainFrame frame = DI.inject(MainFrame.class);
+                frame.setVisible(true);
+                SETTINGS_MANAGER.addRepositoryNameListener(REPOSITORY_MANAGER::updateRepositories);
 
-            SwingUtilities.invokeLater(() -> {
-                try {
-                    MainFrame frame = DI.inject(MainFrame.class);
-                    frame.setVisible(true);
-                    SETTINGS_MANAGER.addRepositoryNameListener(REPOSITORY_MANAGER::updateRepositories);
+            } catch (Exception e) {
+                logger.error("Failed to create MainFrame: {}", e.getMessage(), e);
+                System.exit(1);
+            }
+        });
 
-                } catch (Exception e) {
-                    logger.error("Failed to create MainFrame: {}", e.getMessage(), e);
-                    System.exit(1);
-                }
-            });
-        } catch (Exception e) {
-            logger.error("Failed to initialize application: {}", e.getMessage(), e);
-            System.exit(1);
-        }
+    }
+
+    private static void setupReviewPanelModelUpdaters() {
+        REVIEW_CONTEXT_MANAGER.addListener(reviewContext -> {
+            if (reviewContext == null) return;
+            REVIEW_PANEL_MODEL.setCurrentReview(reviewContext.getReviewId());
+            REVIEW_PANEL_MODEL.reviewDetailModel.title.setValue(reviewContext.title);
+            REVIEW_PANEL_MODEL.reviewDetailModel.summary.setValue(reviewContext.summary);
+            REVIEW_PANEL_MODEL.reviewDetailModel.author.setValue(reviewContext.author);
+            REVIEW_PANEL_MODEL.reviewDetailModel.status.setValue(reviewContext.status);
+            REVIEW_PANEL_MODEL.reviewDetailModel.reviewers.setValue(reviewContext.reviewers);
+            REVIEW_PANEL_MODEL.commentsPanelModel.setComments(reviewContext.comments);
+        });
     }
 
     private static void setupReviewFormModelUpdaters() {

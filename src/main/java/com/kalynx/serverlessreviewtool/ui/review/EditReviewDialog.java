@@ -46,15 +46,14 @@ public class EditReviewDialog extends ReviewFormDialog {
             .collect(Collectors.toList());
         models.selectedRepositories.setValue(repoNames);
 
-        List<String> reviewerNames = ctx.reviewers.stream()
-            .map(ReviewerInfo::getName)
-            .collect(Collectors.toList());
-        models.selectedReviewers.setValue(reviewerNames);
+        models.selectedReviewers.setValue(new ArrayList<>(ctx.reviewers));
     }
 
     public ReviewContext getUpdatedContext() {
         List<ReviewerInfo> updatedReviewers = new ArrayList<>(originalContext.reviewers);
-        Set<String> selectedReviewerNames = new HashSet<>(models.selectedReviewers.getValue());
+        Set<String> selectedReviewerNames = models.selectedReviewers.getValue().stream()
+            .map(ReviewerInfo::getName)
+            .collect(Collectors.toSet());
 
         updatedReviewers.removeIf(r -> !selectedReviewerNames.contains(r.getName()));
         

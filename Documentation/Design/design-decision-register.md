@@ -112,3 +112,71 @@ refs/notes/reviews/{review-id}/reviewers       → note on [root]
 ### Status
 **ACTIVE** - Implemented in GitReviewNotesManager.java
 
+
+## Primary Repository Ownership
+
+### Decision
+Each review has a designated **primary repository** that owns and stores the authoritative review data. The primary repository is automatically set at review creation time and stored in the review metadata.
+
+### Why
+**Problem**: Without a primary repository concept, the same review could be stored in multiple repositories, leading to:
+- Data duplication across repositories
+- Conflicts when merging reviews from multiple sources
+- Unclear ownership and responsibility for review data
+- Potential consistency issues between repositories
+
+**Solution**: Introduce `primaryRepository` metadata field that:
+- Is set automatically when the review is created (using the repository where `createReview` was called)
+- Is stored as an append-only NDJSON stream like other metadata
+- Identifies which repository owns the definitive review data
+- Resolves conflicts when the same `reviewId` appears in multiple repositories
+
+### Implementation
+
+**Data Model Changes**:
+```java
+public class ReviewItem {
+    private final String primaryRepository;
+    // ...other fields
+}
+```
+
+**Storage Structure**:
+```
+refs/notes/reviews/{review-id}/metadata/primaryRepository
+```
+
+**Creation Flow**:
+1. User creates review via `GitReviewNotesManager.createReview()` in a specific repository
+2. System automatically writes `primaryRepository` field with the repository name
+3. This field should remain immutable (though technically it's an append-only stream)
+
+**Loading & Merging**:
+- When `ReviewItemManager` loads reviews from multiple repositories
+- If same `reviewId` found in multiple repos, the `primaryRepository` field determines the owner
+- Conflict resolution: If multiple repos claim to be primary, use the first one encountered and log a warning
+
+### Benefits
+- **Clear Ownership**: Each review has one authoritative source
+- **Prevents Duplication**: Only primary repository stores full review data
+- **Conflict Resolution**: Unambiguous resolution when same review ID appears in multiple places
+- **Data Integrity**: Reduces risk of inconsistent review states across repositories
+- **Future-Proof**: Enables advanced features like cross-repository review references
+
+### Trade-offs
+- **Added Complexity**: One more field to manage in review lifecycle
+- **Migration**: Existing reviews without this field default to first repository in their list
+- **Not Truly Immutable**: Technically can be changed via append (but shouldn't be)
+
+### Edge Cases
+- **Missing Primary Field**: Defaults to the repository where review was first discovered
+- **Conflicting Primary Claims**: First one wins, warning logged
+- **Deleted Primary Repo**: Review continues to function; primaryRepository field is just metadata
+
+### Date Decided
+2026-05-04
+
+### Status
+**ACTIVE** - Implemented across ReviewItem, GitReviewNotesManager, ReviewItemLoader, ReviewItemManager
+
+

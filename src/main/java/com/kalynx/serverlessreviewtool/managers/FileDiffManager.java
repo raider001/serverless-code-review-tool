@@ -51,11 +51,10 @@ public class FileDiffManager {
                     Commit startCommit = commits.get(startIndex);
                     Commit endCommit = commits.get(0);
 
-                    logger.info("Setting commit range: start={}, end={}",
+                    logger.info("Setting initial commit range: start={}, end={}",
                         startCommit.getShortHash(), endCommit.getShortHash());
 
-                    codeViewerModel.setStartCommit(startCommit);
-                    codeViewerModel.setEndCommit(endCommit);
+                    codeViewerModel.setCommitRange(startCommit, endCommit);
                 } else {
                     logger.warn("No commits found for repository: {}, branch: {}", repositoryName, branch);
                 }
@@ -63,6 +62,20 @@ public class FileDiffManager {
             .exceptionally(error -> {
                 logger.error("Failed to load commits: {}", error.getMessage(), error);
                 codeViewerModel.setAvailableCommits(new ArrayList<>());
+                return null;
+            });
+    }
+
+    public CompletableFuture<Void> loadFilesForReview(String repositoryName, String baseBranch, String reviewBranch) {
+        logger.info("Loading all files for review: repository={}, base={}, review={}",
+            repositoryName, baseBranch, reviewBranch);
+
+        return git.listChangedFiles(repositoryName, baseBranch, reviewBranch)
+            .thenApply(changedFiles -> parseChangedFiles(changedFiles, repositoryName))
+            .thenAccept(codeViewerModel::setAvailableFiles)
+            .exceptionally(error -> {
+                logger.error("Failed to load files for review: {}", error.getMessage(), error);
+                codeViewerModel.setAvailableFiles(new ArrayList<>());
                 return null;
             });
     }

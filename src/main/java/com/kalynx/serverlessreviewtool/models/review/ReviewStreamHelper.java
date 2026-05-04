@@ -44,6 +44,30 @@ public class ReviewStreamHelper {
         return readEntries(filePath, String.class);
     }
 
+    public static void writePrimaryRepository(Path filePath, String editor, String primaryRepository) throws IOException {
+        writeEntry(filePath, editor, primaryRepository);
+    }
+
+    public static List<StreamEntry<String>> readPrimaryRepository(Path filePath) throws IOException {
+        return readEntries(filePath, String.class);
+    }
+
+    public static void writeBranch(Path filePath, String editor, String branch) throws IOException {
+        writeEntry(filePath, editor, branch);
+    }
+
+    public static List<StreamEntry<String>> readBranch(Path filePath) throws IOException {
+        return readEntries(filePath, String.class);
+    }
+
+    public static void writeBaseBranch(Path filePath, String editor, String baseBranch) throws IOException {
+        writeEntry(filePath, editor, baseBranch);
+    }
+
+    public static List<StreamEntry<String>> readBaseBranch(Path filePath) throws IOException {
+        return readEntries(filePath, String.class);
+    }
+
     public static void writeStatus(Path filePath, String editor, String status) throws IOException {
         writeEntry(filePath, editor, status);
     }
