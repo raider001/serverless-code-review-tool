@@ -41,6 +41,7 @@ public class DiffViewerPanel extends ThemedPanel {
         this.codeViewerModel = codeViewerModel;
         setLayout(new BorderLayout());
         initializeComponents();
+        setupModelListeners();
     }
 
     private void initializeComponents() {
@@ -57,6 +58,45 @@ public class DiffViewerPanel extends ThemedPanel {
 
         // Show initial view
         switchViewMode();
+    }
+
+    private void setupModelListeners() {
+        codeViewerModel.leftContent.addChangeListener(content -> updateLeftContent());
+        codeViewerModel.rightContent.addChangeListener(content -> updateRightContent());
+        codeViewerModel.unifiedDiffContent.addChangeListener(content -> updateUnifiedContent());
+        codeViewerModel.diffMode.addChangeListener(mode -> {
+            if (mode == CodeViewerModel.DiffMode.SIDE_BY_SIDE) {
+                setViewMode(DiffViewMode.SIDE_BY_SIDE);
+            } else {
+                setViewMode(DiffViewMode.UNIFIED);
+            }
+        });
+        codeViewerModel.selectedFile.addChangeListener(file -> {
+            this.currentFile = file;
+            this.startCommit = codeViewerModel.startCommit.getValue();
+            this.endCommit = codeViewerModel.endCommit.getValue();
+        });
+    }
+
+    private void updateLeftContent() {
+        String content = codeViewerModel.leftContent.getValue();
+        if (content != null && leftPane != null) {
+            SwingUtilities.invokeLater(() -> leftPane.setText(content));
+        }
+    }
+
+    private void updateRightContent() {
+        String content = codeViewerModel.rightContent.getValue();
+        if (content != null && rightPane != null) {
+            SwingUtilities.invokeLater(() -> rightPane.setText(content));
+        }
+    }
+
+    private void updateUnifiedContent() {
+        String content = codeViewerModel.unifiedDiffContent.getValue();
+        if (content != null && unifiedPane != null) {
+            SwingUtilities.invokeLater(() -> unifiedPane.setText(content));
+        }
     }
 
     private void createSideBySideView() {
@@ -170,132 +210,6 @@ public class DiffViewerPanel extends ThemedPanel {
         }
 
         highlightUnifiedDiff(unifiedPane, unifiedDiff);
-    }
-
-    private String generateSampleContent(ReviewFile file, Commit commit, boolean isOld) {
-        // This is a placeholder - in a real app, you'd fetch actual file content from Git
-        StringBuilder sb = new StringBuilder();
-        sb.append("// ").append(file.getPath()).append("\n");
-        sb.append("// Commit: ").append(commit.getShortHash()).append("\n");
-        sb.append("\n");
-
-        if (file.getChangeType() == FileChangeType.ADDED && isOld) {
-            sb.append("// File does not exist in this commit\n");
-        } else if (file.getChangeType() == FileChangeType.DELETED && !isOld) {
-            sb.append("// File was deleted\n");
-        } else {
-            // Initial section - unchanged
-            sb.append("public class Example {\n");
-            sb.append("    private String name;\n");
-            sb.append("    private int age;\n");
-            sb.append("    \n");
-            sb.append("    public Example(String name) {\n");
-            sb.append("        this.name = name;\n");
-            sb.append("    }\n");
-            sb.append("    \n");
-
-            // MIDDLE SECTION - Different for old vs new version
-            if (isOld) {
-                // OLD VERSION - Content that will be removed
-                sb.append("    // Configuration section (WILL BE REMOVED)\n");
-                sb.append("    private static final String CONFIG_PATH = \"/etc/config\";\n");
-                sb.append("    private static final int MAX_RETRIES = 3;\n");
-                sb.append("    private static final long TIMEOUT_MS = 5000;\n");
-                sb.append("    \n");
-                sb.append("    public void updateConfig() {  // DELETED METHOD\n");
-                sb.append("        System.out.println(\"Updating config\");\n");
-                sb.append("    }\n");
-                sb.append("    \n");
-            } else {
-                // NEW VERSION - New content added
-                sb.append("    // Logging section (NEW)\n");
-                sb.append("    private static final Logger logger = LoggerFactory.getLogger(Example.class);\n");
-                sb.append("    private static final String LOG_LEVEL = \"INFO\";\n");
-                sb.append("    \n");
-                sb.append("    // Authentication section (NEW)\n");
-                sb.append("    private AuthProvider authProvider;  // NEW FIELD\n");
-                sb.append("    private boolean isAuthenticated = false;  // NEW FIELD\n");
-                sb.append("    \n");
-            }
-
-            // Final section - unchanged
-            sb.append("    public String getName() {\n");
-            sb.append("        return name;\n");
-            sb.append("    }\n");
-            sb.append("    \n");
-            sb.append("    public int getAge() {\n");
-            sb.append("        return age;\n");
-            sb.append("    }\n");
-            sb.append("    \n");
-
-            if (isOld) {
-                sb.append("    public void processRequest() {  // WILL BE MODIFIED\n");
-                sb.append("        // Old implementation\n");
-                sb.append("        String data = readData();\n");
-                sb.append("    }\n");
-            } else {
-                sb.append("    public void processRequest() {  // MODIFIED METHOD\n");
-                sb.append("        // New implementation with authentication\n");
-                sb.append("        if (!isAuthenticated) return;  // NEW\n");
-                sb.append("        String data = readData();\n");
-                sb.append("        logger.info(\"Processing request\");  // NEW\n");
-                sb.append("    }\n");
-            }
-
-            sb.append("}\n");
-        }
-
-        return sb.toString();
-    }
-
-    @SuppressWarnings({"unused", "UnusedParameters"})
-    private String generateUnifiedDiff(ReviewFile file, Commit _startCommit, Commit _endCommit) {
-        return "--- a/" + file.getPath() + "\n" +
-                "+++ b/" + file.getPath() + "\n" +
-                "@@ -1,25 +1,30 @@\n" +
-                " public class Example {\n" +
-                "     private String name;\n" +
-                "     private int age;\n" +
-                "     \n" +
-                "     public Example(String name) {\n" +
-                "         this.name = name;\n" +
-                "     }\n" +
-                "     \n" +
-                "-    // Configuration section (WILL BE REMOVED)\n" +
-                "-    private static final String CONFIG_PATH = \"/etc/config\";\n" +
-                "-    private static final int MAX_RETRIES = 3;\n" +
-                "-    private static final long TIMEOUT_MS = 5000;\n" +
-                "-    \n" +
-                "-    public void updateConfig() {  // DELETED METHOD\n" +
-                "-        System.out.println(\"Updating config\");\n" +
-                "-    }\n" +
-                "-    \n" +
-                "+    // Logging section (NEW)\n" +
-                "+    private static final Logger logger = LoggerFactory.getLogger(Example.class);\n" +
-                "+    private static final String LOG_LEVEL = \"INFO\";\n" +
-                "+    \n" +
-                "+    // Authentication section (NEW)\n" +
-                "+    private AuthProvider authProvider;  // NEW FIELD\n" +
-                "+    private boolean isAuthenticated = false;  // NEW FIELD\n" +
-                "+    \n" +
-                "     public String getName() {\n" +
-                "         return name;\n" +
-                "     }\n" +
-                "     \n" +
-                "     public int getAge() {\n" +
-                "         return age;\n" +
-                "     }\n" +
-                "     \n" +
-                "-    public void processRequest() {  // WILL BE MODIFIED\n" +
-                "-        // Old implementation\n" +
-                "-        String data = readData();\n" +
-                "+    public void processRequest() {  // MODIFIED METHOD\n" +
-                "+        // New implementation with authentication\n" +
-                "+        if (!isAuthenticated) return;  // NEW\n" +
-                "+        String data = readData();\n" +
-                "+        logger.info(\"Processing request\");  // NEW\n" +
-                "     }\n" +
-                " }\n";
     }
 
     private void highlightDiffWithInlineChanges(LineNumberedTextPane leftPane, LineNumberedTextPane rightPane,

@@ -181,6 +181,83 @@ public class FileDiffManager {
     }
 
     /**
+     * Loads diff content for a specific file between two branches.
+     * This is used for multi-repository reviews where commit hashes don't match across repos.
+     * Loads both side-by-side content (left/right) and unified diff format.
+     * Updates the model with file content.
+     *
+     * @param repositoryName name of the repository
+     * @param file file to load diff for
+     * @param baseBranch base branch for comparison
+     * @param reviewBranch review branch for comparison
+     * @return future that completes when diff is loaded
+     */
+    public CompletableFuture<Void> loadDiffForFileWithBranches(String repositoryName, ReviewFile file,
+                                                                 String baseBranch, String reviewBranch) {
+        if (file == null || baseBranch == null || reviewBranch == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        logger.info("Loading file diff using branches: repo={}, file={}, base={}, review={}",
+            repositoryName, file.getPath(), baseBranch, reviewBranch);
+
+        // For ADDED files, left side doesn't exist
+        CompletableFuture<String> leftContentFuture;
+        if (file.getChangeType() == FileChangeType.ADDED) {
+            leftContentFuture = CompletableFuture.completedFuture(
+                "// File does not exist in branch " + baseBranch + "\n" +
+                "// This file was added in branch " + reviewBranch);
+        } else {
+            leftContentFuture = git.executeAsync(repositoryName, "show", baseBranch + ":" + file.getPath())
+                .exceptionally(error -> {
+                    logger.warn("Failed to load file {} from branch {}: {}",
+                        file.getPath(), baseBranch, error.getMessage());
+                    return "// Error loading file from " + baseBranch + ": " + error.getMessage();
+                });
+        }
+
+        // For DELETED files, right side doesn't exist
+        CompletableFuture<String> rightContentFuture;
+        if (file.getChangeType() == FileChangeType.DELETED) {
+            rightContentFuture = CompletableFuture.completedFuture(
+                "// File was deleted in branch " + reviewBranch + "\n" +
+                "// This file existed in branch " + baseBranch);
+        } else {
+            rightContentFuture = git.executeAsync(repositoryName, "show", reviewBranch + ":" + file.getPath())
+                .exceptionally(error -> {
+                    logger.warn("Failed to load file {} from branch {}: {}",
+                        file.getPath(), reviewBranch, error.getMessage());
+                    return "// Error loading file from " + reviewBranch + ": " + error.getMessage();
+                });
+        }
+
+        CompletableFuture<String> unifiedDiffFuture = git.executeAsync(repositoryName,
+            "diff", baseBranch, reviewBranch, "--", file.getPath())
+            .exceptionally(error -> {
+                logger.warn("Failed to generate unified diff for {}: {}", file.getPath(), error.getMessage());
+                return "// Error generating diff: " + error.getMessage();
+            });
+
+        return CompletableFuture.allOf(leftContentFuture, rightContentFuture, unifiedDiffFuture)
+            .thenAccept(ignored -> {
+                String leftContent = leftContentFuture.join();
+                String rightContent = rightContentFuture.join();
+                String unifiedDiff = unifiedDiffFuture.join();
+
+                codeViewerModel.setLeftContent(leftContent);
+                codeViewerModel.setRightContent(rightContent);
+                codeViewerModel.setUnifiedDiffContent(unifiedDiff);
+            })
+            .exceptionally(error -> {
+                logger.error("Failed to load diff for file {}: {}", file.getPath(), error.getMessage());
+                codeViewerModel.setLeftContent("// Error loading content: " + error.getMessage());
+                codeViewerModel.setRightContent("// Error loading content: " + error.getMessage());
+                codeViewerModel.setUnifiedDiffContent("// Error loading diff: " + error.getMessage());
+                return null;
+            });
+    }
+
+    /**
      * Refreshes the current view by reloading changed files and the currently selected file's diff.
      * Used when user clicks the refresh button.
      *

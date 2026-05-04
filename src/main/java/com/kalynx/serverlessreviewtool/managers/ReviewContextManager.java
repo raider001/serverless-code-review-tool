@@ -265,7 +265,7 @@ public class ReviewContextManager {
                     changedFilePaths.size(), repositoryName);
 
                 List<ReviewFile> reviewFiles = changedFilePaths.stream()
-                    .map(filePath -> new ReviewFile(filePath, repositoryName, FileChangeType.MODIFIED))
+                    .map(filePath -> parseChangedFileLine(filePath, repositoryName, baseBranch, reviewBranch))
                     .toList();
 
                 LOGGER.info("Loaded {} files for review in repository '{}'",
@@ -278,6 +278,35 @@ public class ReviewContextManager {
                     repositoryName, error.getMessage(), error);
                 return new ArrayList<>();
             });
+    }
+
+    private ReviewFile parseChangedFileLine(String line, String repositoryName,
+                                            String baseBranch, String reviewBranch) {
+        String trimmed = line.trim();
+        String[] parts = trimmed.split("\\s+", 2);
+
+        if (parts.length >= 2) {
+            String status = parts[0];
+            String path = parts[1];
+            FileChangeType changeType = parseFileChangeType(status);
+            return new ReviewFile(path, repositoryName, changeType, baseBranch, reviewBranch);
+        } else {
+            LOGGER.warn("Malformed file line: '{}', defaulting to MODIFIED", line);
+            return new ReviewFile(trimmed, repositoryName, FileChangeType.MODIFIED, baseBranch, reviewBranch);
+        }
+    }
+
+    private FileChangeType parseFileChangeType(String status) {
+        if (status == null || status.isEmpty()) {
+            return FileChangeType.MODIFIED;
+        }
+        return switch (status.toUpperCase().charAt(0)) {
+            case 'A' -> FileChangeType.ADDED;
+            case 'M' -> FileChangeType.MODIFIED;
+            case 'D' -> FileChangeType.DELETED;
+            case 'R' -> FileChangeType.RENAMED;
+            default -> FileChangeType.MODIFIED;
+        };
     }
 
     public CompletableFuture<List<ReviewFile>> loadFilesForAllRepositories(

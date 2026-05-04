@@ -48,7 +48,7 @@ public class ReviewPanel extends ThemedPanel {
         this.git = git;
         this.fileDiffManager = new FileDiffManager(git, reviewPanelModel.codeViewerModel);
         this.reviewDetailPanel = new ReviewDetailPanel(reviewPanelModel.reviewDetailModel);
-        this.codePanel = new CodePanel(reviewContextManager, reviewPanelModel.codeViewerModel, fileDiffManager);
+        this.codePanel = new CodePanel(reviewContextManager, reviewPanelModel.codeViewerModel, fileDiffManager, git);
         configureLayout();
     }
 
@@ -135,6 +135,18 @@ public class ReviewPanel extends ThemedPanel {
 
                                         for (ReviewFile file : allFiles) {
                                             LOGGER.info("  - {} (repository: {})", file.getPath(), file.getRepository());
+                                        }
+
+                                        if (!allFiles.isEmpty()) {
+                                            ReviewFile firstFile = allFiles.getFirst();
+                                            String reviewBranch = firstFile.getReviewBranch();
+                                            String baseBranch = firstFile.getBaseBranch();
+                                            
+                                            if (reviewBranch != null && baseBranch != null) {
+                                                LOGGER.info("Setting review branches in model: base={}, review={}",
+                                                    baseBranch, reviewBranch);
+                                                model.codeViewerModel.setReviewBranches(reviewBranch, baseBranch);
+                                            }
                                         }
 
                                         LOGGER.info("=== SETTING FILES TO MODEL ===");

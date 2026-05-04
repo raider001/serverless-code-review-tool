@@ -7,11 +7,20 @@ public class ReviewFile {
     private final String path;
     private final String repository;
     private final FileChangeType changeType;
+    private final String baseBranch;
+    private final String reviewBranch;
 
     public ReviewFile(String path, String repository, FileChangeType changeType) {
+        this(path, repository, changeType, null, null);
+    }
+
+    public ReviewFile(String path, String repository, FileChangeType changeType,
+                      String baseBranch, String reviewBranch) {
         this.path = path;
         this.repository = repository;
         this.changeType = changeType;
+        this.baseBranch = baseBranch;
+        this.reviewBranch = reviewBranch;
     }
 
     public String getPath() {
@@ -34,6 +43,18 @@ public class ReviewFile {
     public String getDirectory() {
         int lastSlash = path.lastIndexOf('/');
         return lastSlash >= 0 ? path.substring(0, lastSlash) : "";
+    }
+
+    public String getBaseBranch() {
+        return baseBranch;
+    }
+
+    public String getReviewBranch() {
+        return reviewBranch;
+    }
+
+    public boolean hasBranchInfo() {
+        return baseBranch != null && reviewBranch != null;
     }
 
     @Override

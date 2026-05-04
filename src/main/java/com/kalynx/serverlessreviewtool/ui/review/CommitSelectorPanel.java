@@ -2,6 +2,7 @@ package com.kalynx.serverlessreviewtool.ui.review;
 
 import java.io.Serial;
 
+import com.kalynx.serverlessreviewtool.git.Git;
 import com.kalynx.serverlessreviewtool.managers.ReviewContextManager;
 import com.kalynx.serverlessreviewtool.models.ReviewContext;
 import com.kalynx.serverlessreviewtool.models.*;
@@ -12,6 +13,8 @@ import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedWi
 import com.kalynx.serverlessreviewtool.theme.Theme;
 import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewpanel.CodeViewerModel;
 import net.miginfocom.swing.MigLayout;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.awt.*;
 import java.awt.event.MouseAdapter;
@@ -20,16 +23,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * CommitSelectorPanel - Custom dual-slider for commit range selection
- * Features a horizontal slider with two thumbs to select start and end commits,
- * with commit hashes displayed above as notches
+ * CommitSelectorPanel - Custom dual-slider for commit range selection for specific files
+ * Displays commits that touched the currently selected file and allows selection of commit range
  */
 public class CommitSelectorPanel extends ThemedPanel {
     @Serial
     private static final long serialVersionUID = 1L;
+    private static final Logger LOGGER = LoggerFactory.getLogger(CommitSelectorPanel.class);
 
     private transient final ReviewContextManager reviewContextManager;
     private transient final CodeViewerModel codeViewerModel;
+    private transient final Git git;
 
     private ThemedComboBox<DiffViewMode> viewModeComboBox;
     private CommitSliderPanel commitSliderPanel;
@@ -37,9 +41,10 @@ public class CommitSelectorPanel extends ThemedPanel {
     private transient final List<CommitRangeListener> commitRangeListeners = new ArrayList<>();
     private transient final List<ViewModeListener> viewModeListeners = new ArrayList<>();
 
-    public CommitSelectorPanel(ReviewContextManager reviewContextManager, CodeViewerModel codeViewerModel) {
+    public CommitSelectorPanel(ReviewContextManager reviewContextManager, CodeViewerModel codeViewerModel, Git git) {
         this.reviewContextManager = reviewContextManager;
         this.codeViewerModel = codeViewerModel;
+        this.git = git;
         configureLayout();
         setupListeners();
         setupModelListeners();
@@ -65,11 +70,65 @@ public class CommitSelectorPanel extends ThemedPanel {
     }
 
     private void setupModelListeners() {
-        codeViewerModel.availableCommits.addChangeListener(this::onCommitsChanged);
+        codeViewerModel.selectedFile.addChangeListener(this::onFileSelected);
     }
 
-    private void onCommitsChanged(List<Commit> commits) {
-        loadCommits(commits);
+    private void onFileSelected(ReviewFile file) {
+        if (file != null) {
+            loadCommitsForFile(file);
+        } else {
+            commitSliderPanel.setCommits(new ArrayList<>());
+        }
+    }
+
+    private void loadCommitsForFile(ReviewFile file) {
+        String repositoryName = file.getRepository();
+        String filePath = file.getPath();
+
+        String branch = codeViewerModel.reviewBranch.getValue();
+        if (branch == null) {
+            LOGGER.warn("No review branch set, cannot load file commits");
+            return;
+        }
+
+        LOGGER.info("Loading commits for file: {} in repository: {}", filePath, repositoryName);
+
+        git.executeAsync(repositoryName, "log", "--format=%H|%an|%ad|%s", "--date=short", "--follow", branch, "--", filePath)
+            .thenAccept(output -> {
+                List<Commit> commits = parseCommits(output.lines().toList());
+                LOGGER.info("Loaded {} commits for file {}", commits.size(), filePath);
+
+                List<Commit> reversedCommits = new ArrayList<>(commits);
+                java.util.Collections.reverse(reversedCommits);
+
+                commitSliderPanel.setCommits(reversedCommits);
+
+                if (!reversedCommits.isEmpty()) {
+                    commitSliderPanel.setStartIndex(0);
+                    commitSliderPanel.setEndIndex(reversedCommits.size() - 1);
+                    fireCommitRangeChanged(reversedCommits.getFirst(), reversedCommits.getLast());
+                }
+            })
+            .exceptionally(error -> {
+                LOGGER.error("Failed to load commits for file {}: {}", filePath, error.getMessage());
+                commitSliderPanel.setCommits(new ArrayList<>());
+                return null;
+            });
+    }
+
+    private List<Commit> parseCommits(List<String> commitStrings) {
+        List<Commit> commits = new ArrayList<>();
+        for (String commitString : commitStrings) {
+            try {
+                String[] parts = commitString.split("\\|", 4);
+                if (parts.length >= 4) {
+                    commits.add(new Commit(parts[0], parts[3], parts[1], parts[2]));
+                }
+            } catch (Exception e) {
+                LOGGER.error("Error parsing commit line: {}", commitString, e);
+            }
+        }
+        return commits;
     }
 
     private void onReviewContextChanged(ReviewContext context) {
@@ -80,48 +139,6 @@ public class CommitSelectorPanel extends ThemedPanel {
         if (mode != null) {
             fireViewModeChanged(mode);
         }
-    }
-
-    public void loadCommits(List<Commit> commits) {
-        if (commits == null) {
-            commits = new ArrayList<>();
-        }
-
-        List<Commit> reversedCommits = new ArrayList<>(commits);
-        java.util.Collections.reverse(reversedCommits);
-        commitSliderPanel.setCommits(reversedCommits);
-
-        if (!reversedCommits.isEmpty()) {
-            Commit currentStart = codeViewerModel.startCommit.getValue();
-            Commit currentEnd = codeViewerModel.endCommit.getValue();
-
-            if (currentStart != null && currentEnd != null) {
-                int startIdx = findCommitIndex(reversedCommits, currentStart);
-                int endIdx = findCommitIndex(reversedCommits, currentEnd);
-
-                if (startIdx >= 0 && endIdx >= 0) {
-                    commitSliderPanel.setStartIndex(startIdx);
-                    commitSliderPanel.setEndIndex(endIdx);
-                } else {
-                    commitSliderPanel.setStartIndex(0);
-                    commitSliderPanel.setEndIndex(reversedCommits.size() - 1);
-                    fireCommitRangeChanged(reversedCommits.getFirst(), reversedCommits.getLast());
-                }
-            } else {
-                commitSliderPanel.setStartIndex(0);
-                commitSliderPanel.setEndIndex(reversedCommits.size() - 1);
-                fireCommitRangeChanged(reversedCommits.getFirst(), reversedCommits.getLast());
-            }
-        }
-    }
-
-    private int findCommitIndex(List<Commit> commits, Commit target) {
-        for (int i = 0; i < commits.size(); i++) {
-            if (commits.get(i).getHash().equals(target.getHash())) {
-                return i;
-            }
-        }
-        return -1;
     }
 
     public Commit getStartCommit() {
@@ -149,6 +166,7 @@ public class CommitSelectorPanel extends ThemedPanel {
     }
 
     private void fireCommitRangeChanged(Commit startCommit, Commit endCommit) {
+        codeViewerModel.setCommitRange(startCommit, endCommit);
         for (CommitRangeListener listener : commitRangeListeners) {
             listener.onCommitRangeChanged(startCommit, endCommit);
         }

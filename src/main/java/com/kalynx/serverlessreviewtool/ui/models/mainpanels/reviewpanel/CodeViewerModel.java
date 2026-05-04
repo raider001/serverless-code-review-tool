@@ -22,6 +22,9 @@ public class CodeViewerModel {
     public final ComponentModel<Commit> endCommit = new ComponentModel<>();
     public final ComponentModel<List<Commit>> availableCommits = new ComponentModel<>();
 
+    public final ComponentModel<String> reviewBranch = new ComponentModel<>();
+    public final ComponentModel<String> reviewBaseBranch = new ComponentModel<>();
+
     public final ComponentModel<String> leftContent = new ComponentModel<>();
     public final ComponentModel<String> rightContent = new ComponentModel<>();
     public final ComponentModel<String> unifiedDiffContent = new ComponentModel<>();
@@ -42,6 +45,9 @@ public class CodeViewerModel {
         endCommit.setValue(null);
         availableCommits.setValue(new ArrayList<>());
         
+        reviewBranch.setValue(null);
+        reviewBaseBranch.setValue(null);
+
         leftContent.setValue("");
         rightContent.setValue("");
         unifiedDiffContent.setValue("");
@@ -84,6 +90,11 @@ public class CodeViewerModel {
 
     public void setEndCommit(Commit commit) {
         endCommit.setValue(commit);
+    }
+
+    public void setReviewBranches(String branch, String baseBranch) {
+        reviewBranch.setValue(branch);
+        reviewBaseBranch.setValue(baseBranch);
     }
 
     public void toggleDiffMode() {

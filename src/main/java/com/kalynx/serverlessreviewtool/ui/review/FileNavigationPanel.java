@@ -409,6 +409,7 @@ public class FileNavigationPanel extends ThemedPanel {
     }
 
     private void fireFileSelected(ReviewFile file) {
+        codeViewerModel.selectFile(file);
         for (FileSelectionListener listener : listeners) {
             listener.onFileSelected(file);
         }
