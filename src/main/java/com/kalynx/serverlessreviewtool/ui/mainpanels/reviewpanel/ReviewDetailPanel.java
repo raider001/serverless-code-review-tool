@@ -1,6 +1,6 @@
 package com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel;
 
-import com.kalynx.serverlessreviewtool.models.ReviewContext;
+import com.kalynx.serverlessreviewtool.models.ReviewStatus;
 import com.kalynx.serverlessreviewtool.models.ReviewerInfo;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedBadge;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedButton;
@@ -39,6 +39,10 @@ public class ReviewDetailPanel extends ThemedPanel {
 
     public ReviewDetailPanel(ReviewDetailModel reviewDetailModel) {
         this.reviewDetailModel = reviewDetailModel;
+
+        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD));
+        authorLabel.setFont(authorLabel.getFont().deriveFont(Font.ITALIC));
+
         configureLayout();
         configureReviewContextListeners();
         setupListeners();
@@ -47,13 +51,13 @@ public class ReviewDetailPanel extends ThemedPanel {
 
     private void configureLayout() {
         setLayout(new MigLayout("",
-                "[][][grow][]", "[]8lp[]6lp[]10lp[]"));
+                "[]5lp[][grow][]", "[]8lp[]6lp[]10lp[]"));
         add(headerStatusBadge, "cell 0 0");
         add(titleLabel, "cell 1 0");
         add(editReviewButton, "cell 2 0, align right");
         add(closeReviewButton, "cell 3 0");
 
-        add(authorLabel, "cell 0 1");
+        add(authorLabel, "cell 0 1 2 1");
         add(summaryLabel, "cell 0 2 3 1");
         add(reviewerPanel, "cell 0 3 3 1");
     }
@@ -61,14 +65,17 @@ public class ReviewDetailPanel extends ThemedPanel {
     private void configureReviewContextListeners() {
 
         reviewDetailModel.title.addChangeListener(val -> setLabelText(titleLabel, () -> val != null ? val : ""));
-        reviewDetailModel.author.addChangeListener(val -> setLabelText(authorLabel, () -> val != null ? val : ""));
+        reviewDetailModel.author.addChangeListener(val -> setLabelText(authorLabel, () -> val != null ? "Authored By " + val : ""));
         reviewDetailModel.summary.addChangeListener(val -> setLabelText(summaryLabel, () -> val != null ? val : ""));
+        reviewDetailModel.status.addChangeListener(this::updateStatusBadge);
 
         reviewDetailModel.reviewers.addChangeListener(val -> {
             reviewerPanel.removeAll();
             if (val != null) {
                 val.forEach(reviewer -> reviewerPanel.add(createReviewerBadge(reviewer)));
             }
+            reviewerPanel.revalidate();
+            reviewerPanel.repaint();
         });
     }
 
@@ -79,14 +86,16 @@ public class ReviewDetailPanel extends ThemedPanel {
         return badge;
     }
 
-    private void updateStatusBadge(ReviewContext context) {
-        if (context != null) {
-            headerStatusBadge.setText(context.status.toString());
-            headerStatusBadge.setCustomColor(context.status.getColor());
-        } else {
-            headerStatusBadge.setText("Unknown");
-            headerStatusBadge.setCustomColor(Color.DARK_GRAY);
-        }
+    private void updateStatusBadge(ReviewStatus status) {
+        SwingUtilities.invokeLater(() -> {
+            if (status != null) {
+                headerStatusBadge.setText(status.toString());
+                headerStatusBadge.setCustomColor(status.getColor());
+            } else {
+                headerStatusBadge.setText("Unknown");
+                headerStatusBadge.setCustomColor(Color.DARK_GRAY);
+            }
+        });
     }
 
     private void updateButtonStates() {
