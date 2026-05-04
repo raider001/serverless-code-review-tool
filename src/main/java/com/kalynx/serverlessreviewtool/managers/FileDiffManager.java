@@ -138,25 +138,31 @@ public class FileDiffManager {
             return CompletableFuture.completedFuture(null);
         }
 
-        // For ADDED files, left side doesn't exist
-        CompletableFuture<String> leftContentFuture;
-        if (file.getChangeType() == FileChangeType.ADDED) {
-            leftContentFuture = CompletableFuture.completedFuture(
-                "// File does not exist in commit " + startCommit.getShortHash() + "\n" +
-                "// This file was added in commit " + endCommit.getShortHash());
-        } else {
-            leftContentFuture = loadFileContent(repositoryName, file.getPath(), startCommit.getHash(), file);
-        }
+        logger.info("Loading diff for file {} between commits {} and {}",
+            file.getPath(), startCommit.getShortHash(), endCommit.getShortHash());
 
-        // For DELETED files, right side doesn't exist
-        CompletableFuture<String> rightContentFuture;
-        if (file.getChangeType() == FileChangeType.DELETED) {
-            rightContentFuture = CompletableFuture.completedFuture(
-                "// File was deleted in commit " + endCommit.getShortHash() + "\n" +
-                "// This file existed in commit " + startCommit.getShortHash());
-        } else {
-            rightContentFuture = loadFileContent(repositoryName, file.getPath(), endCommit.getHash(), file);
-        }
+        // When comparing specific commits, always try to load file content
+        // The file's changeType (ADDED/DELETED/MODIFIED) is relative to branch comparison
+        // A file marked ADDED (not in master) might still exist in both commits we're comparing
+        CompletableFuture<String> leftContentFuture = git.executeAsync(repositoryName, "show",
+            startCommit.getHash() + ":" + file.getPath())
+            .exceptionally(error -> {
+                String errorMsg = error.getMessage();
+                logger.warn("File {} not found in commit {}: {}",
+                    file.getPath(), startCommit.getShortHash(), errorMsg);
+                return "// File does not exist in commit " + startCommit.getShortHash() + "\n" +
+                       "// Path: " + file.getPath();
+            });
+
+        CompletableFuture<String> rightContentFuture = git.executeAsync(repositoryName, "show",
+            endCommit.getHash() + ":" + file.getPath())
+            .exceptionally(error -> {
+                String errorMsg = error.getMessage();
+                logger.warn("File {} not found in commit {}: {}",
+                    file.getPath(), endCommit.getShortHash(), errorMsg);
+                return "// File does not exist in commit " + endCommit.getShortHash() + "\n" +
+                       "// Path: " + file.getPath();
+            });
 
         CompletableFuture<String> unifiedDiffFuture = loadUnifiedDiff(repositoryName,
             file.getPath(), startCommit.getHash(), endCommit.getHash());
@@ -166,6 +172,9 @@ public class FileDiffManager {
                 String leftContent = leftContentFuture.join();
                 String rightContent = rightContentFuture.join();
                 String unifiedDiff = unifiedDiffFuture.join();
+
+                logger.info("Loaded content - Left: {} chars, Right: {} chars, Diff: {} chars",
+                    leftContent.length(), rightContent.length(), unifiedDiff.length());
 
                 codeViewerModel.setLeftContent(leftContent);
                 codeViewerModel.setRightContent(rightContent);

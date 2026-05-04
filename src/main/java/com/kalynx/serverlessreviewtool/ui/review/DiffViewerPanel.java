@@ -81,6 +81,11 @@ public class DiffViewerPanel extends ThemedPanel {
     private void updateLeftContent() {
         String content = codeViewerModel.leftContent.getValue();
         if (content != null && leftPane != null) {
+            if (content.isEmpty()) {
+                System.err.println("[DiffViewerPanel] WARNING: Left content is EMPTY");
+            } else {
+                System.out.println("[DiffViewerPanel] Setting left content: " + content.length() + " chars");
+            }
             SwingUtilities.invokeLater(() -> leftPane.setText(content));
         }
     }
@@ -88,6 +93,11 @@ public class DiffViewerPanel extends ThemedPanel {
     private void updateRightContent() {
         String content = codeViewerModel.rightContent.getValue();
         if (content != null && rightPane != null) {
+            if (content.isEmpty()) {
+                System.err.println("[DiffViewerPanel] WARNING: Right content is EMPTY");
+            } else {
+                System.out.println("[DiffViewerPanel] Setting right content: " + content.length() + " chars");
+            }
             SwingUtilities.invokeLater(() -> rightPane.setText(content));
         }
     }
@@ -95,6 +105,11 @@ public class DiffViewerPanel extends ThemedPanel {
     private void updateUnifiedContent() {
         String content = codeViewerModel.unifiedDiffContent.getValue();
         if (content != null && unifiedPane != null) {
+            if (content.isEmpty()) {
+                System.err.println("[DiffViewerPanel] WARNING: Unified content is EMPTY");
+            } else {
+                System.out.println("[DiffViewerPanel] Setting unified content: " + content.length() + " chars");
+            }
             SwingUtilities.invokeLater(() -> unifiedPane.setText(content));
         }
     }

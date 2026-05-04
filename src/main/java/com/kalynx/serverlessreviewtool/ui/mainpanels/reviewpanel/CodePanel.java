@@ -60,14 +60,20 @@ public class CodePanel extends ThemedPanel {
 
     private void onFileOrCommitChanged(ReviewFile file) {
         if (file == null) {
+            LOGGER.debug("File is null, skipping diff load");
             return;
         }
 
         Commit startCommit = codeViewerModel.startCommit.getValue();
         Commit endCommit = codeViewerModel.endCommit.getValue();
 
+        LOGGER.info("=== FILE OR COMMIT CHANGED ===");
+        LOGGER.info("File: {} (repository: {})", file.getPath(), file.getRepository());
+        LOGGER.info("Start commit: {}", startCommit != null ? startCommit.getShortHash() : "null");
+        LOGGER.info("End commit: {}", endCommit != null ? endCommit.getShortHash() : "null");
+
         if (startCommit == null || endCommit == null) {
-            LOGGER.debug("Commit range not set, skipping diff load");
+            LOGGER.warn("Commit range not set, skipping diff load");
             return;
         }
 

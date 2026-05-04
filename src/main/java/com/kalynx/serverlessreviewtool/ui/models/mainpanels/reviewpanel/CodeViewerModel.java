@@ -114,15 +114,31 @@ public class CodeViewerModel {
     }
 
     public void setLeftContent(String content) {
-        leftContent.setValue(content != null ? content : "");
+        String safeContent = content != null ? content : "";
+        System.out.println("[CodeViewerModel] setLeftContent called: " + safeContent.length() + " chars");
+        if (safeContent.isEmpty()) {
+            System.err.println("[CodeViewerModel] WARNING: Setting EMPTY left content!");
+            Thread.dumpStack();
+        }
+        leftContent.setValue(safeContent);
     }
 
     public void setRightContent(String content) {
-        rightContent.setValue(content != null ? content : "");
+        String safeContent = content != null ? content : "";
+        System.out.println("[CodeViewerModel] setRightContent called: " + safeContent.length() + " chars");
+        if (safeContent.isEmpty()) {
+            System.err.println("[CodeViewerModel] WARNING: Setting EMPTY right content!");
+        }
+        rightContent.setValue(safeContent);
     }
 
     public void setUnifiedDiffContent(String content) {
-        unifiedDiffContent.setValue(content != null ? content : "");
+        String safeContent = content != null ? content : "";
+        System.out.println("[CodeViewerModel] setUnifiedDiffContent called: " + safeContent.length() + " chars");
+        if (safeContent.isEmpty()) {
+            System.err.println("[CodeViewerModel] WARNING: Setting EMPTY unified diff content!");
+        }
+        unifiedDiffContent.setValue(safeContent);
     }
 
     public boolean hasSelectedFile() {

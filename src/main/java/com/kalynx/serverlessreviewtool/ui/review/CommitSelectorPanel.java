@@ -91,12 +91,19 @@ public class CommitSelectorPanel extends ThemedPanel {
             return;
         }
 
-        LOGGER.info("Loading commits for file: {} in repository: {}", filePath, repositoryName);
+        LOGGER.info("=== LOADING COMMITS FOR FILE ===");
+        LOGGER.info("File: {} in repository: {}", filePath, repositoryName);
+        LOGGER.info("Branch: {}", branch);
 
         git.executeAsync(repositoryName, "log", "--format=%H|%an|%ad|%s", "--date=short", "--follow", branch, "--", filePath)
             .thenAccept(output -> {
                 List<Commit> commits = parseCommits(output.lines().toList());
                 LOGGER.info("Loaded {} commits for file {}", commits.size(), filePath);
+
+                if (!commits.isEmpty()) {
+                    LOGGER.info("First commit: {} - {}", commits.get(0).getShortHash(), commits.get(0).getMessage());
+                    LOGGER.info("Last commit: {} - {}", commits.get(commits.size() - 1).getShortHash(), commits.get(commits.size() - 1).getMessage());
+                }
 
                 List<Commit> reversedCommits = new ArrayList<>(commits);
                 java.util.Collections.reverse(reversedCommits);
@@ -106,7 +113,10 @@ public class CommitSelectorPanel extends ThemedPanel {
                 if (!reversedCommits.isEmpty()) {
                     commitSliderPanel.setStartIndex(0);
                     commitSliderPanel.setEndIndex(reversedCommits.size() - 1);
-                    fireCommitRangeChanged(reversedCommits.getFirst(), reversedCommits.getLast());
+                    Commit start = reversedCommits.getFirst();
+                    Commit end = reversedCommits.getLast();
+                    LOGGER.info("Setting initial commit range: {} -> {}", start.getShortHash(), end.getShortHash());
+                    fireCommitRangeChanged(start, end);
                 }
             })
             .exceptionally(error -> {
@@ -137,6 +147,11 @@ public class CommitSelectorPanel extends ThemedPanel {
     private void onViewModeChanged() {
         DiffViewMode mode = (DiffViewMode) viewModeComboBox.getSelectedItem();
         if (mode != null) {
+            if (mode == DiffViewMode.SIDE_BY_SIDE) {
+                codeViewerModel.setDiffMode(CodeViewerModel.DiffMode.SIDE_BY_SIDE);
+            } else {
+                codeViewerModel.setDiffMode(CodeViewerModel.DiffMode.UNIFIED);
+            }
             fireViewModeChanged(mode);
         }
     }
@@ -166,6 +181,9 @@ public class CommitSelectorPanel extends ThemedPanel {
     }
 
     private void fireCommitRangeChanged(Commit startCommit, Commit endCommit) {
+        LOGGER.info("=== FIRING COMMIT RANGE CHANGED ===");
+        LOGGER.info("Start: {} - {}", startCommit.getShortHash(), startCommit.getMessage());
+        LOGGER.info("End: {} - {}", endCommit.getShortHash(), endCommit.getMessage());
         codeViewerModel.setCommitRange(startCommit, endCommit);
         for (CommitRangeListener listener : commitRangeListeners) {
             listener.onCommitRangeChanged(startCommit, endCommit);
@@ -222,14 +240,19 @@ public class CommitSelectorPanel extends ThemedPanel {
                     int endThumbX = getThumbX(endIndex);
                     int thumbY = getHeight() / 2 + themeManager.scale(5);
 
+                    LOGGER.info("Mouse pressed at x={}, startThumbX={}, endThumbX={}", e.getX(), startThumbX, endThumbX);
+
                     if (isNearPoint(e.getX(), e.getY(), startThumbX, thumbY, THUMB_RADIUS)) {
                         dragThumb = 0;
+                        LOGGER.info("Selected START thumb (dragThumb=0), current startIndex={}", startIndex);
                         showTooltipForIndex(startIndex);
                     } else if (isNearPoint(e.getX(), e.getY(), endThumbX, thumbY, THUMB_RADIUS)) {
                         dragThumb = 1;
+                        LOGGER.info("Selected END thumb (dragThumb=1), current endIndex={}", endIndex);
                         showTooltipForIndex(endIndex);
                     } else {
                         int index = getIndexFromX(e.getX());
+                        LOGGER.info("Clicked on track (not on thumb), index={}", index);
                         showTooltipForIndex(index);
                     }
                 }
@@ -237,7 +260,11 @@ public class CommitSelectorPanel extends ThemedPanel {
                 @Override
                 public void mouseReleased(MouseEvent e) {
                     if (dragThumb != -1 && !commits.isEmpty()) {
-                        fireCommitRangeChanged(commits.get(startIndex), commits.get(endIndex));
+                        Commit start = commits.get(startIndex);
+                        Commit end = commits.get(endIndex);
+                        LOGGER.info("Mouse released - dragThumb was {}, Final: startIndex={} ({}), endIndex={} ({})",
+                            dragThumb, startIndex, start.getShortHash(), endIndex, end.getShortHash());
+                        fireCommitRangeChanged(start, end);
                     }
                     dragThumb = -1;
                     hideTooltip();
@@ -250,10 +277,20 @@ public class CommitSelectorPanel extends ThemedPanel {
                     int newIndex = getIndexFromX(e.getX());
 
                     if (dragThumb == 0) {
+                        int oldStartIndex = startIndex;
                         startIndex = Math.max(0, Math.min(newIndex, endIndex - 1));
+                        if (oldStartIndex != startIndex) {
+                            LOGGER.info("Dragging START thumb: index {} -> {} (endIndex={})",
+                                oldStartIndex, startIndex, endIndex);
+                        }
                         showTooltipForIndex(startIndex);
                     } else {
+                        int oldEndIndex = endIndex;
                         endIndex = Math.max(startIndex + 1, Math.min(newIndex, commits.size() - 1));
+                        if (oldEndIndex != endIndex) {
+                            LOGGER.info("Dragging END thumb: index {} -> {} (startIndex={})",
+                                oldEndIndex, endIndex, startIndex);
+                        }
                         showTooltipForIndex(endIndex);
                     }
 
