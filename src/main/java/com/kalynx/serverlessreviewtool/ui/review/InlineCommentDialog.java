@@ -1,7 +1,10 @@
 package com.kalynx.serverlessreviewtool.ui.review;
 
+import com.kalynx.serverlessreviewtool.configuration.SettingsManager;
+import com.kalynx.serverlessreviewtool.managers.ReviewContextManager;
 import com.kalynx.serverlessreviewtool.models.*;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.*;
+import com.kalynx.serverlessreviewtool.theme.LoadingStateManager;
 import com.kalynx.serverlessreviewtool.theme.Theme;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 import com.kalynx.serverlessreviewtool.theme.WindowResizeHandler;
@@ -18,7 +21,10 @@ import java.util.stream.Collectors;
 public class InlineCommentDialog extends JDialog {
 
     private final ThemeManager themeManager = ThemeManager.getInstance();
+    private final LoadingStateManager loadingStateManager = LoadingStateManager.getInstance();
+    private final SettingsManager settingsManager = SettingsManager.getInstance();
     private final ReviewContext reviewContext;
+    private final ReviewContextManager reviewContextManager;
     private final ReviewFile file;
     private final int lineNumber;
     private final Runnable onCommentAdded;
@@ -26,19 +32,21 @@ public class InlineCommentDialog extends JDialog {
 
     private ThemedPanel commentsContainer;
     private ThemedTextArea newCommentArea;
+    private ThemedButton addButton;
     private ThemedButton resolveToggleButton;
     private ThemedPanel headerPanel;
     private boolean conversationNeedsResolution = false;
     private boolean conversationResolved = false;
 
-    public InlineCommentDialog(Window owner, ReviewContext reviewContext, ReviewFile file,
-                               int lineNumber, Runnable onCommentAdded) {
+    public InlineCommentDialog(Window owner, ReviewContext reviewContext, ReviewContextManager reviewContextManager,
+                               ReviewFile file, int lineNumber, Runnable onCommentAdded) {
         super(owner, ModalityType.MODELESS);
         this.reviewContext = reviewContext;
+        this.reviewContextManager = reviewContextManager;
         this.file = file;
         this.lineNumber = lineNumber;
         this.onCommentAdded = onCommentAdded;
-        this.currentUser = System.getProperty("user.name", "Unknown User");
+        this.currentUser = settingsManager.getCurrentUserName();
 
         setUndecorated(true);
         initComponents();
@@ -130,7 +138,7 @@ public class InlineCommentDialog extends JDialog {
         codeButton.addActionListener(e -> handleInsertCode());
         buttonRow.add(codeButton, "cell 1 0");
 
-        ThemedButton addButton = new ThemedButton("Add Comment");
+        addButton = new ThemedButton("Add Comment");
         addButton.addActionListener(e -> handleAddComment());
         buttonRow.add(addButton, "cell 2 0, align right");
 
@@ -250,6 +258,10 @@ public class InlineCommentDialog extends JDialog {
             .filter(c -> c.getLineNumber() == lineNumber)
             .collect(Collectors.toList());
 
+        if (lineComments.isEmpty()) {
+            return;
+        }
+
         if (!conversationNeedsResolution) {
             for (ReviewComment comment : lineComments) {
                 comment.setNeedsResolution(true);
@@ -264,10 +276,38 @@ public class InlineCommentDialog extends JDialog {
             }
         }
 
-        loadExistingComments();
-        if (onCommentAdded != null) {
-            onCommentAdded.run();
-        }
+        String operationId = "save-resolution-" + java.util.UUID.randomUUID();
+        loadingStateManager.startLoading(operationId);
+
+        resolveToggleButton.setEnabled(false);
+        addButton.setEnabled(false);
+        resolveToggleButton.setText("Saving...");
+
+        reviewContextManager.saveAllComments(reviewContext.reviewId, lineComments)
+            .thenRun(() -> {
+                SwingUtilities.invokeLater(() -> {
+                    loadingStateManager.stopLoading(operationId);
+                    resolveToggleButton.setEnabled(true);
+                    addButton.setEnabled(true);
+                    loadExistingComments();
+
+                    if (onCommentAdded != null) {
+                        onCommentAdded.run();
+                    }
+                });
+            })
+            .exceptionally(error -> {
+                SwingUtilities.invokeLater(() -> {
+                    loadingStateManager.stopLoading(operationId);
+                    resolveToggleButton.setEnabled(true);
+                    addButton.setEnabled(true);
+                    loadExistingComments();
+
+                    ThemedConfirmDialog.showMessage(this, "Save Error",
+                        "Failed to save resolution status: " + error.getMessage());
+                });
+                return null;
+            });
     }
 
     private void handleAddComment() {
@@ -278,7 +318,7 @@ public class InlineCommentDialog extends JDialog {
             return;
         }
 
-        String commentId = "COMMENT-" + System.currentTimeMillis();
+        String commentId = com.kalynx.serverlessreviewtool.utils.UuidV7Generator.generate();
 
         ReviewComment newComment = new ReviewComment(
             commentId,
@@ -293,18 +333,45 @@ public class InlineCommentDialog extends JDialog {
 
         reviewContext.addComment(newComment);
 
-        newCommentArea.setText("");
+        String operationId = "save-comment-" + commentId;
+        loadingStateManager.startLoading(operationId);
 
-        loadExistingComments();
+        addButton.setEnabled(false);
+        newCommentArea.setEnabled(false);
+        addButton.setText("Saving...");
 
-        if (onCommentAdded != null) {
-            onCommentAdded.run();
-        }
+        reviewContextManager.saveComment(reviewContext.reviewId, newComment)
+            .thenRun(() -> {
+                SwingUtilities.invokeLater(() -> {
+                    loadingStateManager.stopLoading(operationId);
+                    addButton.setEnabled(true);
+                    newCommentArea.setEnabled(true);
+                    addButton.setText("Add Comment");
+                    newCommentArea.setText("");
+                    loadExistingComments();
 
-        SwingUtilities.invokeLater(() -> {
-            JScrollBar vertical = ((JScrollPane) commentsContainer.getParent().getParent()).getVerticalScrollBar();
-            vertical.setValue(vertical.getMaximum());
-        });
+                    if (onCommentAdded != null) {
+                        onCommentAdded.run();
+                    }
+
+                    JScrollBar vertical = ((JScrollPane) commentsContainer.getParent().getParent()).getVerticalScrollBar();
+                    vertical.setValue(vertical.getMaximum());
+                });
+            })
+            .exceptionally(error -> {
+                SwingUtilities.invokeLater(() -> {
+                    loadingStateManager.stopLoading(operationId);
+                    addButton.setEnabled(true);
+                    newCommentArea.setEnabled(true);
+                    addButton.setText("Add Comment");
+
+                    ThemedConfirmDialog.showMessage(this, "Save Error",
+                        "Failed to save comment: " + error.getMessage());
+
+                    reviewContext.getComments().remove(newComment);
+                });
+                return null;
+            });
     }
 
     private void applyTheme() {

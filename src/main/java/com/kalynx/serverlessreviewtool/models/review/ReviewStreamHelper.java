@@ -94,6 +94,33 @@ public class ReviewStreamHelper {
         return readEntries(filePath, ReviewerData.class);
     }
 
+    public static void writeCommentMetadata(Path filePath, String editor,
+                                             com.kalynx.serverlessreviewtool.git.GitReviewNotesManager.CommentMetadata metadata) throws IOException {
+        writeEntry(filePath, editor, metadata);
+    }
+
+    public static List<StreamEntry<com.kalynx.serverlessreviewtool.git.GitReviewNotesManager.CommentMetadata>> readCommentMetadata(Path filePath) throws IOException {
+        return readEntries(filePath, com.kalynx.serverlessreviewtool.git.GitReviewNotesManager.CommentMetadata.class);
+    }
+
+    public static void writeCommentText(Path filePath, String editor,
+                                         com.kalynx.serverlessreviewtool.git.GitReviewNotesManager.CommentTextData textData) throws IOException {
+        writeEntry(filePath, editor, textData);
+    }
+
+    public static List<StreamEntry<com.kalynx.serverlessreviewtool.git.GitReviewNotesManager.CommentTextData>> readCommentText(Path filePath) throws IOException {
+        return readEntries(filePath, com.kalynx.serverlessreviewtool.git.GitReviewNotesManager.CommentTextData.class);
+    }
+
+    public static void writeCommentStatus(Path filePath, String editor,
+                                           com.kalynx.serverlessreviewtool.git.GitReviewNotesManager.CommentStatusData statusData) throws IOException {
+        writeEntry(filePath, editor, statusData);
+    }
+
+    public static List<StreamEntry<com.kalynx.serverlessreviewtool.git.GitReviewNotesManager.CommentStatusData>> readCommentStatus(Path filePath) throws IOException {
+        return readEntries(filePath, com.kalynx.serverlessreviewtool.git.GitReviewNotesManager.CommentStatusData.class);
+    }
+
     public static void writeComment(Path filePath, String editor, CommentData commentData) throws IOException {
         writeEntry(filePath, editor, commentData);
     }

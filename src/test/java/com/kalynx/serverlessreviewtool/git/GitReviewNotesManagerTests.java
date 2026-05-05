@@ -190,31 +190,26 @@ class GitReviewNotesManagerTests {
 
     @Test
     void writeComment_newReview_writesCorrectly() throws Exception {
-        CommentData.CommentContext context = new CommentData.CommentContext(
-            "abc123",
-            "src/Main.java",
-            42,
-            45,
-            "public static void main"
-        );
-        CommentData comment = new CommentData(
-            "Consider using dependency injection here",
-            context,
-            null,
-            false,
-            "review"
-        );
+        String commentId = "comment-001";
+        String file = "src/Main.java";
+        int line = 42;
+        String text = "Consider using dependency injection here";
 
-        notesManager.writeComment(TEST_REVIEW_ID, TEST_EDITOR, comment)
+        notesManager.writeCommentMetadata(TEST_REVIEW_ID, commentId, TEST_EDITOR, file, line, line, "abc123")
+            .get(10, TimeUnit.SECONDS);
+        notesManager.writeCommentText(TEST_REVIEW_ID, commentId, TEST_EDITOR, text, null, "review")
             .get(10, TimeUnit.SECONDS);
 
-        List<StreamEntry<CommentData>> comments = notesManager.readComments(TEST_REVIEW_ID)
-            .get(10, TimeUnit.SECONDS);
+        List<StreamEntry<GitReviewNotesManager.CommentMetadata>> metadata =
+            notesManager.readCommentMetadata(TEST_REVIEW_ID, commentId).get(10, TimeUnit.SECONDS);
+        List<StreamEntry<GitReviewNotesManager.CommentTextData>> textData =
+            notesManager.readCommentText(TEST_REVIEW_ID, commentId).get(10, TimeUnit.SECONDS);
 
-        assertEquals(1, comments.size());
-        assertEquals("Consider using dependency injection here", comments.getFirst().data().text());
-        assertEquals("src/Main.java", comments.getFirst().data().context().file());
-        assertEquals(42, comments.getFirst().data().context().line());
+        assertEquals(1, metadata.size());
+        assertEquals(1, textData.size());
+        assertEquals(file, metadata.getFirst().data().file());
+        assertEquals(line, metadata.getFirst().data().line());
+        assertEquals(text, textData.getFirst().data().text());
     }
 
     @Test
@@ -276,23 +271,26 @@ class GitReviewNotesManagerTests {
     @Test
     void writeMultipleComments_maintainsOrder() throws Exception {
         for (int i = 1; i <= 5; i++) {
-            CommentData comment = new CommentData(
-                "Comment " + i,
-                null,
-                null,
-                false,
-                "review"
-            );
-            notesManager.writeComment(TEST_REVIEW_ID, TEST_EDITOR, comment)
+            String commentId = "comment-" + String.format("%03d", i);
+            String text = "Comment " + i;
+
+            notesManager.writeCommentMetadata(TEST_REVIEW_ID, commentId, TEST_EDITOR,
+                "src/Test.java", i * 10, i * 10, null)
+                .get(10, TimeUnit.SECONDS);
+            notesManager.writeCommentText(TEST_REVIEW_ID, commentId, TEST_EDITOR, text, null, "review")
                 .get(10, TimeUnit.SECONDS);
         }
 
-        List<StreamEntry<CommentData>> comments = notesManager.readComments(TEST_REVIEW_ID)
+        List<String> commentIds = notesManager.listCommentIds(TEST_REVIEW_ID)
             .get(10, TimeUnit.SECONDS);
 
-        assertEquals(5, comments.size());
+        assertEquals(5, commentIds.size());
+
         for (int i = 0; i < 5; i++) {
-            assertEquals("Comment " + (i + 1), comments.get(i).data().text());
+            String commentId = "comment-" + String.format("%03d", i + 1);
+            List<StreamEntry<GitReviewNotesManager.CommentTextData>> textData =
+                notesManager.readCommentText(TEST_REVIEW_ID, commentId).get(10, TimeUnit.SECONDS);
+            assertEquals("Comment " + (i + 1), textData.getFirst().data().text());
         }
     }
 
@@ -312,23 +310,29 @@ class GitReviewNotesManagerTests {
             .get(10, TimeUnit.SECONDS);
         notesManager.writeReviewStatus(TEST_REVIEW_ID, TEST_EDITOR, "pending")
             .get(10, TimeUnit.SECONDS);
-        notesManager.writeComment(TEST_REVIEW_ID, TEST_EDITOR,
-            new CommentData("A comment", null, null, false, "review"))
+
+        String commentId = "comment-001";
+        notesManager.writeCommentMetadata(TEST_REVIEW_ID, commentId, TEST_EDITOR,
+            "src/Test.java", 10, 10, null)
+            .get(10, TimeUnit.SECONDS);
+        notesManager.writeCommentText(TEST_REVIEW_ID, commentId, TEST_EDITOR, "A comment", null, "review")
             .get(10, TimeUnit.SECONDS);
 
         List<StreamEntry<String>> titles = notesManager.readTitles(TEST_REVIEW_ID)
             .get(10, TimeUnit.SECONDS);
         List<StreamEntry<String>> statuses = notesManager.readStatuses(TEST_REVIEW_ID)
             .get(10, TimeUnit.SECONDS);
-        List<StreamEntry<CommentData>> comments = notesManager.readComments(TEST_REVIEW_ID)
+        List<String> commentIds = notesManager.listCommentIds(TEST_REVIEW_ID)
             .get(10, TimeUnit.SECONDS);
+        List<StreamEntry<GitReviewNotesManager.CommentTextData>> textData =
+            notesManager.readCommentText(TEST_REVIEW_ID, commentId).get(10, TimeUnit.SECONDS);
 
         assertEquals(1, titles.size());
         assertEquals(1, statuses.size());
-        assertEquals(1, comments.size());
+        assertEquals(1, commentIds.size());
         assertEquals("My Review", titles.getFirst().data());
         assertEquals("pending", statuses.getFirst().data());
-        assertEquals("A comment", comments.getFirst().data().text());
+        assertEquals("A comment", textData.getFirst().data().text());
     }
 
     @Test
@@ -348,12 +352,15 @@ class GitReviewNotesManagerTests {
             threads[i] = new Thread(() -> {
                 try {
                     for (int j = 0; j < commentsPerThread; j++) {
-                        notesManager.writeComment(
-                            reviewId,
-                            "editor" + threadNum,
-                            new CommentData("Comment from thread " + threadNum + " iteration " + j,
-                                null, null, false, "review")
-                        ).get(15, TimeUnit.SECONDS);
+                        String commentId = "comment-thread" + threadNum + "-" + j;
+                        String text = "Comment from thread " + threadNum + " iteration " + j;
+
+                        notesManager.writeCommentMetadata(reviewId, commentId, "editor" + threadNum,
+                            "src/Test.java", j * 10, j * 10, null)
+                            .get(15, TimeUnit.SECONDS);
+                        notesManager.writeCommentText(reviewId, commentId, "editor" + threadNum,
+                            text, null, "review")
+                            .get(15, TimeUnit.SECONDS);
                     }
                 } catch (Exception e) {
                     fail("Concurrent write failed: " + e.getMessage());
@@ -367,9 +374,9 @@ class GitReviewNotesManagerTests {
         }
 
         for (int i = 0; i < threadCount; i++) {
-            List<StreamEntry<CommentData>> comments = notesManager.readComments(reviewIds.get(i))
+            List<String> commentIds = notesManager.listCommentIds(reviewIds.get(i))
                 .get(10, TimeUnit.SECONDS);
-            assertEquals(commentsPerThread, comments.size(),
+            assertEquals(commentsPerThread, commentIds.size(),
                 "Each review should have " + commentsPerThread + " comments");
         }
     }

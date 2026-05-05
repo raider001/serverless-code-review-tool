@@ -52,25 +52,36 @@ public class GitReviewNotesManager {
             () -> ReviewStreamHelper.writeReviewer(getStreamPath(reviewId, "reviewers"), editor, reviewerData));
     }
 
-    public CompletableFuture<Void> writeComment(String reviewId, String editor, CommentData commentData) {
-        return writeToStream(reviewId, "comments",
-            () -> ReviewStreamHelper.writeComment(getStreamPath(reviewId, "comments"), editor, commentData));
-    }
-
-    public CompletableFuture<Void> writeComments(String reviewId, List<CommentEntry> comments) {
-        if (comments == null || comments.isEmpty()) {
-            return CompletableFuture.completedFuture(null);
-        }
-
-        return writeToStream(reviewId, "comments", () -> {
-            Path commentsPath = getStreamPath(reviewId, "comments");
-            for (CommentEntry entry : comments) {
-                ReviewStreamHelper.writeComment(commentsPath, entry.editor(), entry.commentData());
-            }
+    public CompletableFuture<Void> writeCommentMetadata(String reviewId, String commentId, String editor,
+                                                          String file, int line, int lineEnd, String commit) {
+        String streamPath = "comments/" + commentId + "/metadata";
+        return writeToStream(reviewId, streamPath, () -> {
+            CommentMetadata metadata = new CommentMetadata(file, line, lineEnd, commit);
+            ReviewStreamHelper.writeCommentMetadata(getStreamPath(reviewId, streamPath), editor, metadata);
         });
     }
 
-    public record CommentEntry(String editor, CommentData commentData) {}
+    public CompletableFuture<Void> writeCommentText(String reviewId, String commentId, String editor,
+                                                      String text, String replyTo, String type) {
+        String streamPath = "comments/" + commentId + "/text";
+        return writeToStream(reviewId, streamPath, () -> {
+            CommentTextData textData = new CommentTextData(text, replyTo, type);
+            ReviewStreamHelper.writeCommentText(getStreamPath(reviewId, streamPath), editor, textData);
+        });
+    }
+
+    public CompletableFuture<Void> writeCommentStatus(String reviewId, String commentId, String editor,
+                                                        Boolean needsResolution, Boolean resolved) {
+        String streamPath = "comments/" + commentId + "/status";
+        return writeToStream(reviewId, streamPath, () -> {
+            CommentStatusData statusData = new CommentStatusData(needsResolution, resolved);
+            ReviewStreamHelper.writeCommentStatus(getStreamPath(reviewId, streamPath), editor, statusData);
+        });
+    }
+
+    public record CommentMetadata(String file, int line, int lineEnd, String commit) {}
+    public record CommentTextData(String text, String replyTo, String type) {}
+    public record CommentStatusData(Boolean needsResolution, Boolean resolved) {}
 
     public CompletableFuture<Void> createReview(String reviewId,
                                                  String editor,
@@ -301,8 +312,10 @@ public class GitReviewNotesManager {
             ref + ":" + ref
         ).exceptionally(ex -> {
             String msg = ex.getMessage();
-            if (msg != null && msg.toLowerCase().contains("couldn't find remote ref") ||
-               (msg != null && msg.toLowerCase().contains("not found"))) {
+            if (msg != null && (
+                msg.toLowerCase().contains("couldn't find remote ref") ||
+                msg.toLowerCase().contains("not found") ||
+                msg.toLowerCase().contains("non-fast-forward"))) {
                 return "";
             }
             throw new RuntimeException("Failed to fetch notes: " + msg, ex);
@@ -426,9 +439,44 @@ public class GitReviewNotesManager {
                 ReviewStreamHelper::readReviewers);
     }
 
-    public CompletableFuture<List<StreamEntry<CommentData>>> readComments(String reviewId) {
-        return readStream(reviewId, "comments",
-                ReviewStreamHelper::readComments);
+    public CompletableFuture<List<StreamEntry<CommentMetadata>>> readCommentMetadata(String reviewId, String commentId) {
+        return readStream(reviewId, "comments/" + commentId + "/metadata",
+                ReviewStreamHelper::readCommentMetadata);
+    }
+
+    public CompletableFuture<List<StreamEntry<CommentTextData>>> readCommentText(String reviewId, String commentId) {
+        return readStream(reviewId, "comments/" + commentId + "/text",
+                ReviewStreamHelper::readCommentText);
+    }
+
+    public CompletableFuture<List<StreamEntry<CommentStatusData>>> readCommentStatus(String reviewId, String commentId) {
+        return readStream(reviewId, "comments/" + commentId + "/status",
+                ReviewStreamHelper::readCommentStatus);
+    }
+
+    public CompletableFuture<List<String>> listCommentIds(String reviewId) {
+        String refPattern = NOTES_REF_PREFIX + reviewId + "/comments/";
+        return git.executeAsync(repositoryName, "for-each-ref", "--format=%(refname)", refPattern)
+            .thenApply(output -> {
+                if (output == null || output.trim().isEmpty()) {
+                    return List.<String>of();
+                }
+                return java.util.Arrays.stream(output.split("\n"))
+                    .map(String::trim)
+                    .filter(line -> !line.isEmpty())
+                    .filter(line -> line.contains("/comments/"))
+                    .map(line -> {
+                        int startIdx = line.indexOf("/comments/") + 10;
+                        int endIdx = line.indexOf("/", startIdx);
+                        return endIdx > startIdx ? line.substring(startIdx, endIdx) : null;
+                    })
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .toList();
+            })
+            .exceptionally(ex -> {
+                return List.<String>of();
+            });
     }
 
     /**

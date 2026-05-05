@@ -90,11 +90,11 @@ public class CodePanel extends ThemedPanel {
             InlineCommentDialog dialog = new InlineCommentDialog(
                 window,
                 reviewContext,
+                reviewContextManager,
                 file,
                 lineNumber,
                 () -> {
                     onCommentAdded();
-                    saveCommentsToGit(reviewContext.reviewId);
                 }
             );
             dialog.setVisible(true);

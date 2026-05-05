@@ -90,7 +90,11 @@ refs/notes/reviews/{review-id}/
 │   ├── commits                            # NDJSON append stream
 │   └── reviewStrategy                     # NDJSON append stream
 ├── reviewers                              # NDJSON append stream
-└── comments                               # NDJSON append stream
+└── comments/                              # Comment threads (one namespace per thread)
+    └── {comment-id}/                      # Individual comment thread
+        ├── metadata                       # Location (file, line) - written once
+        ├── text                           # NDJSON append stream (conversation)
+        └── status                         # NDJSON append stream (resolution changes)
 
 ```
 
@@ -276,33 +280,97 @@ refs/notes/reviews/550e8400-.../reviewers
 
 
 
-### Comment
+### Comment Threads
 
 **Purpose**: Comments and discussions on specific parts of the code
 
-**Storage**: `refs/notes/reviews/{review-id}/comments`
+**Storage Structure**: Each comment thread has its own namespace with separate streams:
 
-**Structure**:
+```
+refs/notes/reviews/{review-id}/comments/{comment-id}/
+├── metadata        # Comment location (file, line) - written once
+├── text            # Append-only stream of comment text (original + replies)
+└── status          # Append-only stream of resolution status changes
+```
+
+#### Metadata Stream
+**Storage**: `refs/notes/reviews/{review-id}/comments/{comment-id}/metadata`
+
+**Structure** (single entry, written once):
 ```json
 {
   "id": "01890a5f-g1h2-774b-bcce-h4i5j6k78901",
   "timestamp": "2026-04-23T13:00:00.456789Z",
   "editor": "john@example.com",
   "data": {
-    "text": "Consider adding null check here",
-    "context": {
-      "commit": "abc123def456...",
-      "file": "src/login.py",
-      "line": 42,
-      "line_end": 45,
-      "code_snippet": "if user.id:"
-    },
-    "reply_to": "01890a5f-e9f0-774b-bcce-g2h3i4j56789",
-    "resolved": false,
-    "type": "suggestion"
+    "file": "src/login.py",
+    "line": 42,
+    "line_end": 45,
+    "commit": "abc123def456..."
   }
 }
 ```
+
+#### Text Stream
+**Storage**: `refs/notes/reviews/{review-id}/comments/{comment-id}/text`
+
+**Structure** (append-only conversation):
+```json
+{
+  "id": "01890a5f-h2i3-774b-bcce-i5j6k7l89012",
+  "timestamp": "2026-04-23T13:00:00.456789Z",
+  "editor": "john@example.com",
+  "data": {
+    "text": "Consider adding null check here",
+    "reply_to": null,
+    "type": "review"
+  }
+}
+{
+  "id": "01890a5f-i3j4-774b-bcce-j6k7l8m90123",
+  "timestamp": "2026-04-23T14:00:00.456789Z",
+  "editor": "jane@example.com",
+  "data": {
+    "text": "Good catch, will fix",
+    "reply_to": "01890a5f-h2i3-774b-bcce-i5j6k7l89012",
+    "type": "comment"
+  }
+}
+```
+
+**Type Values**:
+- `review` - Comment that needs resolution (code review feedback)
+- `comment` - General comment or reply
+
+#### Status Stream
+**Storage**: `refs/notes/reviews/{review-id}/comments/{comment-id}/status`
+
+**Structure** (append-only status changes):
+```json
+{
+  "id": "01890a5f-j4k5-774b-bcce-k7l8m9n01234",
+  "timestamp": "2026-04-23T15:00:00.456789Z",
+  "editor": "john@example.com",
+  "data": {
+    "needs_resolution": true
+  }
+}
+{
+  "id": "01890a5f-k5l6-774b-bcce-l8m9n0o12345",
+  "timestamp": "2026-04-23T16:00:00.456789Z",
+  "editor": "jane@example.com",
+  "data": {
+    "resolved": true
+  }
+}
+```
+
+**Benefits of Hierarchical Structure**:
+- ✅ **True append-only**: Never updates existing entries, only appends
+- ✅ **Conversation threads**: Multiple replies in text stream
+- ✅ **Status history**: Track who marked resolved/unresolved and when
+- ✅ **Low conflicts**: Each comment thread has its own ref namespace
+- ✅ **Independent updates**: Location, text, and status can be updated separately
 
 ---
 
@@ -316,7 +384,9 @@ refs/notes/reviews/550e8400-.../reviewers
 - Status: `refs/notes/reviews/{uuid}/metadata/status`
 - Commits: `refs/notes/reviews/{uuid}/metadata/commits`
 - Reviewers: `refs/notes/reviews/{uuid}/reviewers`
-- Comments: `refs/notes/reviews/{uuid}/comments`
+- Comment Metadata: `refs/notes/reviews/{uuid}/comments/{comment-id}/metadata`
+- Comment Text: `refs/notes/reviews/{uuid}/comments/{comment-id}/text`
+- Comment Status: `refs/notes/reviews/{uuid}/comments/{comment-id}/status`
 
 **Design Philosophy**:
 - **Structure IS the data**: The hierarchical path provides context
