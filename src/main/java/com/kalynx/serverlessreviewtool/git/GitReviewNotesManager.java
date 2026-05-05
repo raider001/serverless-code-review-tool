@@ -57,6 +57,21 @@ public class GitReviewNotesManager {
             () -> ReviewStreamHelper.writeComment(getStreamPath(reviewId, "comments"), editor, commentData));
     }
 
+    public CompletableFuture<Void> writeComments(String reviewId, List<CommentEntry> comments) {
+        if (comments == null || comments.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        return writeToStream(reviewId, "comments", () -> {
+            Path commentsPath = getStreamPath(reviewId, "comments");
+            for (CommentEntry entry : comments) {
+                ReviewStreamHelper.writeComment(commentsPath, entry.editor(), entry.commentData());
+            }
+        });
+    }
+
+    public record CommentEntry(String editor, CommentData commentData) {}
+
     public CompletableFuture<Void> createReview(String reviewId,
                                                  String editor,
                                                  String title,
@@ -268,6 +283,7 @@ public class GitReviewNotesManager {
                     return CompletableFuture.failedFuture(e);
                 }
             })
+            .thenCompose(ignored -> fetchAndMergeNotes(reviewId, streamPath))
             .thenCompose(ignored -> pushNotes(ref));
     }
 

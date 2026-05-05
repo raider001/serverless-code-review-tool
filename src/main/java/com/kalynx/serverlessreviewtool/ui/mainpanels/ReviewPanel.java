@@ -60,7 +60,20 @@ public class ReviewPanel extends ThemedPanel {
 
         reviewDetailPanel.setOnEditAction(this::handleEditReview);
 
+        reviewContextManager.addListener(this::onReviewContextChanged);
+
         configureLayout();
+    }
+
+    private void onReviewContextChanged(ReviewContext context) {
+        if (context != null) {
+            model.commentsPanelModel.setComments(context.getComments());
+            model.commentsPanelModel.setCurrentUser(System.getProperty("user.name", "Unknown User"));
+            LOGGER.info("Synced {} comments to CommentsPanelModel for user: {}",
+                context.getComments().size(), System.getProperty("user.name"));
+        } else {
+            model.commentsPanelModel.clear();
+        }
     }
 
 

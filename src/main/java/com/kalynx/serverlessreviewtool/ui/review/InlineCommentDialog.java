@@ -22,6 +22,7 @@ public class InlineCommentDialog extends JDialog {
     private final ReviewFile file;
     private final int lineNumber;
     private final Runnable onCommentAdded;
+    private final String currentUser;
 
     private ThemedPanel commentsContainer;
     private ThemedTextArea newCommentArea;
@@ -37,6 +38,7 @@ public class InlineCommentDialog extends JDialog {
         this.file = file;
         this.lineNumber = lineNumber;
         this.onCommentAdded = onCommentAdded;
+        this.currentUser = System.getProperty("user.name", "Unknown User");
 
         setUndecorated(true);
         initComponents();
@@ -222,7 +224,7 @@ public class InlineCommentDialog extends JDialog {
             headerPanel.add(statusLabel, "align left");
 
             if (conversationResolved) {
-                ThemedLabel resolvedByLabel = new ThemedLabel("• Marked resolved by Current User");
+                ThemedLabel resolvedByLabel = new ThemedLabel("• Marked resolved by " + currentUser);
                 resolvedByLabel.setFont(new Font("Segoe UI", Font.PLAIN, themeManager.scale(10)));
                 resolvedByLabel.setForeground(theme.getSecondaryTextColor());
                 headerPanel.add(resolvedByLabel, "gapleft 6");
@@ -258,7 +260,7 @@ public class InlineCommentDialog extends JDialog {
             }
         } else {
             for (ReviewComment comment : lineComments) {
-                comment.markResolved("Current User");
+                comment.markResolved(currentUser);
             }
         }
 
@@ -282,7 +284,7 @@ public class InlineCommentDialog extends JDialog {
             commentId,
             file.getPath(),
             lineNumber,
-            "Current User",
+            currentUser,
             commentText,
             "just now",
             null,

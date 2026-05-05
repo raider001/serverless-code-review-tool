@@ -23,6 +23,9 @@ public class CodePanel extends ThemedPanel {
 
     private transient final CodeViewerModel codeViewerModel;
     private transient final com.kalynx.serverlessreviewtool.managers.FileDiffManager fileDiffManager;
+    private transient final ReviewContextManager reviewContextManager;
+
+    private transient final java.util.Set<String> persistedCommentIds = new java.util.HashSet<>();
 
     private final CommitSelectorPanel commitSelectorPanel;
     private final FileNavigationPanel fileNavigationPanel;
@@ -31,6 +34,7 @@ public class CodePanel extends ThemedPanel {
 
     public CodePanel(ReviewContextManager reviewContextManager, CodeViewerModel codeViewerModel,
                      com.kalynx.serverlessreviewtool.managers.FileDiffManager fileDiffManager, Git git) {
+        this.reviewContextManager = reviewContextManager;
         this.codeViewerModel = codeViewerModel;
         this.fileDiffManager = fileDiffManager;
         this.commitSelectorPanel = new CommitSelectorPanel(reviewContextManager, codeViewerModel, git);
@@ -54,8 +58,116 @@ public class CodePanel extends ThemedPanel {
 
     private void setupModelListeners() {
         codeViewerModel.selectedFile.addChangeListener(this::onFileOrCommitChanged);
-        codeViewerModel.startCommit.addChangeListener(commit -> onFileOrCommitChanged(codeViewerModel.selectedFile.getValue()));
-        codeViewerModel.endCommit.addChangeListener(commit -> onFileOrCommitChanged(codeViewerModel.selectedFile.getValue()));
+        codeViewerModel.startCommit.addChangeListener(_ -> onFileOrCommitChanged(codeViewerModel.selectedFile.getValue()));
+        codeViewerModel.endCommit.addChangeListener(_ -> onFileOrCommitChanged(codeViewerModel.selectedFile.getValue()));
+
+        diffViewerPanel.setOnLineDoubleClickListener(this::onLineDoubleClicked);
+        reviewContextManager.addListener(this::onReviewContextChanged);
+    }
+
+    private void onReviewContextChanged(com.kalynx.serverlessreviewtool.models.ReviewContext context) {
+        if (context != null) {
+            persistedCommentIds.clear();
+            context.getComments().forEach(comment -> persistedCommentIds.add(comment.getId()));
+            LOGGER.info("Loaded {} persisted comments", persistedCommentIds.size());
+        }
+        loadCommentsForCurrentFile();
+    }
+
+    private void onLineDoubleClicked(Integer lineNumber) {
+        ReviewFile file = codeViewerModel.selectedFile.getValue();
+        com.kalynx.serverlessreviewtool.models.ReviewContext reviewContext = reviewContextManager.getReviewContext();
+
+        if (file == null || reviewContext == null) {
+            LOGGER.debug("Cannot add comment: file or review context is null");
+            return;
+        }
+
+        LOGGER.info("Line {} double-clicked in file: {}", lineNumber, file.getPath());
+
+        SwingUtilities.invokeLater(() -> {
+            java.awt.Window window = SwingUtilities.getWindowAncestor(this);
+            InlineCommentDialog dialog = new InlineCommentDialog(
+                window,
+                reviewContext,
+                file,
+                lineNumber,
+                () -> {
+                    onCommentAdded();
+                    saveCommentsToGit(reviewContext.reviewId);
+                }
+            );
+            dialog.setVisible(true);
+        });
+    }
+
+    private void saveCommentsToGit(String reviewId) {
+        com.kalynx.serverlessreviewtool.models.ReviewContext context = reviewContextManager.getReviewContext();
+        if (context == null) {
+            return;
+        }
+
+        java.util.List<com.kalynx.serverlessreviewtool.models.ReviewComment> allComments = context.getComments();
+        java.util.List<com.kalynx.serverlessreviewtool.models.ReviewComment> newComments = allComments.stream()
+            .filter(comment -> !persistedCommentIds.contains(comment.getId()))
+            .toList();
+
+        java.util.List<com.kalynx.serverlessreviewtool.models.ReviewComment> existingComments = allComments.stream()
+            .filter(comment -> persistedCommentIds.contains(comment.getId()))
+            .toList();
+
+        if (newComments.isEmpty() && existingComments.isEmpty()) {
+            LOGGER.debug("No comments to save");
+            return;
+        }
+
+        if (!newComments.isEmpty()) {
+            LOGGER.info("Saving {} new comments for review {}", newComments.size(), reviewId);
+
+            for (com.kalynx.serverlessreviewtool.models.ReviewComment comment : newComments) {
+                reviewContextManager.saveComment(reviewId, comment)
+                    .thenRun(() -> {
+                        persistedCommentIds.add(comment.getId());
+                        LOGGER.info("Comment {} saved and marked as persisted", comment.getId());
+                    })
+                    .exceptionally(error -> {
+                        LOGGER.error("Failed to save comment: {}", comment.getId(), error);
+                        return null;
+                    });
+            }
+        }
+
+        if (!existingComments.isEmpty()) {
+            LOGGER.info("Updating {} existing comments (resolution status may have changed) for review {}",
+                existingComments.size(), reviewId);
+
+            reviewContextManager.saveAllComments(reviewId, existingComments)
+                .exceptionally(error -> {
+                    LOGGER.error("Failed to update existing comments", error);
+                    return null;
+                });
+        }
+    }
+
+    private void onCommentAdded() {
+        LOGGER.info("Comment added, refreshing comments for current file");
+        loadCommentsForCurrentFile();
+    }
+
+    private void loadCommentsForCurrentFile() {
+        ReviewFile file = codeViewerModel.selectedFile.getValue();
+        com.kalynx.serverlessreviewtool.models.ReviewContext reviewContext = reviewContextManager.getReviewContext();
+
+        if (file == null || reviewContext == null) {
+            diffViewerPanel.setCommentsForCurrentFile(new java.util.ArrayList<>());
+            return;
+        }
+
+        java.util.List<com.kalynx.serverlessreviewtool.models.ReviewComment> comments =
+            reviewContext.getCommentsForFile(file.getPath());
+
+        LOGGER.debug("Loaded {} comments for file: {}", comments.size(), file.getPath());
+        diffViewerPanel.setCommentsForCurrentFile(comments);
     }
 
     private void onFileOrCommitChanged(ReviewFile file) {
@@ -85,6 +197,8 @@ public class CodePanel extends ThemedPanel {
                 LOGGER.error("Failed to load diff for file: {}", file.getPath(), error);
                 return null;
             });
+
+        loadCommentsForCurrentFile();
     }
 
 }

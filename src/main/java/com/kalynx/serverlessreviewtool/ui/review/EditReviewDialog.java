@@ -97,9 +97,9 @@ public class EditReviewDialog extends ReviewFormDialog {
         if (entries == null || entries.isEmpty()) {
             return null;
         }
-        Object lastEntry = entries.get(entries.size() - 1);
+        Object lastEntry = entries.getLast();
         if (lastEntry instanceof com.kalynx.serverlessreviewtool.models.review.StreamEntry) {
-            return (T) ((com.kalynx.serverlessreviewtool.models.review.StreamEntry<T>) lastEntry).data();
+            return ((com.kalynx.serverlessreviewtool.models.review.StreamEntry<T>) lastEntry).data();
         }
         return null;
     }
