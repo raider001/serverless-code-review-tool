@@ -13,10 +13,12 @@ import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel.RejectApprovePa
 import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel.ReviewDetailPanel;
 import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewpanel.ReviewPanelModel;
 import com.kalynx.serverlessreviewtool.ui.models.reviewpanel.reviewformdialog.ReviewFormModels;
+import com.kalynx.serverlessreviewtool.ui.review.EditReviewDialog;
 import net.miginfocom.swing.MigLayout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.swing.SwingUtilities;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -30,6 +32,8 @@ public class ReviewPanel extends ThemedPanel {
     private static final Logger LOGGER = LoggerFactory.getLogger(ReviewPanel.class);
 
     private final ReviewContextManager reviewContextManager;
+    private final RepositoryManager repositoryManager;
+    private final ReviewFormModels reviewFormModels;
     private final ReviewPanelModel model;
     private final FileDiffManager fileDiffManager;
     private final Git git;
@@ -38,17 +42,24 @@ public class ReviewPanel extends ThemedPanel {
     private final CodePanel codePanel;
     private final RejectApprovePanel rejectApprovePanel = new RejectApprovePanel();
 
+    private ReviewContext currentReviewContext;
+
     public ReviewPanel(ReviewContextManager reviewContextManager,
                       RepositoryManager repositoryManager,
                       ReviewFormModels reviewFormModels,
                       ReviewPanelModel reviewPanelModel,
                       Git git) {
         this.reviewContextManager = reviewContextManager;
+        this.repositoryManager = repositoryManager;
+        this.reviewFormModels = reviewFormModels;
         this.model = reviewPanelModel;
         this.git = git;
         this.fileDiffManager = new FileDiffManager(git, reviewPanelModel.codeViewerModel);
         this.reviewDetailPanel = new ReviewDetailPanel(reviewPanelModel.reviewDetailModel);
         this.codePanel = new CodePanel(reviewContextManager, reviewPanelModel.codeViewerModel, fileDiffManager, git);
+
+        reviewDetailPanel.setOnEditAction(this::handleEditReview);
+
         configureLayout();
     }
 
@@ -85,6 +96,8 @@ public class ReviewPanel extends ThemedPanel {
                     model.setError("Review not found");
                     return CompletableFuture.completedFuture(null);
                 }
+
+                currentReviewContext = reviewContext;
 
                 List<com.kalynx.serverlessreviewtool.models.Repository> repositories = reviewContext.getRepositories();
 
@@ -161,5 +174,52 @@ public class ReviewPanel extends ThemedPanel {
                 model.setError("Failed to load review: " + error.getMessage());
                 return null;
             });
+    }
+
+    private void handleEditReview() {
+        if (currentReviewContext == null) {
+            LOGGER.warn("Cannot edit review - no review context loaded");
+            return;
+        }
+
+        LOGGER.info("Opening edit dialog for review: {}", currentReviewContext.reviewId);
+
+        EditReviewDialog dialog = new EditReviewDialog(
+            this,
+            currentReviewContext,
+            reviewFormModels,
+            repositoryManager,
+            reviewContextManager,
+            git
+        );
+
+        dialog.setOnReviewUpdated(() -> {
+            LOGGER.info("Review field updated, refreshing context...");
+            reviewContextManager.loadReviewMetadata(currentReviewContext.reviewId,
+                currentReviewContext.repositories.stream()
+                    .map(Repository::getName)
+                    .toList())
+                .thenAccept(updatedContext -> {
+                    if (updatedContext != null) {
+                        currentReviewContext = updatedContext;
+                        SwingUtilities.invokeLater(() -> {
+                            model.reviewDetailModel.setReviewData(
+                                updatedContext.reviewId,
+                                updatedContext.title,
+                                updatedContext.author,
+                                updatedContext.summary,
+                                updatedContext.status,
+                                updatedContext.reviewers
+                            );
+                        });
+                    }
+                })
+                .exceptionally(error -> {
+                    LOGGER.error("Failed to refresh review context", error);
+                    return null;
+                });
+        });
+
+        dialog.setVisible(true);
     }
 }

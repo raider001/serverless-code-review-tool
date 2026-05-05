@@ -3,10 +3,12 @@ package com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel.reviewformdial
 import com.kalynx.serverlessreviewtool.swingextensions.ComponentModel;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.*;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
+import com.kalynx.serverlessreviewtool.utils.Validator;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.function.Consumer;
 
 public class ReviewDetailsPanel extends ThemedPanel {
 
@@ -145,5 +147,17 @@ public class ReviewDetailsPanel extends ThemedPanel {
 
     public String getSummary() {
         return summaryArea.getText();
+    }
+
+    public void setupValidation(Validator validator, Consumer<String> onValidValueSaved) {
+        titleField.setupValidation(validator, onValidValueSaved);
+    }
+
+    public void setupAuthorValidation(Validator validator, Consumer<String> onValidValueSaved) {
+        authorField.setupValidation(validator, onValidValueSaved);
+    }
+
+    public void setupSummaryValidation(Validator validator, Consumer<String> onValidValueSaved) {
+        summaryArea.setupValidation(validator, onValidValueSaved);
     }
 }

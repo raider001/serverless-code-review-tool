@@ -25,6 +25,7 @@ public class ThemedTextField extends JTextField {
     private transient Validator validator = null;
     private transient Consumer<String> onValidValueSaved = null;
     private transient ThemedValidationOverlay validationOverlay = null;
+    private transient String valueOnFocusGained = null;
 
     private transient ComponentModel<String> model;
     private transient BindingLifecycleHelper.TextBinding textBinding;
@@ -110,11 +111,18 @@ public class ThemedTextField extends JTextField {
             }
         });
 
-        // Validate and save on focus lost
         addFocusListener(new FocusAdapter() {
             @Override
+            public void focusGained(FocusEvent e) {
+                valueOnFocusGained = getText();
+            }
+
+            @Override
             public void focusLost(FocusEvent e) {
-                validateAndSave();
+                String currentValue = getText();
+                if (!currentValue.equals(valueOnFocusGained)) {
+                    validateAndSave();
+                }
             }
         });
 

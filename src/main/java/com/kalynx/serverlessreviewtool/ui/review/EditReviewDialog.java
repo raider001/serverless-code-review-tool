@@ -1,12 +1,19 @@
 package com.kalynx.serverlessreviewtool.ui.review;
 
 import com.kalynx.serverlessreviewtool.git.Git;
+import com.kalynx.serverlessreviewtool.git.GitReviewNotesManager;
 import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
+import com.kalynx.serverlessreviewtool.managers.ReviewContextManager;
 import com.kalynx.serverlessreviewtool.models.ReviewContext;
 import com.kalynx.serverlessreviewtool.models.Repository;
 import com.kalynx.serverlessreviewtool.models.ReviewerInfo;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedOptionPane;
+import com.kalynx.serverlessreviewtool.theme.LoadingStateManager;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel.ReviewFormDialog;
 import com.kalynx.serverlessreviewtool.ui.models.reviewpanel.reviewformdialog.ReviewFormModels;
+import com.kalynx.serverlessreviewtool.utils.Validator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.awt.Component;
@@ -14,42 +21,283 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 public class EditReviewDialog extends ReviewFormDialog {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(EditReviewDialog.class);
+
     private final ReviewContext originalContext;
+    private final ReviewContextManager reviewContextManager;
+    private final LoadingStateManager loadingStateManager;
+    private Runnable onReviewUpdated;
+
+    private String lastSavedTitle;
+    private String lastSavedAuthor;
+    private String lastSavedSummary;
+    private List<ReviewerInfo> lastSavedReviewers;
+    private List<String> lastSavedRepositories;
 
     public EditReviewDialog(Component parent,
                             ReviewContext context,
                             ReviewFormModels models,
                             RepositoryManager repositoryManager,
+                            ReviewContextManager reviewContextManager,
                             Git git) {
         super(parent, "Edit Code Review", models, repositoryManager, git);
         this.originalContext = context;
-        populateModelsFromContext(context);
-    }
+        this.reviewContextManager = reviewContextManager;
+        this.loadingStateManager = LoadingStateManager.getInstance();
 
-    @Override
-    protected String getSubmitButtonLabel() { return "Save Changes"; }
-
-    @Override
-    protected void onFormSubmit() { confirmed = true; dispose(); }
-
-    private void populateModelsFromContext(ReviewContext ctx) {
-        models.title.setValue(ctx.title);
-        models.author.setValue(ctx.author);
-        models.summary.setValue(ctx.summary);
-
-        List<String> repoNames = ctx.repositories.stream()
+        this.lastSavedTitle = context.title;
+        this.lastSavedAuthor = context.author;
+        this.lastSavedSummary = context.summary;
+        this.lastSavedReviewers = new ArrayList<>(context.reviewers);
+        this.lastSavedRepositories = context.repositories.stream()
             .map(Repository::getName)
             .collect(Collectors.toList());
-        models.selectedRepositories.setValue(repoNames);
 
-        models.selectedReviewers.setValue(new ArrayList<>(ctx.reviewers));
+        populateModelsFromContext(context);
+        loadBranchInformationAndDisable(context);
+        setupAutoSaveListeners();
     }
 
-    public ReviewContext getUpdatedContext() {
+    private void loadBranchInformationAndDisable(ReviewContext context) {
+        Repository primaryRepo = context.repositories.isEmpty() ? null : context.repositories.get(0);
+        if (primaryRepo == null) {
+            sourcePanel.setEnabled(false);
+            return;
+        }
+
+        GitReviewNotesManager notesManager = new GitReviewNotesManager(git, primaryRepo.getName());
+        notesManager.readAllMetadata(context.reviewId)
+            .thenAccept(metadata -> {
+                String branch = getLatestValue(metadata.branches());
+                String baseBranch = getLatestValue(metadata.baseBranches());
+
+                SwingUtilities.invokeLater(() -> {
+                    if (branch != null) {
+                        sourcePanel.setBranchName(branch);
+                    }
+                    if (baseBranch != null) {
+                        sourcePanel.setReviewAgainstBranch(baseBranch);
+                    }
+                    sourcePanel.setEnabled(false);
+                });
+            })
+            .exceptionally(error -> {
+                LOGGER.error("Failed to load branch information", error);
+                SwingUtilities.invokeLater(() -> sourcePanel.setEnabled(false));
+                return null;
+            });
+    }
+
+    private <T> T getLatestValue(List<?> entries) {
+        if (entries == null || entries.isEmpty()) {
+            return null;
+        }
+        Object lastEntry = entries.get(entries.size() - 1);
+        if (lastEntry instanceof com.kalynx.serverlessreviewtool.models.review.StreamEntry) {
+            return (T) ((com.kalynx.serverlessreviewtool.models.review.StreamEntry<T>) lastEntry).data();
+        }
+        return null;
+    }
+
+    @Override
+    protected boolean shouldShowFooter() {
+        return false;
+    }
+
+    @Override
+    protected String getSubmitButtonLabel() {
+        return "Save Changes";
+    }
+
+    @Override
+    protected void onFormSubmit() {
+        confirmed = true;
+        dispose();
+    }
+
+    public void setOnReviewUpdated(Runnable callback) {
+        this.onReviewUpdated = callback;
+    }
+
+    private void setupAutoSaveListeners() {
+        detailsPanel.setupValidation(
+            this::validateTitle,
+            title -> saveField("title", title, () -> lastSavedTitle = title)
+        );
+
+        detailsPanel.setupAuthorValidation(
+            this::validateAuthor,
+            author -> saveField("author", author, () -> lastSavedAuthor = author)
+        );
+
+        detailsPanel.setupSummaryValidation(
+            this::validateSummary,
+            summary -> saveField("summary", summary, () -> lastSavedSummary = summary)
+        );
+
+        models.selectedReviewers.addChangeListener(this::onReviewersChanged);
+        models.selectedRepositories.addChangeListener(this::onRepositoriesChanged);
+    }
+
+    private void onReviewersChanged(List<ReviewerInfo> newReviewers) {
+        if (newReviewers == null) {
+            return;
+        }
+
+        Set<String> newReviewerNames = newReviewers.stream()
+            .map(ReviewerInfo::getName)
+            .collect(Collectors.toSet());
+
+        Set<String> lastSavedReviewerNames = lastSavedReviewers.stream()
+            .map(ReviewerInfo::getName)
+            .collect(Collectors.toSet());
+
+        if (!newReviewerNames.equals(lastSavedReviewerNames)) {
+            saveReviewers(newReviewers);
+        }
+    }
+
+    private void onRepositoriesChanged(List<String> newRepositories) {
+        if (newRepositories == null) {
+            return;
+        }
+
+        Set<String> newRepoSet = new HashSet<>(newRepositories);
+        Set<String> lastSavedSet = new HashSet<>(lastSavedRepositories);
+
+        if (!newRepoSet.equals(lastSavedSet)) {
+            saveRepositories(newRepositories);
+        }
+    }
+
+    private void saveReviewers(List<ReviewerInfo> reviewers) {
+        String operationId = "edit-review-reviewers-" + UUID.randomUUID();
+        loadingStateManager.startLoading(operationId);
+
+        ReviewContext updatedContext = buildUpdatedContext();
+
+        reviewContextManager.saveReviewMetadata(updatedContext)
+            .thenRun(() -> {
+                SwingUtilities.invokeLater(() -> {
+                    loadingStateManager.stopLoading(operationId);
+                    lastSavedReviewers = new ArrayList<>(reviewers);
+                    if (onReviewUpdated != null) {
+                        onReviewUpdated.run();
+                    }
+                });
+            })
+            .exceptionally(error -> {
+                SwingUtilities.invokeLater(() -> {
+                    loadingStateManager.stopLoading(operationId);
+                    handleReviewersSaveError(error);
+                });
+                return null;
+            });
+    }
+
+    private void saveRepositories(List<String> repositories) {
+        String operationId = "edit-review-repositories-" + UUID.randomUUID();
+        loadingStateManager.startLoading(operationId);
+
+        ReviewContext updatedContext = buildUpdatedContext();
+
+        reviewContextManager.saveReviewMetadata(updatedContext)
+            .thenRun(() -> {
+                SwingUtilities.invokeLater(() -> {
+                    loadingStateManager.stopLoading(operationId);
+                    lastSavedRepositories = new ArrayList<>(repositories);
+                    if (onReviewUpdated != null) {
+                        onReviewUpdated.run();
+                    }
+                });
+            })
+            .exceptionally(error -> {
+                SwingUtilities.invokeLater(() -> {
+                    loadingStateManager.stopLoading(operationId);
+                    handleRepositoriesSaveError(error);
+                });
+                return null;
+            });
+    }
+
+    private void handleReviewersSaveError(Throwable error) {
+        String message = "Failed to save reviewers: " + error.getMessage();
+        ThemedOptionPane.showError(this, message);
+        models.selectedReviewers.setValue(new ArrayList<>(lastSavedReviewers));
+    }
+
+    private void handleRepositoriesSaveError(Throwable error) {
+        String message = "Failed to save repositories: " + error.getMessage();
+        ThemedOptionPane.showError(this, message);
+        models.selectedRepositories.setValue(new ArrayList<>(lastSavedRepositories));
+    }
+
+    private void saveField(String fieldName, String value, Runnable onSuccess) {
+        String operationId = "edit-review-" + fieldName + "-" + UUID.randomUUID();
+        loadingStateManager.startLoading(operationId);
+
+        ReviewContext updatedContext = buildUpdatedContext();
+
+        reviewContextManager.saveReviewMetadata(updatedContext)
+            .thenRun(() -> {
+                SwingUtilities.invokeLater(() -> {
+                    loadingStateManager.stopLoading(operationId);
+                    onSuccess.run();
+                    if (onReviewUpdated != null) {
+                        onReviewUpdated.run();
+                    }
+                });
+            })
+            .exceptionally(error -> {
+                SwingUtilities.invokeLater(() -> {
+                    loadingStateManager.stopLoading(operationId);
+                    handleSaveError(fieldName, value, error);
+                });
+                return null;
+            });
+    }
+
+    private void handleSaveError(String fieldName, String attemptedValue, Throwable error) {
+        String message = "Failed to save " + fieldName + ": " + error.getMessage();
+        ThemedOptionPane.showError(this, message);
+
+        switch (fieldName) {
+            case "title":
+                models.title.setValue(lastSavedTitle);
+                break;
+            case "author":
+                models.author.setValue(lastSavedAuthor);
+                break;
+            case "summary":
+                models.summary.setValue(lastSavedSummary);
+                break;
+        }
+    }
+
+    private Validator.ValidationResult validateTitle(String title) {
+        if (title == null || title.trim().isEmpty()) {
+            return Validator.ValidationResult.invalid("Title cannot be empty");
+        }
+        return Validator.ValidationResult.valid();
+    }
+
+    private Validator.ValidationResult validateAuthor(String author) {
+        if (author == null || author.trim().isEmpty()) {
+            return Validator.ValidationResult.invalid("Author cannot be empty");
+        }
+        return Validator.ValidationResult.valid();
+    }
+
+    private Validator.ValidationResult validateSummary(String summary) {
+        return Validator.ValidationResult.valid();
+    }
+
+    private ReviewContext buildUpdatedContext() {
         List<ReviewerInfo> updatedReviewers = new ArrayList<>(originalContext.reviewers);
         Set<String> selectedReviewerNames = models.selectedReviewers.getValue().stream()
             .map(ReviewerInfo::getName)
@@ -91,6 +339,19 @@ public class EditReviewDialog extends ReviewFormDialog {
             updatedRepositories,
             originalContext.comments
         );
+    }
+
+    private void populateModelsFromContext(ReviewContext ctx) {
+        models.title.setValue(ctx.title);
+        models.author.setValue(ctx.author);
+        models.summary.setValue(ctx.summary);
+
+        List<String> repoNames = ctx.repositories.stream()
+            .map(Repository::getName)
+            .collect(Collectors.toList());
+        models.selectedRepositories.setValue(repoNames);
+
+        models.selectedReviewers.setValue(new ArrayList<>(ctx.reviewers));
     }
 }
 

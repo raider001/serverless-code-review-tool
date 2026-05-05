@@ -37,6 +37,8 @@ public class ReviewDetailPanel extends ThemedPanel {
 
     private final ThemedPanel reviewerPanel = new ThemedPanel();
 
+    private Runnable onEditAction;
+
     public ReviewDetailPanel(ReviewDetailModel reviewDetailModel) {
         this.reviewDetailModel = reviewDetailModel;
 
@@ -109,11 +111,19 @@ public class ReviewDetailPanel extends ThemedPanel {
     }
 
     private void handleEditReview() {
-        LOGGER.info("TODO: Implement handleEditReview");
+        if (onEditAction != null) {
+            onEditAction.run();
+        } else {
+            LOGGER.warn("Edit action not configured");
+        }
     }
 
     private void handleCloseReview() {
         LOGGER.info("TODO: Implement close review action");
+    }
+
+    public void setOnEditAction(Runnable action) {
+        this.onEditAction = action;
     }
 
     private void setLabelText(ThemedLabel label, Supplier<String> textSetter) {

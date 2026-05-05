@@ -453,6 +453,49 @@ public class ReviewContextManager {
         notifyListeners();
     }
 
+    public CompletableFuture<Void> saveReviewMetadata(ReviewContext reviewContext) {
+        if (reviewContext == null || reviewContext.reviewId == null || reviewContext.reviewId.isEmpty()) {
+            LOGGER.warn("Cannot save review - invalid review context");
+            return CompletableFuture.completedFuture(null);
+        }
+
+        LOGGER.info("Saving review metadata for review: {}", reviewContext.reviewId);
+
+        if (reviewContext.repositories == null || reviewContext.repositories.isEmpty()) {
+            LOGGER.warn("No repositories in review context, cannot save");
+            return CompletableFuture.completedFuture(null);
+        }
+
+        Repository primaryRepo = reviewContext.repositories.getFirst();
+        GitReviewNotesManager notesManager = new GitReviewNotesManager(git, primaryRepo.getName());
+        String editor = reviewContext.author != null ? reviewContext.author : "system";
+
+        CompletableFuture<Void> saveFuture = notesManager.writeReviewTitle(reviewContext.reviewId, editor, reviewContext.title)
+            .thenCompose(ignored -> notesManager.writeReviewDescription(reviewContext.reviewId, editor, reviewContext.summary))
+            .thenCompose(ignored -> notesManager.writeReviewAuthor(reviewContext.reviewId, editor, reviewContext.author))
+            .thenCompose(ignored -> notesManager.writeReviewStatus(reviewContext.reviewId, editor, reviewContext.status.name()));
+
+        for (ReviewerInfo reviewer : reviewContext.reviewers) {
+            saveFuture = saveFuture.thenCompose(ignored -> {
+                com.kalynx.serverlessreviewtool.models.review.ReviewerData reviewerData =
+                    new com.kalynx.serverlessreviewtool.models.review.ReviewerData(
+                        reviewer.getStatus().name().toLowerCase(),
+                        ""
+                    );
+                return notesManager.writeReviewer(reviewContext.reviewId, reviewer.getName(), reviewerData);
+            });
+        }
+
+        return saveFuture.thenRun(() -> {
+                LOGGER.info("Review metadata saved successfully for review: {}", reviewContext.reviewId);
+                setReviewContext(reviewContext);
+            })
+            .exceptionally(error -> {
+                LOGGER.error("Failed to save review metadata for review: " + reviewContext.reviewId, error);
+                throw new RuntimeException("Failed to save review metadata", error);
+            });
+    }
+
     /**
      * Get the current ReviewContext.
      */

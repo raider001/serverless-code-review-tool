@@ -2,17 +2,14 @@ package com.kalynx.serverlessreviewtool.swingextensions.themedcomponents;
 
 import java.io.Serial;
 
+import com.kalynx.serverlessreviewtool.theme.LoadingStateManager;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
+import com.kalynx.serverlessreviewtool.theme.WindowFrameLoadingIndicator;
 import com.kalynx.serverlessreviewtool.theme.WindowResizeHandler;
 
 import javax.swing.*;
 import java.awt.*;
 
-/**
- * ThemedPopupDialog - A theme-aware popup dialog with custom title bar.
- * Always undecorated. Call {@link #setUserResizable(boolean)} before
- * showing to enable drag-edge resizing via WindowResizeHandler.
- */
 public class ThemedPopupDialog extends JDialog {
     @Serial
     private static final long serialVersionUID = 1L;
@@ -20,6 +17,7 @@ public class ThemedPopupDialog extends JDialog {
     private transient final ThemeManager themeManager;
     private final JPanel contentPanel;
     private final JPanel mainPanel;
+    private WindowFrameLoadingIndicator loadingIndicator;
 
     public ThemedPopupDialog(Component parent, String title) {
         super(SwingUtilities.getWindowAncestor(parent), title, ModalityType.APPLICATION_MODAL);
@@ -49,6 +47,25 @@ public class ThemedPopupDialog extends JDialog {
                 parentLocation.x + parent.getWidth()  / 2 - getWidth()  / 2,
                 parentLocation.y + parent.getHeight() / 2 - getHeight() / 2
         );
+
+        setupLoadingIndicator();
+    }
+
+    private void setupLoadingIndicator() {
+        loadingIndicator = new WindowFrameLoadingIndicator();
+        JPanel glassPane = (JPanel) getGlassPane();
+        glassPane.setLayout(new BorderLayout());
+        glassPane.add(loadingIndicator, BorderLayout.CENTER);
+        glassPane.setOpaque(false);
+        glassPane.setVisible(true);
+
+        LoadingStateManager.getInstance().addListener(() -> {
+            if (LoadingStateManager.getInstance().isLoading()) {
+                loadingIndicator.startAnimation();
+            } else {
+                loadingIndicator.stopAnimation();
+            }
+        });
     }
 
     /**

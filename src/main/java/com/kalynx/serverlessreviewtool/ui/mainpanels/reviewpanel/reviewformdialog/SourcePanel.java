@@ -88,4 +88,21 @@ public class SourcePanel extends ThemedPanel {
     public String getReviewAgainstBranch() {
         return (String) reviewAgainstBranchCombo.getSelectedItem();
     }
+
+    public void setBranchName(String branch) {
+        if (branch != null && !branch.isEmpty()) {
+            branchNameField.setSelectedItem(branch);
+        }
+    }
+
+    public void setReviewAgainstBranch(String baseBranch) {
+        if (baseBranch != null && !baseBranch.isEmpty()) {
+            reviewAgainstBranchCombo.setSelectedItem(baseBranch);
+        }
+    }
+
+    public void setEnabled(boolean enabled) {
+        branchNameField.setEnabled(enabled);
+        reviewAgainstBranchCombo.setEnabled(enabled);
+    }
 }

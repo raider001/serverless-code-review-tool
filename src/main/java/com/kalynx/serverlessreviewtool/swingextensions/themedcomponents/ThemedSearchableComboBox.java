@@ -58,10 +58,15 @@ public class ThemedSearchableComboBox extends JComboBox<String> {
     }
 
     public void setValues(List<String> values) {
+        Object currentSelection = getSelectedItem();
+
         myVector.clear();
         myVector.addAll(values);
         setModel(new DefaultComboBoxModel<>(myVector));
 
+        if (currentSelection != null && myVector.contains(currentSelection.toString())) {
+            setSelectedItem(currentSelection);
+        }
     }
 
     private void applyTheme() {

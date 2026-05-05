@@ -14,6 +14,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 public abstract class ReviewFormDialog extends ThemedPopupDialog {
@@ -90,7 +91,14 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
         content.add(detailsPanel, "grow, wrap");
         content.add(createSelectionSection(), "grow, wrap");
         content.add(sourcePanel, "grow, wrap");
-        content.add(createFooter(), "growx");
+
+        if (shouldShowFooter()) {
+            content.add(createFooter(), "growx");
+        }
+    }
+
+    protected boolean shouldShowFooter() {
+        return true;
     }
 
     private void setupListeners() {
@@ -107,7 +115,7 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
         List<Repository> allRepos = repositoryManager.getRepositories();
         List<Repository> selectedRepos = selectedRepoNames.stream()
             .map(name -> findRepositoryByName(allRepos, name))
-            .filter(repo -> repo != null)
+            .filter(Objects::nonNull)
             .collect(Collectors.toList());
 
         if (selectedRepos.isEmpty()) {
@@ -115,7 +123,7 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
             return;
         }
 
-        String primaryRepoName = selectedRepoNames.get(0);
+        String primaryRepoName = selectedRepoNames.getFirst();
         git.fetch(primaryRepoName)
             .thenCompose(ignored -> git.listBranches(primaryRepoName))
             .thenAccept(branches -> SwingUtilities.invokeLater(() -> {
@@ -123,7 +131,7 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
                 List<Repository> updatedRepos = repositoryManager.getRepositories();
                 List<Repository> updatedSelectedRepos = selectedRepoNames.stream()
                     .map(name -> findRepositoryByName(updatedRepos, name))
-                    .filter(repo -> repo != null)
+                    .filter(Objects::nonNull)
                     .collect(Collectors.toList());
                 List<String> commonBranches = findCommonBranches(updatedSelectedRepos);
                 models.availableBranches.setValue(commonBranches);
@@ -149,10 +157,10 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
         }
 
         if (repositories.size() == 1) {
-            return new ArrayList<>(repositories.get(0).getBranches());
+            return new ArrayList<>(repositories.getFirst().getBranches());
         }
 
-        List<String> commonBranches = new ArrayList<>(repositories.get(0).getBranches());
+        List<String> commonBranches = new ArrayList<>(repositories.getFirst().getBranches());
 
         for (int i = 1; i < repositories.size(); i++) {
             List<String> repoBranches = repositories.get(i).getBranches();
