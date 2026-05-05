@@ -1,6 +1,6 @@
 package com.kalynx.serverlessreviewtool.ui.review;
 
-import com.kalynx.serverlessreviewtool.configuration.SettingsManager;
+import com.kalynx.serverlessreviewtool.configuration.GitConfigReader;
 import com.kalynx.serverlessreviewtool.managers.ReviewContextManager;
 import com.kalynx.serverlessreviewtool.models.*;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.*;
@@ -22,7 +22,6 @@ public class InlineCommentDialog extends JDialog {
 
     private final ThemeManager themeManager = ThemeManager.getInstance();
     private final LoadingStateManager loadingStateManager = LoadingStateManager.getInstance();
-    private final SettingsManager settingsManager = SettingsManager.getInstance();
     private final ReviewContext reviewContext;
     private final ReviewContextManager reviewContextManager;
     private final ReviewFile file;
@@ -46,13 +45,24 @@ public class InlineCommentDialog extends JDialog {
         this.file = file;
         this.lineNumber = lineNumber;
         this.onCommentAdded = onCommentAdded;
-        this.currentUser = settingsManager.getCurrentUserName();
+
+        String gitUserName = GitConfigReader.getUserName();
+        this.currentUser = (gitUserName != null && !gitUserName.isEmpty())
+            ? gitUserName
+            : "Unknown User";
+
+        // Start loading indicator for dialog initialization
+        String loadingId = "load-comments-dialog-" + file.getPath() + "-" + lineNumber;
+        loadingStateManager.startLoading(loadingId);
 
         setUndecorated(true);
         initComponents();
         setupKeyboardShortcuts();
         loadExistingComments();
         applyTheme();
+
+        // Stop loading indicator after dialog is ready
+        loadingStateManager.stopLoading(loadingId);
 
         WindowResizeHandler resizeHandler = new WindowResizeHandler(this, 5);
         addMouseListener(resizeHandler);
@@ -202,25 +212,33 @@ public class InlineCommentDialog extends JDialog {
         headerPanel.setLayout(new MigLayout("fill, insets 8", "[]4[]push", "[]"));
 
         if (conversationNeedsResolution) {
+            // Show banner for both Unresolved and Resolved states
             headerPanel.setVisible(true);
 
-            Color bgColor = conversationResolved
-                ? new Color(76, 175, 80, 30)
-                : new Color(255, 152, 0, 30);
-            Color borderColor = conversationResolved
-                ? new Color(76, 175, 80)
-                : new Color(255, 152, 0);
-            Color textColor = conversationResolved
-                ? new Color(76, 175, 80)
-                : new Color(255, 152, 0);
+            Color bgColor;
+            Color borderColor;
+            Color textColor;
+            Icon icon;
+            String status;
+
+            if (conversationResolved) {
+                // State 3: Resolved (Green)
+                bgColor = new Color(76, 175, 80, 30);
+                borderColor = new Color(76, 175, 80);
+                textColor = new Color(76, 175, 80);
+                icon = new CheckIcon(themeManager.scale(16), borderColor);
+                status = "Resolved";
+            } else {
+                // State 2: Unresolved (Orange)
+                bgColor = new Color(255, 152, 0, 30);
+                borderColor = new Color(255, 152, 0);
+                textColor = new Color(255, 152, 0);
+                icon = new AlertIcon(themeManager.scale(16), borderColor);
+                status = "Unresolved";
+            }
 
             headerPanel.setBackground(bgColor);
             headerPanel.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, borderColor));
-
-            Icon icon = conversationResolved
-                ? new CheckIcon(themeManager.scale(16), borderColor)
-                : new AlertIcon(themeManager.scale(16), borderColor);
-            String status = conversationResolved ? "Resolved" : "Needs Resolution";
 
             ThemedLabel iconLabel = new ThemedLabel();
             iconLabel.setIcon(icon);
@@ -232,20 +250,36 @@ public class InlineCommentDialog extends JDialog {
             headerPanel.add(statusLabel, "align left");
 
             if (conversationResolved) {
-                ThemedLabel resolvedByLabel = new ThemedLabel("• Marked resolved by " + currentUser);
+                // Find the user who resolved the comment (get from actual comment data)
+                String resolvedByUser = currentUser; // Default fallback
+                List<ReviewComment> allComments = reviewContext.getCommentsForFile(file.getPath());
+                List<ReviewComment> lineComments = allComments.stream()
+                    .filter(c -> c.getLineNumber() == lineNumber && c.needsResolution() && c.isResolved())
+                    .toList();
+
+                if (!lineComments.isEmpty() && lineComments.get(0).getResolvedBy() != null) {
+                    resolvedByUser = lineComments.get(0).getResolvedBy();
+                }
+
+                ThemedLabel resolvedByLabel = new ThemedLabel("• Marked resolved by " + resolvedByUser);
                 resolvedByLabel.setFont(new Font("Segoe UI", Font.PLAIN, themeManager.scale(10)));
                 resolvedByLabel.setForeground(theme.getSecondaryTextColor());
                 headerPanel.add(resolvedByLabel, "gapleft 6");
             }
         } else {
+            // State 1: Observation (No banner)
             headerPanel.setVisible(false);
         }
 
+        // Update button text based on three states
         if (!conversationNeedsResolution) {
+            // State 1: Observation → can mark as Unresolved
             resolveToggleButton.setText("Mark as Needs Resolution");
         } else if (conversationResolved) {
+            // State 3: Resolved → can mark as Unresolved
             resolveToggleButton.setText("Mark as Unresolved");
         } else {
+            // State 2: Unresolved → can mark as Resolved
             resolveToggleButton.setText("Mark as Resolved");
         }
 
@@ -262,15 +296,27 @@ public class InlineCommentDialog extends JDialog {
             return;
         }
 
+        // Three-state system with one-way gate:
+        // 1. Observation (needsResolution=false) → Mark as Unresolved → State 2 [ONE WAY - can't go back]
+        // 2. Unresolved (needsResolution=true, resolved=false) ↔ Resolved (needsResolution=true, resolved=true)
+
         if (!conversationNeedsResolution) {
+            // State 1 → State 2: Mark as Unresolved (one-way transition)
+            // Once marked, needsResolution stays true forever
             for (ReviewComment comment : lineComments) {
                 comment.setNeedsResolution(true);
+                // Ensure resolved is false (Unresolved state)
+                comment.markUnresolved();
             }
         } else if (conversationResolved) {
+            // State 3 → State 2: Mark as Unresolved
+            // needsResolution stays true, just toggle resolved flag
             for (ReviewComment comment : lineComments) {
                 comment.markUnresolved();
             }
         } else {
+            // State 2 → State 3: Mark as Resolved
+            // needsResolution stays true, set resolved to true
             for (ReviewComment comment : lineComments) {
                 comment.markResolved(currentUser);
             }
@@ -320,6 +366,7 @@ public class InlineCommentDialog extends JDialog {
 
         String commentId = com.kalynx.serverlessreviewtool.utils.UuidV7Generator.generate();
 
+        // Create comment in default state: "just a comment" (not needing resolution)
         ReviewComment newComment = new ReviewComment(
             commentId,
             file.getPath(),
@@ -328,7 +375,7 @@ public class InlineCommentDialog extends JDialog {
             commentText,
             "just now",
             null,
-            conversationNeedsResolution
+            false  // Default state: just a comment (not needing resolution)
         );
 
         reviewContext.addComment(newComment);

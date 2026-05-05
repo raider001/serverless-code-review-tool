@@ -372,11 +372,22 @@ public class LineNumberedTextPane extends ThemedPanel {
                 List<ReviewComment> comments = getCommentsForLine(lineNumber);
                 int commentCount = comments.size();
 
+                // Three-state indicator color:
+                // 1. Blue: Observation (no comments marked as needs resolution)
+                // 2. Orange: Unresolved (has comments marked as needs resolution but not resolved)
+                // 3. Green: Resolved (all comments marked as needs resolution are resolved)
                 Color indicatorColor;
-                if (hasUnresolvedComments(lineNumber)) {
-                    indicatorColor = new Color(255, 152, 0);
+                boolean hasAnyNeedingResolution = comments.stream().anyMatch(ReviewComment::needsResolution);
+
+                if (!hasAnyNeedingResolution) {
+                    // State 1: All comments are observations
+                    indicatorColor = new Color(33, 150, 243); // Blue
+                } else if (hasUnresolvedComments(lineNumber)) {
+                    // State 2: Has unresolved comments
+                    indicatorColor = new Color(255, 152, 0); // Orange
                 } else {
-                    indicatorColor = new Color(76, 175, 80);
+                    // State 3: All comments needing resolution are resolved
+                    indicatorColor = new Color(76, 175, 80); // Green
                 }
 
                 int iconSize = themeManager.scale(12);

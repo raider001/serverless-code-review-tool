@@ -155,16 +155,24 @@ public class ReviewContextManager {
                                 id, filePath, lineNumber, editor, text, timestamp, replyTo, needsResolution
                             );
 
+                        // Apply the latest status from the status stream (overrides initial needsResolution from type)
                         if (!statusEntries.isEmpty()) {
                             StreamEntry<GitReviewNotesManager.CommentStatusData> latestStatus =
                                 statusEntries.get(statusEntries.size() - 1);
                             GitReviewNotesManager.CommentStatusData statusData = latestStatus.data();
 
-                            if (statusData.needsResolution() != null && statusData.needsResolution()) {
-                                comment.setNeedsResolution(true);
+                            // Apply needsResolution from status (can override type-based initial value)
+                            if (statusData.needsResolution() != null) {
+                                comment.setNeedsResolution(statusData.needsResolution());
                             }
-                            if (statusData.resolved() != null && statusData.resolved()) {
-                                comment.markResolved(latestStatus.editor());
+
+                            // Apply resolved status (handle both true and false)
+                            if (statusData.resolved() != null) {
+                                if (statusData.resolved()) {
+                                    comment.markResolved(latestStatus.editor());
+                                } else {
+                                    comment.markUnresolved();
+                                }
                             }
                         }
 
