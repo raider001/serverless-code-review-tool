@@ -71,50 +71,48 @@ public class ReviewItemLoader {
     private CompletableFuture<ReviewItem> loadReviewItem(String repositoryName, String reviewId) {
         GitReviewNotesManager notesManager = new GitReviewNotesManager(git, repositoryName);
 
-        CompletableFuture<String> titleFuture = notesManager.readTitles(reviewId)
-            .thenApply(entries -> {
-                String value = getLatestValue(entries);
-                return value != null ? value : "Untitled Review";
-            })
-            .exceptionally(ex -> "Untitled Review");
+        CompletableFuture<List<StreamEntry<String>>> titleFuture = notesManager.readTitles(reviewId)
+            .exceptionally(ex -> new ArrayList<>());
 
-        CompletableFuture<String> authorFuture = notesManager.readAuthors(reviewId)
-            .thenApply(entries -> {
-                String value = getLatestValue(entries);
-                return value != null ? value : "Unknown";
-            })
-            .exceptionally(ex -> "Unknown");
+        CompletableFuture<List<StreamEntry<String>>> authorFuture = notesManager.readAuthors(reviewId)
+            .exceptionally(ex -> new ArrayList<>());
 
-        CompletableFuture<String> primaryRepoFuture = notesManager.readPrimaryRepository(reviewId)
-            .thenApply(entries -> {
-                String value = getLatestValue(entries);
-                return value != null ? value : repositoryName;
-            })
-            .exceptionally(ex -> repositoryName);
+        CompletableFuture<List<StreamEntry<String>>> primaryRepoFuture = notesManager.readPrimaryRepository(reviewId)
+            .exceptionally(ex -> new ArrayList<>());
 
-        CompletableFuture<String> statusFuture = notesManager.readStatuses(reviewId)
-            .thenApply(entries -> {
-                String value = getLatestValue(entries);
-                return value != null ? value : "OPEN";
-            })
-            .exceptionally(ex -> "OPEN");
+        CompletableFuture<List<StreamEntry<String>>> statusFuture = notesManager.readStatuses(reviewId)
+            .exceptionally(ex -> new ArrayList<>());
 
-        CompletableFuture<List<String>> reviewersFuture = notesManager.readReviewers(reviewId)
-            .thenApply(entries -> entries.stream()
-                .map(StreamEntry::editor)
-                .distinct()
-                .collect(java.util.stream.Collectors.toList()))
+        CompletableFuture<List<StreamEntry<com.kalynx.serverlessreviewtool.models.review.ReviewerData>>> reviewersFuture = notesManager.readReviewers(reviewId)
             .exceptionally(ex -> new ArrayList<>());
 
         return CompletableFuture.allOf(titleFuture, authorFuture, primaryRepoFuture, statusFuture, reviewersFuture)
             .thenApply(ignored -> {
-                String title = titleFuture.join();
-                String author = authorFuture.join();
-                String primaryRepo = primaryRepoFuture.join();
-                String statusStr = statusFuture.join();
-                List<String> reviewers = reviewersFuture.join();
+                List<StreamEntry<String>> titleEntries = titleFuture.join();
+                List<StreamEntry<String>> authorEntries = authorFuture.join();
+                List<StreamEntry<String>> statusEntries = statusFuture.join();
+                List<StreamEntry<com.kalynx.serverlessreviewtool.models.review.ReviewerData>> reviewerEntries = reviewersFuture.join();
+
+                String title = getLatestValue(titleEntries);
+                if (title == null) title = "Untitled Review";
+
+                String author = getLatestValue(authorEntries);
+                if (author == null) author = "Unknown";
+
+                String primaryRepo = getLatestValue(primaryRepoFuture.join());
+                if (primaryRepo == null) primaryRepo = repositoryName;
+
+                String statusStr = getLatestValue(statusEntries);
+                if (statusStr == null) statusStr = "OPEN";
+
+                List<String> reviewers = reviewerEntries.stream()
+                    .map(StreamEntry::editor)
+                    .distinct()
+                    .collect(java.util.stream.Collectors.toList());
+
                 ReviewStatus status = parseStatus(statusStr);
-                long lastUpdate = System.currentTimeMillis();
+
+                long lastUpdate = getMostRecentTimestamp(titleEntries, authorEntries, statusEntries, reviewerEntries);
 
                 return new ReviewItem(reviewId, title, author, primaryRepo, List.of(repositoryName), status, lastUpdate, reviewers);
             })
@@ -122,6 +120,31 @@ public class ReviewItemLoader {
                 System.err.println("Failed to load review " + reviewId + " from " + repositoryName + ": " + ex.getMessage());
                 return null;
             });
+    }
+
+    private long getMostRecentTimestamp(List<StreamEntry<String>> titleEntries,
+                                        List<StreamEntry<String>> authorEntries,
+                                        List<StreamEntry<String>> statusEntries,
+                                        List<StreamEntry<com.kalynx.serverlessreviewtool.models.review.ReviewerData>> reviewerEntries) {
+        long mostRecent = 0;
+
+        mostRecent = Math.max(mostRecent, getLatestTimestamp(titleEntries));
+        mostRecent = Math.max(mostRecent, getLatestTimestamp(authorEntries));
+        mostRecent = Math.max(mostRecent, getLatestTimestamp(statusEntries));
+        mostRecent = Math.max(mostRecent, getLatestTimestamp(reviewerEntries));
+
+        return mostRecent > 0 ? mostRecent : System.currentTimeMillis();
+    }
+
+    private <T> long getLatestTimestamp(List<StreamEntry<T>> entries) {
+        if (entries == null || entries.isEmpty()) {
+            return 0;
+        }
+        return entries.stream()
+            .filter(entry -> entry != null && entry.timestamp() != null)
+            .mapToLong(entry -> entry.timestamp().toEpochMilli())
+            .max()
+            .orElse(0);
     }
 
     private <T> T getLatestValue(List<StreamEntry<T>> entries) {
