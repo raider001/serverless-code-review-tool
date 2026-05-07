@@ -394,7 +394,13 @@ public class ReviewContextManager {
                 String statusStr = getLatestValue(metadata.statuses());
 
                 List<String> reviewerNames = metadata.reviewers().stream()
-                    .map(StreamEntry::editor)
+                    .collect(Collectors.groupingBy(
+                        StreamEntry::editor,
+                        Collectors.maxBy((e1, e2) -> e1.timestamp().compareTo(e2.timestamp()))
+                    ))
+                    .values().stream()
+                    .filter(opt -> opt.isPresent() && !"LEFT".equalsIgnoreCase(opt.get().data().getStatus()))
+                    .map(opt -> opt.get().editor())
                     .distinct()
                     .toList();
 
@@ -762,6 +768,23 @@ public class ReviewContextManager {
             new com.kalynx.serverlessreviewtool.models.review.ReviewerData("REVIEWING", null);
 
         LOGGER.info("Adding reviewer {} to review {} in repository {}", reviewerName, reviewId, primaryRepoName);
+
+        return notesManager.writeReviewer(reviewId, reviewerName, reviewerData);
+    }
+
+    public CompletableFuture<Void> removeReviewer(String reviewId, String reviewerName, List<String> repositoryNames) {
+        if (repositoryNames == null || repositoryNames.isEmpty()) {
+            return CompletableFuture.failedFuture(
+                new IllegalArgumentException("Repository names cannot be null or empty"));
+        }
+
+        String primaryRepoName = repositoryNames.getFirst();
+        GitReviewNotesManager notesManager = new GitReviewNotesManager(git, primaryRepoName);
+
+        com.kalynx.serverlessreviewtool.models.review.ReviewerData reviewerData =
+            new com.kalynx.serverlessreviewtool.models.review.ReviewerData("LEFT", null);
+
+        LOGGER.info("Removing reviewer {} from review {} in repository {}", reviewerName, reviewId, primaryRepoName);
 
         return notesManager.writeReviewer(reviewId, reviewerName, reviewerData);
     }

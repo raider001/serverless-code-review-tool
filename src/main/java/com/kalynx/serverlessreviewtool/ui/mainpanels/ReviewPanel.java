@@ -60,6 +60,7 @@ public class ReviewPanel extends ThemedPanel {
 
         reviewDetailPanel.setOnEditAction(this::handleEditReview);
         reviewDetailPanel.setOnJoinReviewAction(this::handleJoinReview);
+        reviewDetailPanel.setOnLeaveReviewAction(this::handleLeaveReview);
         reviewDetailPanel.setOnReviewerStatusChanged(this::onReviewerStatusChanged);
 
         reviewContextManager.addListener(this::onReviewContextChanged);
@@ -292,6 +293,59 @@ public class ReviewPanel extends ThemedPanel {
             .exceptionally(error -> {
                 LoadingStateManager.getInstance().stopLoading("Joining review...");
                 LOGGER.error("Failed to join review", error);
+                return null;
+            });
+    }
+
+    private void handleLeaveReview() {
+        if (currentReviewContext == null) {
+            LOGGER.warn("Cannot leave review - no review context loaded");
+            return;
+        }
+
+        String currentUserFromGit = com.kalynx.serverlessreviewtool.configuration.GitConfigReader.getUserName();
+        final String currentUser = (currentUserFromGit != null && !currentUserFromGit.isEmpty())
+            ? currentUserFromGit : System.getProperty("user.name", "Unknown User");
+
+        LOGGER.info("Removing {} from review: {}", currentUser, currentReviewContext.reviewId);
+
+        LoadingStateManager.getInstance().startLoading("Leaving review...");
+
+        reviewContextManager.removeReviewer(currentReviewContext.reviewId, currentUser,
+            currentReviewContext.repositories.stream()
+                .map(Repository::getName)
+                .toList())
+            .thenAccept(v -> {
+                LOGGER.info("Successfully removed {} from reviewers", currentUser);
+                reviewContextManager.loadReviewMetadata(currentReviewContext.reviewId,
+                    currentReviewContext.repositories.stream()
+                        .map(Repository::getName)
+                        .toList())
+                    .thenAccept(updatedContext -> {
+                        LoadingStateManager.getInstance().stopLoading("Leaving review...");
+                        if (updatedContext != null) {
+                            currentReviewContext = updatedContext;
+                            SwingUtilities.invokeLater(() -> {
+                                model.reviewDetailModel.setReviewData(
+                                    updatedContext.reviewId,
+                                    updatedContext.title,
+                                    updatedContext.author,
+                                    updatedContext.summary,
+                                    updatedContext.status,
+                                    updatedContext.reviewers
+                                );
+                            });
+                        }
+                    })
+                    .exceptionally(error -> {
+                        LoadingStateManager.getInstance().stopLoading("Leaving review...");
+                        LOGGER.error("Failed to refresh review after leaving", error);
+                        return null;
+                    });
+            })
+            .exceptionally(error -> {
+                LoadingStateManager.getInstance().stopLoading("Leaving review...");
+                LOGGER.error("Failed to leave review", error);
                 return null;
             });
     }

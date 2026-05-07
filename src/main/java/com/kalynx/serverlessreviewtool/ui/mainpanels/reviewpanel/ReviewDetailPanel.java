@@ -42,6 +42,7 @@ public class ReviewDetailPanel extends ThemedPanel {
     private Runnable onEditAction;
     private Consumer<Boolean> onReviewerStatusChanged;
     private Runnable onJoinReviewAction;
+    private Runnable onLeaveReviewAction;
 
     private String currentUserName;
     private boolean isCurrentUserReviewer = false;
@@ -132,7 +133,7 @@ public class ReviewDetailPanel extends ThemedPanel {
     private void updateButtonStates() {
         if (isCurrentUserReviewer) {
             editReviewButton.setEnabled(true);
-            closeReviewButton.setText("Close Review");
+            closeReviewButton.setText("Leave Review");
             closeReviewButton.setEnabled(true);
         } else {
             editReviewButton.setEnabled(false);
@@ -156,7 +157,11 @@ public class ReviewDetailPanel extends ThemedPanel {
 
     private void handleCloseOrJoinReview() {
         if (isCurrentUserReviewer) {
-            LOGGER.info("TODO: Implement close review action");
+            if (onLeaveReviewAction != null) {
+                onLeaveReviewAction.run();
+            } else {
+                LOGGER.warn("Leave review action not configured");
+            }
         } else {
             if (onJoinReviewAction != null) {
                 onJoinReviewAction.run();
@@ -172,6 +177,10 @@ public class ReviewDetailPanel extends ThemedPanel {
 
     public void setOnJoinReviewAction(Runnable action) {
         this.onJoinReviewAction = action;
+    }
+
+    public void setOnLeaveReviewAction(Runnable action) {
+        this.onLeaveReviewAction = action;
     }
 
     public void setOnReviewerStatusChanged(Consumer<Boolean> callback) {
