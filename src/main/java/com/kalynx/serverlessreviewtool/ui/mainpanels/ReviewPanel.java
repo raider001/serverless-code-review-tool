@@ -59,10 +59,17 @@ public class ReviewPanel extends ThemedPanel {
         this.codePanel = new CodePanel(reviewContextManager, reviewPanelModel.codeViewerModel, fileDiffManager, git);
 
         reviewDetailPanel.setOnEditAction(this::handleEditReview);
+        reviewDetailPanel.setOnJoinReviewAction(this::handleJoinReview);
+        reviewDetailPanel.setOnReviewerStatusChanged(this::onReviewerStatusChanged);
 
         reviewContextManager.addListener(this::onReviewContextChanged);
 
         configureLayout();
+    }
+
+    private void onReviewerStatusChanged(Boolean isReviewer) {
+        rejectApprovePanel.setButtonsEnabled(isReviewer);
+        codePanel.setCommentsEnabled(isReviewer);
     }
 
     private void onReviewContextChanged(ReviewContext context) {
@@ -234,5 +241,58 @@ public class ReviewPanel extends ThemedPanel {
         });
 
         dialog.setVisible(true);
+    }
+
+    private void handleJoinReview() {
+        if (currentReviewContext == null) {
+            LOGGER.warn("Cannot join review - no review context loaded");
+            return;
+        }
+
+        String currentUserFromGit = com.kalynx.serverlessreviewtool.configuration.GitConfigReader.getUserName();
+        final String currentUser = (currentUserFromGit != null && !currentUserFromGit.isEmpty())
+            ? currentUserFromGit : System.getProperty("user.name", "Unknown User");
+
+        LOGGER.info("Adding {} as reviewer to review: {}", currentUser, currentReviewContext.reviewId);
+
+        LoadingStateManager.getInstance().startLoading("Joining review...");
+
+        reviewContextManager.addReviewer(currentReviewContext.reviewId, currentUser,
+            currentReviewContext.repositories.stream()
+                .map(Repository::getName)
+                .toList())
+            .thenAccept(v -> {
+                LOGGER.info("Successfully added {} as reviewer", currentUser);
+                reviewContextManager.loadReviewMetadata(currentReviewContext.reviewId,
+                    currentReviewContext.repositories.stream()
+                        .map(Repository::getName)
+                        .toList())
+                    .thenAccept(updatedContext -> {
+                        LoadingStateManager.getInstance().stopLoading("Joining review...");
+                        if (updatedContext != null) {
+                            currentReviewContext = updatedContext;
+                            SwingUtilities.invokeLater(() -> {
+                                model.reviewDetailModel.setReviewData(
+                                    updatedContext.reviewId,
+                                    updatedContext.title,
+                                    updatedContext.author,
+                                    updatedContext.summary,
+                                    updatedContext.status,
+                                    updatedContext.reviewers
+                                );
+                            });
+                        }
+                    })
+                    .exceptionally(error -> {
+                        LoadingStateManager.getInstance().stopLoading("Joining review...");
+                        LOGGER.error("Failed to refresh review after joining", error);
+                        return null;
+                    });
+            })
+            .exceptionally(error -> {
+                LoadingStateManager.getInstance().stopLoading("Joining review...");
+                LOGGER.error("Failed to join review", error);
+                return null;
+            });
     }
 }

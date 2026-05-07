@@ -749,6 +749,23 @@ public class ReviewContextManager {
         listener.accept(currentReviewContext);
     }
 
+    public CompletableFuture<Void> addReviewer(String reviewId, String reviewerName, List<String> repositoryNames) {
+        if (repositoryNames == null || repositoryNames.isEmpty()) {
+            return CompletableFuture.failedFuture(
+                new IllegalArgumentException("Repository names cannot be null or empty"));
+        }
+
+        String primaryRepoName = repositoryNames.getFirst();
+        GitReviewNotesManager notesManager = new GitReviewNotesManager(git, primaryRepoName);
+
+        com.kalynx.serverlessreviewtool.models.review.ReviewerData reviewerData =
+            new com.kalynx.serverlessreviewtool.models.review.ReviewerData("REVIEWING", null);
+
+        LOGGER.info("Adding reviewer {} to review {} in repository {}", reviewerName, reviewId, primaryRepoName);
+
+        return notesManager.writeReviewer(reviewId, reviewerName, reviewerData);
+    }
+
     /**
      * Remove a listener.
      */

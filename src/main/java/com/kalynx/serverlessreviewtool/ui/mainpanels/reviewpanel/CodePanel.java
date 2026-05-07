@@ -31,6 +31,8 @@ public class CodePanel extends ThemedPanel {
     private final FileNavigationPanel fileNavigationPanel;
     private final DiffViewerPanel diffViewerPanel;
     private final ThemedSplitPane fileAndDiffSplitPane = new ThemedSplitPane(JSplitPane.HORIZONTAL_SPLIT);
+    
+    private boolean commentsEnabled = false;
 
     public CodePanel(ReviewContextManager reviewContextManager, CodeViewerModel codeViewerModel,
                      com.kalynx.serverlessreviewtool.managers.FileDiffManager fileDiffManager, Git git) {
@@ -75,6 +77,11 @@ public class CodePanel extends ThemedPanel {
     }
 
     private void onLineDoubleClicked(Integer lineNumber) {
+        if (!commentsEnabled) {
+            LOGGER.debug("Comments disabled - user is not a reviewer");
+            return;
+        }
+
         ReviewFile file = codeViewerModel.selectedFile.getValue();
         com.kalynx.serverlessreviewtool.models.ReviewContext reviewContext = reviewContextManager.getReviewContext();
 
@@ -199,6 +206,11 @@ public class CodePanel extends ThemedPanel {
             });
 
         loadCommentsForCurrentFile();
+    }
+
+    public void setCommentsEnabled(boolean enabled) {
+        this.commentsEnabled = enabled;
+        LOGGER.debug("Comments enabled: {}", enabled);
     }
 
 }
