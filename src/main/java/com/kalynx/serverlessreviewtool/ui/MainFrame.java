@@ -26,7 +26,6 @@ import com.kalynx.serverlessreviewtool.utils.TeeOutputStream;
 import javax.swing.*;
 import java.awt.*;
 import java.io.PrintStream;
-import java.util.List;
 
 /**
  * MainFrame - The main application window
