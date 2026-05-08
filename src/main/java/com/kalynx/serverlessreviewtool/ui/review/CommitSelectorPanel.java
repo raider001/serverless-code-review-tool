@@ -86,23 +86,30 @@ public class CommitSelectorPanel extends ThemedPanel {
         String filePath = file.getPath();
 
         String branch = codeViewerModel.reviewBranch.getValue();
+        String baseBranch = codeViewerModel.reviewBaseBranch.getValue();
         if (branch == null) {
             LOGGER.warn("No review branch set, cannot load file commits");
+            return;
+        }
+        if (baseBranch == null) {
+            LOGGER.warn("No base branch set, cannot load file commits");
             return;
         }
 
         LOGGER.info("=== LOADING COMMITS FOR FILE ===");
         LOGGER.info("File: {} in repository: {}", filePath, repositoryName);
-        LOGGER.info("Branch: {}", branch);
+        LOGGER.info("Review Branch: {}", branch);
+        LOGGER.info("Base Branch: {}", baseBranch);
 
-        git.executeAsync(repositoryName, "log", "--format=%H|%an|%ad|%s", "--date=short", "--follow", branch, "--", filePath)
+        String commitRange = baseBranch + ".." + branch;
+        git.executeAsync(repositoryName, "log", "--format=%H|%an|%ad|%s", "--date=short", "--follow", commitRange, "--", filePath)
             .thenAccept(output -> {
                 List<Commit> commits = parseCommits(output.lines().toList());
                 LOGGER.info("Loaded {} commits for file {}", commits.size(), filePath);
 
                 if (!commits.isEmpty()) {
-                    LOGGER.info("First commit: {} - {}", commits.get(0).getShortHash(), commits.get(0).getMessage());
-                    LOGGER.info("Last commit: {} - {}", commits.get(commits.size() - 1).getShortHash(), commits.get(commits.size() - 1).getMessage());
+                    LOGGER.info("First commit: {} - {}", commits.getFirst().getShortHash(), commits.getFirst().getMessage());
+                    LOGGER.info("Last commit: {} - {}", commits.getLast().getShortHash(), commits.getLast().getMessage());
                 }
 
                 List<Commit> reversedCommits = new ArrayList<>(commits);
