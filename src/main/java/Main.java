@@ -28,30 +28,27 @@ public class Main {
     private static final String userHome = System.getProperty("user.home");
     private static final Path gitLocalPath = Paths.get(userHome, ".serverless-review-tool", "repositories");
 
-    private static final Git GIT;
-    private static final RepositoryLoader REPOSITORY_LOADER;
+
     private static final RepositoryManager REPOSITORY_MANAGER;
     private static final SettingsManager SETTINGS_MANAGER;
-    private static final ReviewItemLoader REVIEW_ITEM_LOADER;
     private static final ReviewItemManager REVIEW_ITEM_MANAGER;
     private static final ReviewContextManager REVIEW_CONTEXT_MANAGER;
     private static final UserManager USER_MANAGER;
     private static final ReviewFormModels REVIEW_FORM_MODELS;
     private static final ReviewSelectionPanelModel REVIEW_SELECTION_PANEL_MODEL;
     private static final ReviewPanelModel REVIEW_PANEL_MODEL;
-    private static final PollingService POLLING_SERVICE;
 
 
     static {
         try {
-            GIT = DI.add(Git.class, new GitImpl(gitLocalPath));
-            REPOSITORY_LOADER = DI.inject(RepositoryLoader.class);
+            DI.add(Git.class, new GitImpl(gitLocalPath));
+            DI.inject(RepositoryLoader.class);
             REPOSITORY_MANAGER = DI.inject(RepositoryManager.class);
             SETTINGS_MANAGER = DI.inject(SettingsManager.class);
-            REVIEW_ITEM_LOADER = DI.inject(ReviewItemLoader.class);
+            DI.inject(ReviewItemLoader.class);
             REVIEW_ITEM_MANAGER = DI.inject(ReviewItemManager.class);
             REVIEW_CONTEXT_MANAGER = DI.inject(ReviewContextManager.class);
-            POLLING_SERVICE = DI.inject(PollingService.class);
+            DI.inject(PollingService.class);
             USER_MANAGER = DI.inject(UserManager.class);
             REVIEW_FORM_MODELS = DI.inject(ReviewFormModels.class);
             REVIEW_SELECTION_PANEL_MODEL = DI.inject(ReviewSelectionPanelModel.class);
@@ -66,9 +63,7 @@ public class Main {
         logger.info("Launching application...");
 
         USER_MANAGER.addListener(users -> REVIEW_FORM_MODELS.availableReviewers.setValue(users.stream().map(User::getName).toList()));
-        REPOSITORY_MANAGER.addListener(ignore -> {
-            REVIEW_ITEM_MANAGER.refresh();
-        });
+        REPOSITORY_MANAGER.addListener(ignore -> REVIEW_ITEM_MANAGER.refresh());
 
         UserMockData.loadMockData(USER_MANAGER);
 
