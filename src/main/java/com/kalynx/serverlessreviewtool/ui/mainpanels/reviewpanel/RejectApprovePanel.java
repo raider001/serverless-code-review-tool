@@ -17,6 +17,9 @@ public class RejectApprovePanel extends ThemedPanel {
     private final ThemedButton requestChangesButton = new ThemedButton("Request Changes");
     private final ThemedButton approveButton = new ThemedButton("Approve");
 
+    private Runnable onApproveAction;
+    private Runnable onRequestChangesAction;
+
     public RejectApprovePanel() {
         configureLayout();
         setupButtons();
@@ -38,16 +41,32 @@ public class RejectApprovePanel extends ThemedPanel {
     }
 
     private void onRequestChanges() {
-        System.out.println("Request Changes clicked");
+        if (onRequestChangesAction != null) {
+            onRequestChangesAction.run();
+        } else {
+            LOGGER.info("Request Changes clicked (no action configured)");
+        }
     }
 
     private void onApprove() {
-        System.out.println("Approve clicked");
+        if (onApproveAction != null) {
+            onApproveAction.run();
+        } else {
+            LOGGER.info("Approve clicked (no action configured)");
+        }
     }
 
     public void setButtonsEnabled(boolean enabled) {
         requestChangesButton.setEnabled(enabled);
         approveButton.setEnabled(enabled);
+    }
+
+    public void setOnApproveAction(Runnable action) {
+        this.onApproveAction = action;
+    }
+
+    public void setOnRequestChangesAction(Runnable action) {
+        this.onRequestChangesAction = action;
     }
 }
 

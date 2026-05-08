@@ -19,8 +19,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.SwingUtilities;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 
 /**
@@ -43,6 +45,7 @@ public class ReviewPanel extends ThemedPanel {
     private final RejectApprovePanel rejectApprovePanel = new RejectApprovePanel();
 
     private ReviewContext currentReviewContext;
+    private final List<Consumer<Boolean>> additionalReviewerStatusListeners = new ArrayList<>();
 
     public ReviewPanel(ReviewContextManager reviewContextManager,
                       RepositoryManager repositoryManager,
@@ -58,6 +61,8 @@ public class ReviewPanel extends ThemedPanel {
         this.reviewDetailPanel = new ReviewDetailPanel(reviewPanelModel.reviewDetailModel);
         this.codePanel = new CodePanel(reviewContextManager, reviewPanelModel.codeViewerModel, fileDiffManager, git);
 
+        setupActions();
+
         reviewDetailPanel.setOnEditAction(this::handleEditReview);
         reviewDetailPanel.setOnJoinReviewAction(this::handleJoinReview);
         reviewDetailPanel.setOnLeaveReviewAction(this::handleLeaveReview);
@@ -68,9 +73,41 @@ public class ReviewPanel extends ThemedPanel {
         configureLayout();
     }
 
+    private void setupActions() {
+        rejectApprovePanel.setOnApproveAction(this::handleApprove);
+        rejectApprovePanel.setOnRequestChangesAction(this::handleRequestChanges);
+    }
+
+    public void handleApprove() {
+        if (currentReviewContext == null) {
+            LOGGER.warn("Cannot approve - no review context loaded");
+            return;
+        }
+
+        LOGGER.info("Approve action triggered for review: {}", currentReviewContext.reviewId);
+    }
+
+    public void handleRequestChanges() {
+        if (currentReviewContext == null) {
+            LOGGER.warn("Cannot request changes - no review context loaded");
+            return;
+        }
+
+        LOGGER.info("Request Changes action triggered for review: {}", currentReviewContext.reviewId);
+    }
+
+    public boolean isCurrentUserReviewer() {
+        return reviewDetailPanel.isCurrentUserReviewer();
+    }
+
     private void onReviewerStatusChanged(Boolean isReviewer) {
         rejectApprovePanel.setButtonsEnabled(isReviewer);
         codePanel.setCommentsEnabled(isReviewer);
+        additionalReviewerStatusListeners.forEach(listener -> listener.accept(isReviewer));
+    }
+
+    public void addReviewerStatusListener(Consumer<Boolean> listener) {
+        additionalReviewerStatusListeners.add(listener);
     }
 
     private void onReviewContextChanged(ReviewContext context) {
@@ -86,7 +123,7 @@ public class ReviewPanel extends ThemedPanel {
 
 
     private void configureLayout() {
-        setLayout(new MigLayout("fill, insets 0", "[grow]", "[]0[grow]0[]"));
+        setLayout(new MigLayout("fill, insets 10", "[grow]", "[]0[grow]0[]"));
 
         add(reviewDetailPanel, "cell 0 0, growx, wrap");
         add(codePanel, "grow, wrap");

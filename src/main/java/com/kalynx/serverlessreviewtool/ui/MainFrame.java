@@ -17,6 +17,7 @@ import com.kalynx.serverlessreviewtool.ui.mainpanels.LogsPanel;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.ReviewPanel;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.ReviewSelectionPanel;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.SettingsPanel;
+import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel.SwipeActionPanel;
 import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewpanel.ReviewPanelModel;
 import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewselectionpanel.ReviewSelectionPanelModel;
 import com.kalynx.serverlessreviewtool.ui.models.reviewpanel.reviewformdialog.ReviewFormModels;
@@ -45,6 +46,7 @@ public class MainFrame extends ThemedFrame {
 
     private ReviewSelectionPanel reviewSelectionPanel;
     private ReviewPanel reviewPanel;
+    private SwipeActionPanel swipeActionPanel;
     private SettingsPanel settingsPanel;
     private LogsPanel logsPanel;
     private HelpPanel helpPanel;
@@ -104,6 +106,13 @@ public class MainFrame extends ThemedFrame {
     private void initializePanels() {
         reviewSelectionPanel = new ReviewSelectionPanel(repositoryManager, reviewItemManager, reviewSelectionPanelModel, reviewFormModels, git);
         reviewPanel = new ReviewPanel(reviewContextManager, repositoryManager, reviewFormModels, reviewPanelModel, git);
+        swipeActionPanel = new SwipeActionPanel(reviewPanel);
+
+        swipeActionPanel.setOnApprove(reviewPanel::handleApprove);
+        swipeActionPanel.setOnRequestChanges(reviewPanel::handleRequestChanges);
+
+        reviewPanel.addReviewerStatusListener(swipeActionPanel::setEnabled);
+
         settingsPanel = new SettingsPanel(settingsManager, git);
         logsPanel = new LogsPanel();
         helpPanel = new HelpPanel();
@@ -147,7 +156,7 @@ public class MainFrame extends ThemedFrame {
     }
 
     private void showCodeReviewPanel() {
-        switchPanel(reviewPanel);
+        switchPanel(swipeActionPanel);
         setWindowTitle("Serverless Review Tool - Code Review");
     }
 
@@ -170,6 +179,18 @@ public class MainFrame extends ThemedFrame {
         if (currentPanel != null) {
             getContentPanel().remove(currentPanel);
         }
+
+        if (newPanel instanceof SwipeActionPanel) {
+            getContentPanel().setBorder(null);
+        } else {
+            getContentPanel().setBorder(BorderFactory.createEmptyBorder(
+                themeManager.scale(10),
+                themeManager.scale(10),
+                themeManager.scale(10),
+                themeManager.scale(10)
+            ));
+        }
+
         currentPanel = newPanel;
         getContentPanel().add(currentPanel, BorderLayout.CENTER);
         updateRefreshButtonVisibility();
