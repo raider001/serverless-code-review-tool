@@ -28,7 +28,6 @@ public class Main {
     private static final String userHome = System.getProperty("user.home");
     private static final Path gitLocalPath = Paths.get(userHome, ".serverless-review-tool", "repositories");
 
-
     private static final RepositoryManager REPOSITORY_MANAGER;
     private static final SettingsManager SETTINGS_MANAGER;
     private static final ReviewItemManager REVIEW_ITEM_MANAGER;
@@ -37,7 +36,6 @@ public class Main {
     private static final ReviewFormModels REVIEW_FORM_MODELS;
     private static final ReviewSelectionPanelModel REVIEW_SELECTION_PANEL_MODEL;
     private static final ReviewPanelModel REVIEW_PANEL_MODEL;
-
 
     static {
         try {
