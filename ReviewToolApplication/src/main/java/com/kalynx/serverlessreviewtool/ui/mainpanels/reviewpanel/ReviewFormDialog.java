@@ -89,9 +89,9 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
             "[]" + GAP + "[]" + GAP + "[]" + GAP + "[]"
         ));
 
-        content.add(detailsPanel, "grow, wrap");
-        content.add(createSelectionSection(), "grow, wrap");
-        content.add(sourcePanel, "grow, wrap");
+        content.add(detailsPanel, "grow, wmin 0, wrap");
+        content.add(createSelectionSection(), "grow, wmin 0, wrap");
+        content.add(sourcePanel, "grow, wmin 0, wrap");
 
         if (shouldShowFooter()) {
             content.add(createFooter(), "growx");
@@ -179,8 +179,8 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
             "[grow,fill]"
         ));
 
-        row.add(repositoriesPanel, "grow");
-        row.add(reviewersPanel, "grow");
+        row.add(repositoriesPanel, "grow, wmin 0");
+        row.add(reviewersPanel, "grow, wmin 0");
 
         return row;
     }

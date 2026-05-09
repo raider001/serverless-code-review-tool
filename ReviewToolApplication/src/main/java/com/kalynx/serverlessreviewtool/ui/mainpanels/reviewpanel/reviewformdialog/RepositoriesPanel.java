@@ -15,6 +15,7 @@ public class RepositoriesPanel extends ThemedPanel {
     private final ThemedSearchableComboBox repositorySelector = new ThemedSearchableComboBox(new ArrayList<>());
     private final ThemedButton addButton = new ThemedButton("Add");
     private final ThemedPanel badgesPanel = new ThemedPanel();
+    private ThemedScrollPane badgeScroll;
 
     private final ComponentModel<List<String>> selectedRepositoriesModel;
     private final ComponentModel<List<String>> availableRepositoriesModel;
@@ -37,17 +38,17 @@ public class RepositoriesPanel extends ThemedPanel {
         setBorder(ThemedTitledBorder.create("Repositories"));
         badgesPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 4, 2));
         badgesPanel.setOpaque(false);
-        ThemedScrollPane badgeScroll = new ThemedScrollPane(badgesPanel);
+        badgeScroll = new ThemedScrollPane(badgesPanel);
         badgeScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
         badgeScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_NEVER);
         int badgeRowH = themeManager.scale(34) + badgeScroll.getHorizontalScrollBar().getPreferredSize().height;
         badgeScroll.setPreferredSize(new Dimension(0, badgeRowH));
         badgeScroll.setBorder(BorderFactory.createEmptyBorder());
-        add(badgeScroll, "growx, span, wrap");
+        add(badgeScroll, "growx, wmin 0, span, wrap");
 
         repositorySelector.setToolTipText("Search to add repositories…");
         addButton.setPreferredSize(new Dimension(themeManager.scale(70), themeManager.scale(28)));
-        add(repositorySelector, "growx");
+        add(repositorySelector, "growx, wmin 0");
         add(addButton, "");
     }
 
@@ -85,11 +86,9 @@ public class RepositoriesPanel extends ThemedPanel {
         }
         badgesPanel.revalidate();
         badgesPanel.repaint();
-        Container p = badgesPanel.getParent();
-        while (p != null) {
-            p.revalidate();
-            p.repaint();
-            p = p.getParent();
+        if (badgeScroll != null) {
+            badgeScroll.revalidate();
+            badgeScroll.repaint();
         }
     }
 

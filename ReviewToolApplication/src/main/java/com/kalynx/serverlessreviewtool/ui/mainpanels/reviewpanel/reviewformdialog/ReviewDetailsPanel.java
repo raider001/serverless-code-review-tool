@@ -127,10 +127,10 @@ public class ReviewDetailsPanel extends ThemedPanel {
 
     private void configureLayout() {
         add(rightLabel("Title:"));
-        add(titleField, "growx, wrap");
+        add(titleField, "growx, wmin 0, wrap");
 
         add(rightLabel("Author:"));
-        add(authorCombo, "growx, wrap");
+        add(authorCombo, "growx, wmin 0, wrap");
 
         ThemedScrollPane summaryScroll = new ThemedScrollPane(summaryArea);
         summaryScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
@@ -138,7 +138,7 @@ public class ReviewDetailsPanel extends ThemedPanel {
         summaryScroll.setPreferredSize(new Dimension(0, themeManager.scale(SUMMARY_H)));
 
         add(rightLabel("Summary:"), "aligny top, gaptop 4");
-        add(summaryScroll, "grow");
+        add(summaryScroll, "grow, wmin 0");
     }
 
     private ThemedLabel rightLabel(String text) {

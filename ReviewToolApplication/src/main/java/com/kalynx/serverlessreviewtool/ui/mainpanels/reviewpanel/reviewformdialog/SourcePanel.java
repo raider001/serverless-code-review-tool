@@ -51,22 +51,22 @@ public class SourcePanel extends ThemedPanel {
         ));
 
         branchPanel.add(rightLabel("Branch:"));
-        branchPanel.add(branchNameField, "growx");
+        branchPanel.add(branchNameField, "growx, wmin 0");
         branchPanel.add(rightLabel("Review against:"));
-        branchPanel.add(reviewAgainstBranchCombo, "growx");
+        branchPanel.add(reviewAgainstBranchCombo, "growx, wmin 0");
 
-        add(branchPanel, "grow");
+        add(branchPanel, "grow, wmin 0");
     }
 
     private void setupListeners() {
-        branchNameField.addActionListener(e -> {
+        branchNameField.addActionListener(ignored -> {
             Object selected = branchNameField.getSelectedItem();
             if (selected != null) {
                 selectedBranchModel.setValue(selected.toString());
             }
         });
 
-        reviewAgainstBranchCombo.addActionListener(e -> {
+        reviewAgainstBranchCombo.addActionListener(ignored -> {
             Object selected = reviewAgainstBranchCombo.getSelectedItem();
             if (selected != null) {
                 selectedBaseBranchModel.setValue(selected.toString());

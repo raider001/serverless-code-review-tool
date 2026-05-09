@@ -48,7 +48,7 @@ public class ThemedOptionPane extends JDialog {
 
         MessageIcon icon = new MessageIcon(iconType, getIconColor(type));
 
-        ThemedLabel messageLabel = new ThemedLabel("<html><body style='width: 300px'>" + message + "</body></html>");
+        ThemedLabel messageLabel = new ThemedLabel("<html><body style='width: 300px'>" + formatMessageBody(message) + "</body></html>");
         messagePanel.add(icon, "cell 0 0, aligny top");
         messagePanel.add(messageLabel, "cell 1 0, grow");
 
@@ -58,18 +58,24 @@ public class ThemedOptionPane extends JDialog {
         buttonPanel.setLayout(new MigLayout("insets 10 20 20 20", "[grow][]", "[]"));
 
         ThemedButton okButton = new ThemedButton("OK");
-        okButton.addActionListener(e -> dispose());
+        okButton.addActionListener(ignored -> dispose());
         buttonPanel.add(okButton, "cell 1 0, width 80!");
 
         contentPanel.add(buttonPanel, "cell 0 2, grow");
 
         setContentPane(contentPanel);
-        setMinimumSize(new Dimension(themeManager.scale(450), themeManager.scale(180)));
         pack();
+    }
 
-        int preferredWidth = themeManager.scale(450);
-        int preferredHeight = Math.max(getHeight(), themeManager.scale(180));
-        setSize(preferredWidth, preferredHeight);
+    private String formatMessageBody(String message) {
+        return escapeHtml(message).replace("\n", "<br/>");
+    }
+
+    private String escapeHtml(String value) {
+        return value
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;");
     }
 
     private Color getIconColor(MessageType type) {
@@ -93,11 +99,20 @@ public class ThemedOptionPane extends JDialog {
         int dialogX = ownerLocation.x + ownerWidth - getWidth() - themeManager.scale(20);
         int dialogY = ownerLocation.y + (ownerHeight - getHeight()) / 2;
 
-        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-        dialogX = Math.min(dialogX, screenSize.width - getWidth());
-        dialogX = Math.max(dialogX, 0);
-        dialogY = Math.max(dialogY, 0);
-        dialogY = Math.min(dialogY, screenSize.height - getHeight());
+        GraphicsConfiguration config = owner.getGraphicsConfiguration();
+        if (config == null) {
+            config = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDefaultConfiguration();
+        }
+        Rectangle bounds = config.getBounds();
+        Insets insets = Toolkit.getDefaultToolkit().getScreenInsets(config);
+
+        int minX = bounds.x + insets.left;
+        int minY = bounds.y + insets.top;
+        int maxX = bounds.x + bounds.width - insets.right - getWidth();
+        int maxY = bounds.y + bounds.height - insets.bottom - getHeight();
+
+        dialogX = Math.max(minX, Math.min(dialogX, maxX));
+        dialogY = Math.max(minY, Math.min(dialogY, maxY));
 
         setLocation(dialogX, dialogY);
     }
@@ -114,10 +129,6 @@ public class ThemedOptionPane extends JDialog {
 
     public static void showError(Component parent, String message) {
         showMessageDialog(parent, message, "Error", MessageType.ERROR);
-    }
-
-    public static void showInfo(Component parent, String message) {
-        showMessageDialog(parent, message, "Information", MessageType.INFO);
     }
 }
 
