@@ -6,13 +6,17 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
-        <module name="serverless-review-tool" />
+        <module name="review-tool-plugin-interface" />
+        <module name="review-tool-application" />
+        <module name="review-tool-default-plugins" />
       </profile>
     </annotationProcessing>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
-      <module name="serverless-review-tool" options="-Xlint:all" />
+      <module name="review-tool-application" options="-Xlint:all" />
+      <module name="review-tool-default-plugins" options="-Xlint:all" />
+      <module name="review-tool-plugin-interface" options="-Xlint:all" />
     </option>
   </component>
 </project>

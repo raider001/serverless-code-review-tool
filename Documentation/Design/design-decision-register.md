@@ -180,3 +180,28 @@ refs/notes/reviews/{review-id}/metadata/primaryRepository
 **ACTIVE** - Implemented across ReviewItem, GitReviewNotesManager, ReviewItemLoader, ReviewItemManager
 
 
+## User Identity Trust Model
+
+### Decision
+Use Git-provided identity (`git config user.name`) as the tool's user source. Do not add application-level authentication (validation only).
+
+### Acknowledgement
+Because this tool relies entirely on Git, it cannot validate a person's real identity or personal information when reviews are pushed. Git handles access/authentication through the remote service; the tool only sees the identity the user claims locally.
+
+### Implication
+- The tool can record and display user information
+- The tool cannot prove that name is real
+- Preventing spoofing requires Git-level signing or external identity services, not UI checks
+
+### Extensibility
+The tool will support plugging in third-party services for user validation and basic profile enrichment. This validation applies only inside the tool UI/workflow and does not authenticate Git pushes at the remote service level.
+
+### Boundary
+- Tool-level validation can guide or block actions in the UI
+- It cannot enforce identity for direct/manual Git pushes outside the tool
+
+### Status
+**ACTIVE** - Accepted limitation
+
+
+
