@@ -56,7 +56,7 @@ public class SwipeActionPanel extends ThemedPanel {
     }
 
     private void initializeFadeTimer() {
-        fadeTimer = new javax.swing.Timer(16, e -> {
+        fadeTimer = new javax.swing.Timer(16, ignored -> {
             boolean needsUpdate = false;
 
             if (isLeftHover && leftPanelAlpha < 0.8f) {
@@ -111,27 +111,36 @@ public class SwipeActionPanel extends ThemedPanel {
         addComponentListener(new java.awt.event.ComponentAdapter() {
             @Override
             public void componentResized(java.awt.event.ComponentEvent e) {
-                Dimension size = getSize();
-                layeredPane.setPreferredSize(size);
-                layeredPane.setBounds(0, 0, size.width, size.height);
-                contentPanel.setBounds(0, 0, size.width, size.height);
-                glassPane.setBounds(0, 0, size.width, size.height);
-                updatePullPanelBounds();
+                layoutOverlayComponents();
             }
         });
 
-        SwingUtilities.invokeLater(() -> {
-            Dimension size = getSize();
-            if (size.width > 0 && size.height > 0) {
-                layeredPane.setPreferredSize(size);
-                layeredPane.setBounds(0, 0, size.width, size.height);
-                contentPanel.setBounds(0, 0, size.width, size.height);
-                glassPane.setBounds(0, 0, size.width, size.height);
-            }
-        });
+        SwingUtilities.invokeLater(this::layoutOverlayComponents);
 
         layeredPane.add(contentPanel, JLayeredPane.DEFAULT_LAYER);
         layeredPane.add(glassPane, JLayeredPane.PALETTE_LAYER);
+    }
+
+    @Override
+    public void doLayout() {
+        super.doLayout();
+        layoutOverlayComponents();
+    }
+
+    private void layoutOverlayComponents() {
+        if (layeredPane == null) {
+            return;
+        }
+        int width = getWidth();
+        int height = getHeight();
+        if (width <= 0 || height <= 0) {
+            return;
+        }
+
+        layeredPane.setBounds(0, 0, width, height);
+        contentPanel.setBounds(0, 0, width, height);
+        glassPane.setBounds(0, 0, width, height);
+        updatePullPanelBounds();
     }
 
     private JPanel createGlassPane() {
@@ -222,7 +231,7 @@ public class SwipeActionPanel extends ThemedPanel {
                 if (isDragging && currentDragOffset > HOVER_PEEK_WIDTH) {
                     drawDragState(g2d, text, progress, width, height, textColor, isLeftPanel);
                 } else if (width <= HOVER_PEEK_WIDTH + 5) {
-                    drawHoverState(g2d, width, height, textColor, isLeftPanel);
+                    drawHoverState(g2d, width, height, isLeftPanel);
                 }
 
                 g2d.dispose();
@@ -239,7 +248,7 @@ public class SwipeActionPanel extends ThemedPanel {
         return panel;
     }
 
-    private void drawHoverState(Graphics2D g2d, int width, int height, Color textColor, boolean isLeftPanel) {
+    private void drawHoverState(Graphics2D g2d, int width, int height, boolean isLeftPanel) {
         int centerX = width / 2;
         int centerY = height / 2;
         int circleSize = 36;
@@ -318,20 +327,21 @@ public class SwipeActionPanel extends ThemedPanel {
 
         int barWidth = 140;
         int barHeight = 6;
+        int barCornerRadius = 6;
         int barX = centerX - barWidth / 2;
         int barY = fixedCenterY + iconSize / 2 + 54;
 
         g2d.setStroke(new BasicStroke(1));
         g2d.setColor(new Color(0, 0, 0, 60));
-        g2d.fillRoundRect(barX + 1, barY + 1, barWidth, barHeight, barHeight, barHeight);
+        g2d.fillRoundRect(barX + 1, barY + 1, barWidth, barHeight, barCornerRadius, barCornerRadius);
 
         g2d.setColor(new Color(textColor.getRed(), textColor.getGreen(), textColor.getBlue(), 100));
-        g2d.fillRoundRect(barX, barY, barWidth, barHeight, barHeight, barHeight);
+        g2d.fillRoundRect(barX, barY, barWidth, barHeight, barCornerRadius, barCornerRadius);
 
         int fillWidth = (int) (barWidth * (progress / 100.0));
         if (fillWidth > 0) {
             g2d.setColor(new Color(textColor.getRed(), textColor.getGreen(), textColor.getBlue(), 240));
-            g2d.fillRoundRect(barX, barY, fillWidth, barHeight, barHeight, barHeight);
+            g2d.fillRoundRect(barX, barY, fillWidth, barHeight, barCornerRadius, barCornerRadius);
         }
     }
 
@@ -500,7 +510,6 @@ public class SwipeActionPanel extends ThemedPanel {
 
     private void redispatchMouseEvent(MouseEvent e) {
         Point glassPoint = e.getPoint();
-        Component component = contentPanel;
         Point containerPoint = SwingUtilities.convertPoint(glassPane, glassPoint, contentPanel);
 
         Component deepComponent = SwingUtilities.getDeepestComponentAt(contentPanel, containerPoint.x, containerPoint.y);
@@ -598,11 +607,9 @@ public class SwipeActionPanel extends ThemedPanel {
     private void animateSuccess() {
         Timer timer = new Timer(30, null);
         final float[] alpha = {1.0f};
-        final int[] scale = {100};
 
         timer.addActionListener(ignored -> {
             alpha[0] -= 0.08f;
-            scale[0] += 3;
 
             if (alpha[0] <= 0) {
                 timer.stop();
