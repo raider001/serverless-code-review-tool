@@ -128,7 +128,7 @@ public class ReviewPanel extends ThemedPanel {
 
         LoadingStateManager.getInstance().startLoading(loadingMessage);
         reviewContextManager.updateReviewerStatus(currentReviewContext.reviewId, currentUser, status, repositoryNames)
-            .thenCompose(ignored -> reviewContextManager.loadReviewMetadata(currentReviewContext.reviewId, repositoryNames))
+            .thenCompose(ignored -> reviewContextManager.loadReviewMetadataOnly(currentReviewContext.reviewId, repositoryNames))
             .thenCompose(updatedContext -> {
                 if (updatedContext == null) {
                     return CompletableFuture.completedFuture(null);
@@ -145,10 +145,12 @@ public class ReviewPanel extends ThemedPanel {
                         desired,
                         new ArrayList<>(updatedContext.reviewers),
                         new ArrayList<>(updatedContext.repositories),
-                        new ArrayList<>(updatedContext.comments)
+                        new ArrayList<>(updatedContext.comments),
+                        updatedContext.getBranch(),
+                        updatedContext.getBaseBranch()
                     );
                     return reviewContextManager.saveReviewMetadata(synced)
-                        .thenCompose(ignored2 -> reviewContextManager.loadReviewMetadata(updatedContext.reviewId, repositoryNames));
+                        .thenCompose(ignored2 -> reviewContextManager.loadReviewMetadataOnly(updatedContext.reviewId, repositoryNames));
                 }
                 return CompletableFuture.completedFuture(updatedContext);
             })
@@ -289,7 +291,7 @@ public class ReviewPanel extends ThemedPanel {
                                 }
 
                                 CompletableFuture<List<ReviewFile>> filesFuture = reviewContextManager
-                                    .loadFilesFromReviewCommits(reviewId, repositories);
+                                    .loadFilesFromReviewCommits(repositories, reviewContext.getBranch(), reviewContext.getBaseBranch());
 
                                 return CompletableFuture.allOf(commitsFuture, filesFuture)
                                     .thenAccept(_ -> {
@@ -516,11 +518,13 @@ public class ReviewPanel extends ThemedPanel {
             targetStatus,
             new ArrayList<>(currentReviewContext.reviewers),
             new ArrayList<>(currentReviewContext.repositories),
-            new ArrayList<>(currentReviewContext.comments)
+            new ArrayList<>(currentReviewContext.comments),
+            currentReviewContext.getBranch(),
+            currentReviewContext.getBaseBranch()
         );
 
         reviewContextManager.saveReviewMetadata(updatedContext)
-            .thenCompose(ignored -> reviewContextManager.loadReviewMetadata(
+            .thenCompose(ignored -> reviewContextManager.loadReviewMetadataOnly(
                 currentReviewContext.reviewId,
                 currentReviewContext.repositories.stream().map(Repository::getName).toList()
             ))

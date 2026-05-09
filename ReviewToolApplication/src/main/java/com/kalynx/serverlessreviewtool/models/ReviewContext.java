@@ -14,9 +14,12 @@ public class ReviewContext {
     public final List<ReviewerInfo> reviewers;
     public final List<Repository> repositories;
     public final List<ReviewComment> comments;
+    public final String branch;
+    public final String baseBranch;
 
     public ReviewContext(String reviewId, String title, String summary, String author, ReviewStatus status,
-                         List<ReviewerInfo> reviewers, List<Repository> repositories, List<ReviewComment> comments) {
+                         List<ReviewerInfo> reviewers, List<Repository> repositories, List<ReviewComment> comments,
+                         String branch, String baseBranch) {
         this.reviewId = reviewId;
         this.title = title;
         this.summary = summary;
@@ -25,11 +28,26 @@ public class ReviewContext {
         this.reviewers = new ArrayList<>(reviewers);
         this.repositories = new ArrayList<>(repositories);
         this.comments = new ArrayList<>(comments);
+        this.branch = branch;
+        this.baseBranch = baseBranch;
     }
 
-    public ReviewContext(ReviewContext reviewContext) {
-        this(reviewContext.reviewId, reviewContext.title, reviewContext.summary, reviewContext.author, reviewContext.status,
-             reviewContext.reviewers, reviewContext.repositories, reviewContext.comments);
+    /**
+     * Returns the review branch name (e.g., "feature/my-feature").
+     *
+     * @return the branch being reviewed, or null if not yet loaded
+     */
+    public String getBranch() {
+        return branch;
+    }
+
+    /**
+     * Returns the base branch name (e.g., "origin/main").
+     *
+     * @return the base branch to compare against, or null if not yet loaded
+     */
+    public String getBaseBranch() {
+        return baseBranch;
     }
 
     public String getReviewId() {
@@ -60,38 +78,12 @@ public class ReviewContext {
         this.author = author;
     }
 
-    public ReviewStatus getReviewStatus() {
-        return status;
-    }
-
-    public void setReviewStatus(ReviewStatus status) {
-        this.status = status;
-    }
-
     public List<ReviewerInfo> getReviewers() {
         return new ArrayList<>(reviewers);
     }
 
-    public void addReviewer(String name) {
-        reviewers.add(new ReviewerInfo(name));
-    }
-
-    public void addReviewer(ReviewerInfo reviewer) {
-        reviewers.add(reviewer);
-    }
-
     public List<Repository> getRepositories() {
         return new ArrayList<>(repositories);
-    }
-
-    public void addRepository(Repository repository) {
-        repositories.add(repository);
-    }
-
-    public Repository getRepository(String name) {
-        return repositories.stream()
-            .filter(r -> r.getName().equals(name))
-            .findFirst().orElse(null);
     }
 
     public List<ReviewComment> getComments() {
@@ -120,11 +112,13 @@ public class ReviewContext {
                status == that.status &&
                Objects.equals(reviewers, that.reviewers) &&
                Objects.equals(repositories, that.repositories) &&
-               Objects.equals(comments, that.comments);
+               Objects.equals(comments, that.comments) &&
+               Objects.equals(branch, that.branch) &&
+               Objects.equals(baseBranch, that.baseBranch);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(reviewId, title, summary, author, status, reviewers, repositories, comments);
+        return Objects.hash(reviewId, title, summary, author, status, reviewers, repositories, comments, branch, baseBranch);
     }
 }

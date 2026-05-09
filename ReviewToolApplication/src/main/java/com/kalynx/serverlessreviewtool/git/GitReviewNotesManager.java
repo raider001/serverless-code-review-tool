@@ -16,6 +16,7 @@ public class GitReviewNotesManager {
     private final String repositoryName;
     private static final String NOTES_REF_PREFIX = "refs/notes/reviews/";
     private static final String REMOTE = "origin";
+    private static final String ZERO_OID = "0000000000000000000000000000000000000000";
 
     public GitReviewNotesManager(Git git, String repositoryName) {
         this.git = git;
@@ -276,6 +277,42 @@ public class GitReviewNotesManager {
             .thenApply(ignored -> null);
     }
 
+    private CompletableFuture<Void> pushAllNotesWithLease(List<String> refs, Map<String, String> expectedRefStates) {
+        List<String> args = new ArrayList<>();
+        args.add("push");
+        for (String ref : refs) {
+            String expected = expectedRefStates.getOrDefault(ref, ZERO_OID);
+            args.add("--force-with-lease=" + ref + ":" + expected);
+        }
+        args.add(REMOTE);
+        args.addAll(refs);
+
+        return git.executeAsync(repositoryName, args.toArray(new String[0]))
+            .thenApply(ignored -> null);
+    }
+
+    private CompletableFuture<Map<String, String>> collectExpectedRefStates(List<String> refs) {
+        List<CompletableFuture<Map.Entry<String, String>>> futures = refs.stream()
+            .map(ref -> resolveRefOidOrZero(ref).thenApply(oid -> Map.entry(ref, oid)))
+            .toList();
+
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+            .thenApply(ignored -> {
+                Map<String, String> expectedRefStates = new LinkedHashMap<>();
+                for (CompletableFuture<Map.Entry<String, String>> future : futures) {
+                    Map.Entry<String, String> entry = future.join();
+                    expectedRefStates.put(entry.getKey(), entry.getValue());
+                }
+                return expectedRefStates;
+            });
+    }
+
+    private CompletableFuture<String> resolveRefOidOrZero(String ref) {
+        return git.executeAsync(repositoryName, "rev-parse", "--verify", ref)
+            .thenApply(String::trim)
+            .exceptionally(ignored -> ZERO_OID);
+    }
+
     /**
      * Save all review metadata in a single parallel batch operation.
      * Fetches all affected streams in parallel, writes all content locally, then pushes all refs
@@ -319,8 +356,12 @@ public class GitReviewNotesManager {
             "reviewers"
         );
 
-        return fetchAllNotes(reviewId, streamPaths)
-            .thenCompose(ignored -> getRepositoryRootCommit())
+        List<String> refs = streamPaths.stream()
+            .map(streamPath -> NOTES_REF_PREFIX + reviewId + "/" + streamPath)
+            .toList();
+
+        return collectExpectedRefStates(refs)
+            .thenCompose(expectedRefStates -> getRepositoryRootCommit()
             .thenCompose(anchorCommit -> {
                 List<CompletableFuture<Path>> extractFutures = streamPaths.stream()
                     .map(sp -> extractNoteToFile(reviewId, sp, anchorCommit))
@@ -349,7 +390,7 @@ public class GitReviewNotesManager {
                         }
                     });
             })
-            .thenCompose(ignored -> pushAllNotes(reviewId, streamPaths))
+            .thenCompose(ignored -> pushAllNotesWithLease(refs, expectedRefStates)))
             .handle((ignored, ex) -> {
                 if (ex == null) {
                     return CompletableFuture.<Void>completedFuture(null);
@@ -384,8 +425,8 @@ public class GitReviewNotesManager {
     private CompletableFuture<Void> writeToStreamWithRetry(String reviewId, String streamPath, IOOperation writer, int retriesLeft) {
         String ref = NOTES_REF_PREFIX + reviewId + "/" + streamPath;
 
-        return fetchAndMergeNotes(reviewId, streamPath)
-            .thenCompose(ignored -> getAnchorCommit())
+        return resolveRefOidOrZero(ref)
+            .thenCompose(expectedRef -> getAnchorCommit()
             .thenCompose(anchorCommit ->
                 extractNoteToFile(reviewId, streamPath, anchorCommit).thenCompose(filePath -> {
                     try {
@@ -397,7 +438,7 @@ public class GitReviewNotesManager {
                     }
                 })
             )
-            .thenCompose(ignored -> pushNotes(ref))
+            .thenCompose(ignored -> pushNotesWithLease(ref, expectedRef)))
             .handle((_, ex) -> {
                 if (ex == null) {
                     return CompletableFuture.<Void>completedFuture(null);
@@ -529,10 +570,10 @@ public class GitReviewNotesManager {
         }).thenApply(ignored -> null);
     }
 
-    private CompletableFuture<Void> pushNotes(String ref) {
+    private CompletableFuture<Void> pushNotesWithLease(String ref, String expectedRef) {
         return git.executeAsync(
             repositoryName,
-            "push", REMOTE, ref
+            "push", "--force-with-lease=" + ref + ":" + expectedRef, REMOTE, ref
         ).thenApply(ignored -> null);
     }
 

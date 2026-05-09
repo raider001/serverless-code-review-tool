@@ -327,7 +327,9 @@ public class EditReviewDialog extends ReviewFormDialog {
             originalContext.status,
             updatedReviewers,
             updatedRepositories,
-            originalContext.comments
+            originalContext.comments,
+            originalContext.getBranch(),
+            originalContext.getBaseBranch()
         );
     }
 

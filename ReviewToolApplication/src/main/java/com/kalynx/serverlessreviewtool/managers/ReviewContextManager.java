@@ -69,51 +69,59 @@ public class ReviewContextManager {
             return CompletableFuture.completedFuture(new ArrayList<>());
         }
 
-        Repository primaryRepo = allRepositories.stream()
-            .filter(repo -> {
-                GitReviewNotesManager notesManager = new GitReviewNotesManager(git, repo.getName());
-                try {
-                    List<StreamEntry<String>> titles = notesManager.readTitles(reviewId).get();
-                    return titles != null && !titles.isEmpty();
-                } catch (Exception e) {
-                    return false;
-                }
-            })
-            .findFirst()
-            .orElse(allRepositories.getFirst());
+        return findPrimaryRepositoryForReview(reviewId, allRepositories)
+            .thenCompose(primaryRepo -> {
+                GitReviewNotesManager notesManager = new GitReviewNotesManager(git, primaryRepo.getName());
 
-        GitReviewNotesManager notesManager = new GitReviewNotesManager(git, primaryRepo.getName());
+                return notesManager.listCommentIds(reviewId)
+                    .thenCompose(commentIds -> {
+                        if (commentIds.isEmpty()) {
+                            LOGGER.info("No comments found for review: {}", reviewId);
+                            return CompletableFuture.completedFuture(new ArrayList<com.kalynx.serverlessreviewtool.models.ReviewComment>());
+                        }
 
-        return notesManager.listCommentIds(reviewId)
-            .thenCompose(commentIds -> {
-                if (commentIds.isEmpty()) {
-                    LOGGER.info("No comments found for review: {}", reviewId);
-                    return CompletableFuture.completedFuture(new ArrayList<com.kalynx.serverlessreviewtool.models.ReviewComment>());
-                }
+                        LOGGER.info("Found {} comment threads for review: {}", commentIds.size(), reviewId);
 
-                LOGGER.info("Found {} comment threads for review: {}", commentIds.size(), reviewId);
+                        List<CompletableFuture<com.kalynx.serverlessreviewtool.models.ReviewComment>> commentFutures =
+                            commentIds.stream()
+                                .map(commentId -> loadSingleComment(notesManager, reviewId, commentId))
+                                .toList();
 
-                List<CompletableFuture<com.kalynx.serverlessreviewtool.models.ReviewComment>> commentFutures =
-                    commentIds.stream()
-                        .map(commentId -> loadSingleComment(notesManager, reviewId, commentId))
-                        .toList();
+                        return CompletableFuture.allOf(commentFutures.toArray(new CompletableFuture[0]))
+                            .thenApply(ignored -> {
+                                List<com.kalynx.serverlessreviewtool.models.ReviewComment> comments =
+                                    commentFutures.stream()
+                                        .map(CompletableFuture::join)
+                                        .filter(Objects::nonNull)
+                                        .collect(Collectors.toList());
 
-                return CompletableFuture.allOf(commentFutures.toArray(new CompletableFuture[0]))
-                    .thenApply(ignored -> {
-                        List<com.kalynx.serverlessreviewtool.models.ReviewComment> comments =
-                            commentFutures.stream()
-                                .map(CompletableFuture::join)
-                                .filter(Objects::nonNull)
-                                .collect(Collectors.toList());
-
-                        LOGGER.info("Loaded {} comments for review: {}", comments.size(), reviewId);
-                        return comments;
+                                LOGGER.info("Loaded {} comments for review: {}", comments.size(), reviewId);
+                                return comments;
+                            });
                     });
             })
             .exceptionally(error -> {
                 LOGGER.error("Failed to load comments for review: {}", reviewId, error);
                 return new ArrayList<>();
             });
+    }
+
+    private CompletableFuture<Repository> findPrimaryRepositoryForReview(String reviewId, List<Repository> repositories) {
+        List<CompletableFuture<Repository>> futures = repositories.stream()
+            .map(repo -> {
+                GitReviewNotesManager notesManager = new GitReviewNotesManager(git, repo.getName());
+                return notesManager.readTitles(reviewId)
+                    .thenApply(titles -> (titles != null && !titles.isEmpty()) ? repo : null)
+                    .exceptionally(ignored -> null);
+            })
+            .toList();
+
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+            .thenApply(ignored -> futures.stream()
+                .map(CompletableFuture::join)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse(repositories.getFirst()));
     }
 
     private CompletableFuture<com.kalynx.serverlessreviewtool.models.ReviewComment> loadSingleComment(
@@ -297,7 +305,39 @@ public class ReviewContextManager {
                 }
 
                 LOGGER.info("Found review {} in repository: {}", reviewId, repositoryName);
-                return loadReviewFromRepositories(reviewId, repositoryName, allRepositories);
+                return loadReviewFromRepositories(reviewId, repositoryName, allRepositories, true);
+            });
+    }
+
+    /**
+     * Load review metadata without reloading comments.
+     *
+     * @param reviewId the review identifier
+     * @return future that completes when ReviewContext metadata is refreshed
+     */
+    public CompletableFuture<ReviewContext> loadReviewMetadataOnly(String reviewId) {
+        if (reviewId == null || reviewId.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        LOGGER.info("Searching for review {} across all repositories (metadata only)", reviewId);
+
+        List<Repository> allRepositories = repositoryManager.getRepositories();
+
+        if (allRepositories.isEmpty()) {
+            LOGGER.warn("No repositories configured, cannot load review {}", reviewId);
+            return CompletableFuture.completedFuture(null);
+        }
+
+        return findReviewInRepositories(reviewId, allRepositories)
+            .thenCompose(repositoryName -> {
+                if (repositoryName == null) {
+                    LOGGER.warn("Review {} not found in any repository", reviewId);
+                    return CompletableFuture.completedFuture(null);
+                }
+
+                LOGGER.info("Found review {} in repository: {}", reviewId, repositoryName);
+                return loadReviewFromRepositories(reviewId, repositoryName, allRepositories, false);
             });
     }
 
@@ -345,7 +385,53 @@ public class ReviewContextManager {
                 }
 
                 LOGGER.info("Found review {} in repository: {}", reviewId, repositoryName);
-                return loadReviewFromRepositories(reviewId, repositoryName, specificRepositories);
+                return loadReviewFromRepositories(reviewId, repositoryName, specificRepositories, true);
+            });
+    }
+
+    /**
+     * Load review metadata from specific repositories without reloading comments.
+     *
+     * @param reviewId the review identifier
+     * @param repositoryNames list of repository names to search
+     * @return future that completes when ReviewContext metadata is refreshed
+     */
+    public CompletableFuture<ReviewContext> loadReviewMetadataOnly(String reviewId, List<String> repositoryNames) {
+        if (reviewId == null || reviewId.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        if (repositoryNames == null || repositoryNames.isEmpty()) {
+            LOGGER.info("No specific repositories provided, searching all repositories for review {} (metadata only)", reviewId);
+            return loadReviewMetadataOnly(reviewId);
+        }
+
+        LOGGER.info("Loading review {} from specified {} repositories (metadata only)", reviewId, repositoryNames.size());
+
+        List<Repository> specificRepositories = new ArrayList<>();
+        for (String repoName : repositoryNames) {
+            Repository repo = repositoryManager.getRepositoryByName(repoName);
+            if (repo != null) {
+                specificRepositories.add(repo);
+            } else {
+                LOGGER.warn("Repository '{}' not found in RepositoryManager", repoName);
+            }
+        }
+
+        if (specificRepositories.isEmpty()) {
+            LOGGER.warn("None of the specified repositories found, falling back to search all repositories");
+            return loadReviewMetadataOnly(reviewId);
+        }
+
+        return findReviewInRepositories(reviewId, specificRepositories)
+            .thenCompose(repositoryName -> {
+                if (repositoryName == null) {
+                    LOGGER.warn("Review {} not found in specified repositories", reviewId);
+                    return CompletableFuture.completedFuture(null);
+                }
+
+                LOGGER.info("Found review {} in repository: {}", reviewId, repositoryName);
+                return loadReviewFromRepositories(reviewId, repositoryName, specificRepositories, false);
             });
     }
 
@@ -383,17 +469,23 @@ public class ReviewContextManager {
             });
     }
 
-    private CompletableFuture<ReviewContext> loadReviewFromRepositories(String reviewId, String repositoryName, List<Repository> allRepositories) {
+    private CompletableFuture<ReviewContext> loadReviewFromRepositories(
+            String reviewId,
+            String repositoryName,
+            List<Repository> allRepositories,
+            boolean includeComments) {
         LOGGER.info("Loading review metadata: reviewId={}, repository={}", reviewId, repositoryName);
 
         GitReviewNotesManager notesManager = new GitReviewNotesManager(git, repositoryName);
 
-        return notesManager.readAllMetadata(reviewId)
+                return notesManager.readAllMetadata(reviewId)
             .thenCompose(metadata -> {
                 String title = getLatestValue(metadata.titles());
                 String description = getLatestValue(metadata.descriptions());
                 String author = getLatestValue(metadata.authors());
                 String statusStr = getLatestValue(metadata.statuses());
+                String branch = getLatestValue(metadata.branches());
+                String baseBranch = getLatestValue(metadata.baseBranches());
 
                 List<StreamEntry<com.kalynx.serverlessreviewtool.models.review.ReviewerData>> latestReviewerEntries = metadata.reviewers().stream()
                     .collect(Collectors.groupingBy(
@@ -405,15 +497,15 @@ public class ReviewContextManager {
                     .filter(entry -> !isLeftReviewerStatus(entry.data().getStatus()))
                     .toList();
 
-                if (title == null) title = "Untitled Review";
-                if (description == null) description = "";
-                if (author == null) author = "Unknown";
-                if (statusStr == null) statusStr = "OPEN";
+                String resolvedTitle = title != null ? title : "Untitled Review";
+                String resolvedDescription = description != null ? description : "";
+                String resolvedAuthor = author != null ? author : "Unknown";
+                String resolvedStatus = statusStr != null ? statusStr : "OPEN";
 
                 LOGGER.info("Loaded review metadata: reviewId={}, title={}, author={}, reviewers={}",
-                    reviewId, title, author, latestReviewerEntries.size());
+                    reviewId, resolvedTitle, resolvedAuthor, latestReviewerEntries.size());
 
-                ReviewStatus status = parseStatus(statusStr);
+                ReviewStatus status = parseStatus(resolvedStatus);
                 List<ReviewerInfo> reviewers = latestReviewerEntries.stream()
                     .map(entry -> {
                         ReviewerInfo reviewerInfo = new ReviewerInfo(entry.editor());
@@ -422,56 +514,100 @@ public class ReviewContextManager {
                     })
                     .toList();
 
-                List<Repository> reviewRepositories = new ArrayList<>();
+                return findRepositoriesContainingReview(reviewId, allRepositories, repositoryName)
+                    .thenCompose(reviewRepositories -> {
+                        LOGGER.info("Review {} found in {} repositories", reviewId, reviewRepositories.size());
 
-                for (Repository repo : allRepositories) {
-                    GitReviewNotesManager repoNotesManager = new GitReviewNotesManager(git, repo.getName());
-                    try {
-                        List<StreamEntry<String>> titles = repoNotesManager.readTitles(reviewId).get();
-                        if (titles != null && !titles.isEmpty()) {
-                            LOGGER.info("Review {} found in repository: {}", reviewId, repo.getName());
-                            reviewRepositories.add(repo);
+                        List<com.kalynx.serverlessreviewtool.models.ReviewComment> existingComments =
+                            currentReviewContext != null && reviewId.equals(currentReviewContext.reviewId)
+                                ? new ArrayList<>(currentReviewContext.getComments())
+                                : new ArrayList<>();
+
+                        if (!includeComments) {
+                            ReviewContext reviewContext = new ReviewContext(
+                                reviewId,
+                                resolvedTitle,
+                                resolvedDescription,
+                                resolvedAuthor,
+                                status,
+                                reviewers,
+                                reviewRepositories,
+                                existingComments,
+                                branch,
+                                baseBranch
+                            );
+
+                            setReviewContext(reviewContext);
+                            return CompletableFuture.completedFuture(reviewContext);
                         }
-                    } catch (Exception e) {
-                        LOGGER.debug("Review {} not found in repository {}", reviewId, repo.getName());
-                    }
-                }
 
-                if (reviewRepositories.isEmpty()) {
-                    Repository fallbackRepo = repositoryManager.getRepositoryByName(repositoryName);
-                    if (fallbackRepo != null) {
-                        reviewRepositories.add(fallbackRepo);
-                    }
-                    LOGGER.warn("Review {} not found in any repository, using fallback: {}", reviewId, repositoryName);
-                }
+                        return loadCommentsForReview(reviewId)
+                            .thenApply(comments -> {
+                                LOGGER.info("Loaded {} comments for review {}", comments.size(), reviewId);
 
-                LOGGER.info("Review {} found in {} repositories", reviewId, reviewRepositories.size());
+                                ReviewContext reviewContext = new ReviewContext(
+                                    reviewId,
+                                    resolvedTitle,
+                                    resolvedDescription,
+                                    resolvedAuthor,
+                                    status,
+                                    reviewers,
+                                    reviewRepositories,
+                                    comments,
+                                    branch,
+                                    baseBranch
+                                );
 
-                String finalTitle = title;
-                String finalDescription = description;
-                String finalAuthor = author;
-
-                return loadCommentsForReview(reviewId)
-                    .thenApply(comments -> {
-                        LOGGER.info("Loaded {} comments for review {}", comments.size(), reviewId);
-
-                        ReviewContext reviewContext = new ReviewContext(
-                            reviewId,
-                            finalTitle,
-                            finalDescription,
-                            finalAuthor,
-                            status,
-                            reviewers,
-                            reviewRepositories,
-                            comments
-                        );
-
-                        setReviewContext(reviewContext);
-                        return reviewContext;
+                                setReviewContext(reviewContext);
+                                return reviewContext;
+                            });
                     });
             }).exceptionally(error -> {
                 LOGGER.error("Failed to load review metadata for {}: {}", reviewId, error.getMessage(), error);
                 return null;
+            });
+    }
+
+    private CompletableFuture<List<Repository>> findRepositoriesContainingReview(
+            String reviewId,
+            List<Repository> allRepositories,
+            String fallbackRepositoryName) {
+        List<CompletableFuture<Repository>> futures = allRepositories.stream()
+            .map(repo -> {
+                GitReviewNotesManager repoNotesManager = new GitReviewNotesManager(git, repo.getName());
+                return repoNotesManager.readTitles(reviewId)
+                    .thenApply(titles -> {
+                        if (titles != null && !titles.isEmpty()) {
+                            LOGGER.info("Review {} found in repository: {}", reviewId, repo.getName());
+                            return repo;
+                        }
+                        return null;
+                    })
+                    .exceptionally(ignored -> {
+                        LOGGER.debug("Review {} not found in repository {}", reviewId, repo.getName());
+                        return null;
+                    });
+            })
+            .toList();
+
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+            .thenApply(ignored -> {
+                List<Repository> reviewRepositories = futures.stream()
+                    .map(CompletableFuture::join)
+                    .filter(Objects::nonNull)
+                    .toList();
+
+                if (!reviewRepositories.isEmpty()) {
+                    return reviewRepositories;
+                }
+
+                List<Repository> fallback = new ArrayList<>();
+                Repository fallbackRepo = repositoryManager.getRepositoryByName(fallbackRepositoryName);
+                if (fallbackRepo != null) {
+                    fallback.add(fallbackRepo);
+                }
+                LOGGER.warn("Review {} not found in any repository, using fallback: {}", reviewId, fallbackRepositoryName);
+                return fallback;
             });
     }
 
@@ -539,6 +675,7 @@ public class ReviewContextManager {
         if (status == null || status.isEmpty()) {
             return FileChangeType.MODIFIED;
         }
+
         return switch (status.toUpperCase().charAt(0)) {
             case 'A' -> FileChangeType.ADDED;
             case 'M' -> FileChangeType.MODIFIED;
@@ -548,57 +685,46 @@ public class ReviewContextManager {
         };
     }
 
-    public CompletableFuture<List<ReviewFile>> loadFilesFromReviewCommits(String reviewId, List<Repository> repositories) {
+    /**
+     * Load files changed in a review by comparing the already-known branches across all given repositories.
+     * Uses branch and baseBranch from the loaded ReviewContext, avoiding a redundant metadata fetch.
+     *
+     * @param repositories list of repositories containing the review
+     * @param branch the review branch (e.g., "feature/my-feature")
+     * @param baseBranch the base branch to compare against (e.g., "origin/main")
+     * @return future that completes with list of ReviewFile objects across all repositories
+     */
+    public CompletableFuture<List<ReviewFile>> loadFilesFromReviewCommits(List<Repository> repositories, String branch, String baseBranch) {
         if (repositories == null || repositories.isEmpty()) {
             LOGGER.warn("No repositories provided for loading files");
             return CompletableFuture.completedFuture(new ArrayList<>());
         }
 
+        if (branch == null || baseBranch == null) {
+            LOGGER.warn("Missing branch or baseBranch for loading files");
+            return CompletableFuture.completedFuture(new ArrayList<>());
+        }
+
         LOGGER.info("Loading files from review branches for {} repositories", repositories.size());
+        LOGGER.info("Branch: {}, BaseBranch: {}", branch, baseBranch);
 
-        Repository primaryRepo = repositories.getFirst();
-        GitReviewNotesManager notesManager = new GitReviewNotesManager(git, primaryRepo.getName());
+        List<CompletableFuture<List<ReviewFile>>> fileFutures = repositories.stream()
+            .map(repo -> {
+                LOGGER.info("Loading files from repository: {}", repo.getName());
+                return loadFilesForReview(repo.getName(), branch, baseBranch);
+            })
+            .toList();
 
-        return notesManager.readAllMetadata(reviewId)
-            .thenCompose(metadata -> {
-                String branch = getLatestValue(metadata.branches());
-                String baseBranch = getLatestValue(metadata.baseBranches());
-
-                LOGGER.info("=== FILE LOADING DEBUG ===");
-                LOGGER.info("Review ID: {}", reviewId);
-                LOGGER.info("Branch: {}", branch);
-                LOGGER.info("BaseBranch: {}", baseBranch);
-                LOGGER.info("Number of repositories: {}", repositories.size());
-
-                if (branch == null || baseBranch == null) {
-                    LOGGER.warn("Missing branch or baseBranch metadata for review {}", reviewId);
-                    return CompletableFuture.completedFuture(new ArrayList<ReviewFile>());
+        return CompletableFuture.allOf(fileFutures.toArray(new CompletableFuture[0]))
+            .thenApply(ignored -> {
+                List<ReviewFile> allFiles = new ArrayList<>();
+                for (int i = 0; i < fileFutures.size(); i++) {
+                    List<ReviewFile> repoFiles = fileFutures.get(i).join();
+                    LOGGER.info("Repository '{}' returned {} files", repositories.get(i).getName(), repoFiles.size());
+                    allFiles.addAll(repoFiles);
                 }
-
-                LOGGER.info("Loading files from branch '{}' compared to '{}'", branch, baseBranch);
-
-                List<CompletableFuture<List<ReviewFile>>> fileFutures = repositories.stream()
-                    .map(repo -> {
-                        LOGGER.info("Loading files from repository: {}", repo.getName());
-                        return loadFilesForReview(repo.getName(), branch, baseBranch);
-                    })
-                    .toList();
-
-                return CompletableFuture.allOf(fileFutures.toArray(new CompletableFuture[0]))
-                    .thenApply(ignored -> {
-                        List<ReviewFile> allFiles = new ArrayList<>();
-                        for (int i = 0; i < fileFutures.size(); i++) {
-                            List<ReviewFile> repoFiles = fileFutures.get(i).join();
-                            LOGGER.info("Repository '{}' returned {} files", repositories.get(i).getName(), repoFiles.size());
-                            for (ReviewFile file : repoFiles) {
-                                LOGGER.info("  - {}", file.getPath());
-                            }
-                            allFiles.addAll(repoFiles);
-                        }
-
-                        LOGGER.info("=== TOTAL: {} files loaded from review branches across all repositories ===", allFiles.size());
-                        return allFiles;
-                    });
+                LOGGER.info("Total {} files loaded from review branches across all repositories", allFiles.size());
+                return allFiles;
             })
             .exceptionally(error -> {
                 LOGGER.error("Failed to load files from review branches: {}", error.getMessage(), error);
@@ -632,7 +758,7 @@ public class ReviewContextManager {
 
         LOGGER.info("Saving review metadata for review: {}", reviewContext.reviewId);
 
-        if (reviewContext.repositories == null || reviewContext.repositories.isEmpty()) {
+        if (reviewContext.repositories.isEmpty()) {
             LOGGER.warn("No repositories in review context, cannot save");
             return CompletableFuture.completedFuture(null);
         }
