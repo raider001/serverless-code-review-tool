@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -615,10 +616,10 @@ public class ReviewContextManager {
     }
 
     /**
-     * Save review metadata to git notes.
-     * Writes all current reviewer statuses and explicitly writes a "left" entry for any
-     * reviewer that was present in the previous context but has since been removed, ensuring
-     * the removal is persisted correctly in the append-only notes stream.
+     * Save review metadata to git notes using a parallel batch write.
+     * All metadata streams (title, description, author, status, reviewers) are fetched in parallel,
+     * written locally, and pushed in a single git push command — replacing the previous sequential
+     * per-field fetch-write-push chain.
      *
      * @param reviewContext the updated review context to persist
      * @return future that completes when all metadata has been written and pushed
@@ -640,25 +641,40 @@ public class ReviewContextManager {
         GitReviewNotesManager notesManager = new GitReviewNotesManager(git, primaryRepo.getName());
         String editor = reviewContext.author != null ? reviewContext.author : "system";
 
-        CompletableFuture<Void> saveFuture = notesManager.writeReviewTitle(reviewContext.reviewId, editor, reviewContext.title)
-            .thenCompose(ignored -> notesManager.writeReviewDescription(reviewContext.reviewId, editor, reviewContext.summary))
-            .thenCompose(ignored -> notesManager.writeReviewAuthor(reviewContext.reviewId, editor, reviewContext.author))
-            .thenCompose(ignored -> notesManager.writeReviewStatus(reviewContext.reviewId, editor, reviewContext.status.name()));
+        List<Map.Entry<String, com.kalynx.serverlessreviewtool.models.review.ReviewerData>> reviewerEntries = new ArrayList<>();
 
         for (ReviewerInfo reviewer : reviewContext.reviewers) {
-            saveFuture = saveFuture.thenCompose(ignored -> {
-                com.kalynx.serverlessreviewtool.models.review.ReviewerData reviewerData =
-                    new com.kalynx.serverlessreviewtool.models.review.ReviewerData(
-                        reviewer.getStatus().name().toLowerCase(),
-                        ""
-                    );
-                return notesManager.writeReviewer(reviewContext.reviewId, reviewer.getName(), reviewerData);
-            });
+            reviewerEntries.add(Map.entry(
+                reviewer.getName(),
+                new com.kalynx.serverlessreviewtool.models.review.ReviewerData(
+                    reviewer.getStatus().name().toLowerCase(), "")));
         }
 
-        saveFuture = appendLeftStatusForRemovedReviewers(saveFuture, notesManager, reviewContext);
+        if (currentReviewContext != null) {
+            Set<String> newReviewerNames = reviewContext.reviewers.stream()
+                .map(ReviewerInfo::getName)
+                .collect(Collectors.toSet());
 
-        return saveFuture.thenRun(() -> {
+            for (ReviewerInfo previousReviewer : currentReviewContext.reviewers) {
+                if (!newReviewerNames.contains(previousReviewer.getName())) {
+                    LOGGER.info("Writing LEFT status for removed reviewer {} on review {}",
+                        previousReviewer.getName(), reviewContext.reviewId);
+                    reviewerEntries.add(Map.entry(
+                        previousReviewer.getName(),
+                        new com.kalynx.serverlessreviewtool.models.review.ReviewerData("left", "")));
+                }
+            }
+        }
+
+        return notesManager.saveAllMetadataBatch(
+                reviewContext.reviewId,
+                editor,
+                reviewContext.title,
+                reviewContext.summary,
+                reviewContext.author,
+                reviewContext.status.name(),
+                reviewerEntries)
+            .thenRun(() -> {
                 LOGGER.info("Review metadata saved successfully for review: {}", reviewContext.reviewId);
                 setReviewContext(reviewContext);
             })
@@ -666,34 +682,6 @@ public class ReviewContextManager {
                 LOGGER.error("Failed to save review metadata for review: " + reviewContext.reviewId, error);
                 throw new RuntimeException("Failed to save review metadata", error);
             });
-    }
-
-    private CompletableFuture<Void> appendLeftStatusForRemovedReviewers(
-            CompletableFuture<Void> saveFuture,
-            GitReviewNotesManager notesManager,
-            ReviewContext reviewContext) {
-        if (currentReviewContext == null) {
-            return saveFuture;
-        }
-
-        Set<String> newReviewerNames = reviewContext.reviewers.stream()
-            .map(ReviewerInfo::getName)
-            .collect(Collectors.toSet());
-
-        for (ReviewerInfo previousReviewer : currentReviewContext.reviewers) {
-            if (newReviewerNames.contains(previousReviewer.getName())) {
-                continue;
-            }
-            String removedName = previousReviewer.getName();
-            LOGGER.info("Writing LEFT status for removed reviewer {} on review {}", removedName, reviewContext.reviewId);
-            saveFuture = saveFuture.thenCompose(ignored -> {
-                com.kalynx.serverlessreviewtool.models.review.ReviewerData leftData =
-                    new com.kalynx.serverlessreviewtool.models.review.ReviewerData("left", "");
-                return notesManager.writeReviewer(reviewContext.reviewId, removedName, leftData);
-            });
-        }
-
-        return saveFuture;
     }
 
     /**

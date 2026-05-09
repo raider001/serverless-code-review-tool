@@ -276,6 +276,105 @@ public class GitReviewNotesManager {
             .thenApply(ignored -> null);
     }
 
+    /**
+     * Save all review metadata in a single parallel batch operation.
+     * Fetches all affected streams in parallel, writes all content locally, then pushes all refs
+     * in a single git push command. Falls back to fetch-merge-retry on push conflict.
+     *
+     * @param reviewId       review identifier
+     * @param editor         the user performing the save
+     * @param title          review title
+     * @param description    review description/summary
+     * @param author         review author
+     * @param status         overall review status string
+     * @param reviewerEntries list of reviewer name → reviewer data pairs to write (includes left entries)
+     * @return future completing when all metadata is written and pushed
+     */
+    public CompletableFuture<Void> saveAllMetadataBatch(
+            String reviewId,
+            String editor,
+            String title,
+            String description,
+            String author,
+            String status,
+            List<Map.Entry<String, ReviewerData>> reviewerEntries) {
+        return saveAllMetadataBatchWithRetry(reviewId, editor, title, description, author, status, reviewerEntries, MAX_WRITE_RETRIES);
+    }
+
+    private CompletableFuture<Void> saveAllMetadataBatchWithRetry(
+            String reviewId,
+            String editor,
+            String title,
+            String description,
+            String author,
+            String status,
+            List<Map.Entry<String, ReviewerData>> reviewerEntries,
+            int retriesLeft) {
+
+        List<String> streamPaths = List.of(
+            "metadata/title",
+            "metadata/description",
+            "metadata/author",
+            "metadata/status",
+            "reviewers"
+        );
+
+        return fetchAllNotes(reviewId, streamPaths)
+            .thenCompose(ignored -> getRepositoryRootCommit())
+            .thenCompose(anchorCommit -> {
+                List<CompletableFuture<Path>> extractFutures = streamPaths.stream()
+                    .map(sp -> extractNoteToFile(reviewId, sp, anchorCommit))
+                    .toList();
+
+                return CompletableFuture.allOf(extractFutures.toArray(new CompletableFuture[0]))
+                    .thenCompose(ignored2 -> {
+                        try {
+                            ReviewStreamHelper.writeTitle(getStreamPath(reviewId, "metadata/title"), editor, title);
+                            ReviewStreamHelper.writeDescription(getStreamPath(reviewId, "metadata/description"), editor, description);
+                            ReviewStreamHelper.writeAuthor(getStreamPath(reviewId, "metadata/author"), editor, author);
+                            ReviewStreamHelper.writeStatus(getStreamPath(reviewId, "metadata/status"), editor, status);
+
+                            Path reviewersPath = getStreamPath(reviewId, "reviewers");
+                            for (Map.Entry<String, ReviewerData> entry : reviewerEntries) {
+                                ReviewStreamHelper.writeReviewer(reviewersPath, entry.getKey(), entry.getValue());
+                            }
+
+                            for (String streamPath : streamPaths) {
+                                resolveAndNormalize(getStreamPath(reviewId, streamPath));
+                            }
+
+                            return addAllNotesToGit(reviewId, streamPaths, anchorCommit);
+                        } catch (IOException e) {
+                            return CompletableFuture.failedFuture(e);
+                        }
+                    });
+            })
+            .thenCompose(ignored -> pushAllNotes(reviewId, streamPaths))
+            .handle((ignored, ex) -> {
+                if (ex == null) {
+                    return CompletableFuture.<Void>completedFuture(null);
+                }
+                Throwable cause = unwrapCause(ex);
+                if (retriesLeft > 0 && isPushConflict(cause.getMessage())) {
+                    return forceResetAllFromRemote(reviewId, streamPaths)
+                        .thenCompose(ignored2 -> saveAllMetadataBatchWithRetry(
+                            reviewId, editor, title, description, author, status, reviewerEntries, retriesLeft - 1));
+                }
+                if (cause instanceof RuntimeException re) {
+                    return CompletableFuture.<Void>failedFuture(re);
+                }
+                return CompletableFuture.<Void>failedFuture(new RuntimeException(cause));
+            })
+            .thenCompose(f -> f);
+    }
+
+    private CompletableFuture<Void> forceResetAllFromRemote(String reviewId, List<String> streamPaths) {
+        List<CompletableFuture<Void>> futures = streamPaths.stream()
+            .map(sp -> forceResetFromRemote(reviewId, sp))
+            .toList();
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+    }
+
     private static final int MAX_WRITE_RETRIES = 3;
 
     private CompletableFuture<Void> writeToStream(String reviewId, String streamPath, IOOperation writer) {
