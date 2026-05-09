@@ -6,8 +6,13 @@ package com.kalynx.serverlessreviewtool.plugin;
  *
  * <p>The tool falls back to raw git identity if no UserPlugin is registered.
  */
-public abstract class UserPlugin
+public abstract class UserPlugin extends Notifier<String, UserPlugin.NotificationType>
     implements Plugin {
+
+    public enum NotificationType {
+        USER_ADDED, USER_REMOVED
+    }
+
 
     /**
      * Validates a user against a validation string provided by the external service.
