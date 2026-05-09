@@ -68,6 +68,27 @@ public class PluginManager {
         pluginRegistry.getPlugins(UserPlugin.class).forEach(plugin -> plugin.removeListener(type, listener));
     }
 
+    /**
+     * Indicates whether any user plugins are currently registered.
+     *
+     * @return true when at least one user plugin is available
+     */
+    public boolean hasUserPlugins() {
+        return !pluginRegistry.getPlugins(UserPlugin.class).isEmpty();
+    }
+
+    /**
+     * Validates a user against the registered user plugins.
+     *
+     * @param user the user to validate
+     * @param validationString the validation value supplied by the user
+     * @return true when any registered user plugin accepts the identity
+     */
+    public boolean validateUser(String user, String validationString) {
+        return pluginRegistry.getPlugins(UserPlugin.class).stream()
+            .anyMatch(plugin -> plugin.validateUser(user, validationString));
+    }
+
 
 
     /**

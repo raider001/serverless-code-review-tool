@@ -1,5 +1,6 @@
 package com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel;
 
+import com.kalynx.serverlessreviewtool.configuration.SettingsManager;
 import com.kalynx.serverlessreviewtool.models.ReviewStatus;
 import com.kalynx.serverlessreviewtool.models.ReviewerInfo;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedBadge;
@@ -48,12 +49,9 @@ public class ReviewDetailPanel extends ThemedPanel {
     private boolean isCurrentUserReviewer = false;
     private boolean hasCheckedReviewerStatus = false;
 
-    public ReviewDetailPanel(ReviewDetailModel reviewDetailModel) {
+    public ReviewDetailPanel(SettingsManager settingsManager, ReviewDetailModel reviewDetailModel) {
         this.reviewDetailModel = reviewDetailModel;
-        this.currentUserName = com.kalynx.serverlessreviewtool.configuration.GitConfigReader.getUserName();
-        if (currentUserName == null || currentUserName.isEmpty()) {
-            currentUserName = System.getProperty("user.name", "Unknown");
-        }
+        this.currentUserName = settingsManager.getCurrentUserName();
 
         titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD));
         authorLabel.setFont(authorLabel.getFont().deriveFont(Font.ITALIC));
@@ -62,6 +60,7 @@ public class ReviewDetailPanel extends ThemedPanel {
         configureReviewContextListeners();
         setupListeners();
         updateButtonStates();
+        settingsManager.addUserNameListener(this::onCurrentUserChanged);
     }
 
     private void configureLayout() {
@@ -128,6 +127,12 @@ public class ReviewDetailPanel extends ThemedPanel {
                 onReviewerStatusChanged.accept(isCurrentUserReviewer);
             }
         }
+    }
+
+    private void onCurrentUserChanged(String currentUserName) {
+        this.currentUserName = currentUserName != null ? currentUserName : "";
+        List<ReviewerInfo> reviewers = reviewDetailModel.reviewers.getValue();
+        checkReviewerStatus(reviewers != null ? reviewers : List.of());
     }
 
     private void updateButtonStates() {

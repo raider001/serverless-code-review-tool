@@ -2,6 +2,7 @@ package com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel;
 
 import java.io.Serial;
 
+import com.kalynx.serverlessreviewtool.configuration.SettingsManager;
 import com.kalynx.serverlessreviewtool.git.Git;
 import com.kalynx.serverlessreviewtool.managers.ReviewContextManager;
 import com.kalynx.serverlessreviewtool.models.Commit;
@@ -21,6 +22,7 @@ public class CodePanel extends ThemedPanel {
     private static final long serialVersionUID = 1L;
     private static final Logger LOGGER = LoggerFactory.getLogger(CodePanel.class);
 
+    private final SettingsManager settingsManager;
     private transient final CodeViewerModel codeViewerModel;
     private transient final com.kalynx.serverlessreviewtool.managers.FileDiffManager fileDiffManager;
     private transient final ReviewContextManager reviewContextManager;
@@ -34,8 +36,9 @@ public class CodePanel extends ThemedPanel {
     
     private boolean commentsEnabled = false;
 
-    public CodePanel(ReviewContextManager reviewContextManager, CodeViewerModel codeViewerModel,
+    public CodePanel(SettingsManager settingsManager, ReviewContextManager reviewContextManager, CodeViewerModel codeViewerModel,
                      com.kalynx.serverlessreviewtool.managers.FileDiffManager fileDiffManager, Git git) {
+        this.settingsManager = settingsManager;
         this.reviewContextManager = reviewContextManager;
         this.codeViewerModel = codeViewerModel;
         this.fileDiffManager = fileDiffManager;
@@ -96,6 +99,7 @@ public class CodePanel extends ThemedPanel {
             java.awt.Window window = SwingUtilities.getWindowAncestor(this);
             InlineCommentDialog dialog = new InlineCommentDialog(
                 window,
+                settingsManager,
                 reviewContext,
                 reviewContextManager,
                 file,

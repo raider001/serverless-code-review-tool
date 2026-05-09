@@ -74,11 +74,21 @@ public class Main {
         );
 
         PLUGIN_MANAGER.addListenerToUserPlugins(UserPlugin.NotificationType.USER_REMOVED,
-                USER_MANAGER::removeUsers
+                usernames -> {
+                    USER_MANAGER.removeUsers(usernames);
+                    String loggedInUserName = SETTINGS_MANAGER.getLoggedInUserName();
+                    if (Arrays.asList(usernames).contains(loggedInUserName)) {
+                        SETTINGS_MANAGER.logoutUser();
+                    }
+                }
         );
 
         PLUGIN_MANAGER.initialize();
         Runtime.getRuntime().addShutdownHook(new Thread(PLUGIN_MANAGER::shutdown));
+
+        if (SETTINGS_MANAGER.isLoggedIn() && !isKnownUser(SETTINGS_MANAGER.getLoggedInUserName())) {
+            SETTINGS_MANAGER.logoutUser();
+        }
 
 
         setupReviewFormModelUpdaters();
@@ -120,8 +130,11 @@ public class Main {
         REVIEW_FORM_MODELS.author.setValue(SETTINGS_MANAGER.getCurrentUserName());
     }
 
-    private static void setupReviewSelectionPanelModelUpdaters() {
-        REVIEW_ITEM_MANAGER.addListener(REVIEW_SELECTION_PANEL_MODEL::setAllReviews);
+    private static boolean isKnownUser(String username) {
+        return USER_MANAGER.getUsers().stream().anyMatch(u -> u.getUsername().equals(username));
+    }
+
+    private static void setupReviewSelectionPanelModelUpdaters() {        REVIEW_ITEM_MANAGER.addListener(REVIEW_SELECTION_PANEL_MODEL::setAllReviews);
         REVIEW_SELECTION_PANEL_MODEL.setCurrentUser(SETTINGS_MANAGER.getCurrentUserEmail(), SETTINGS_MANAGER.getCurrentUserName());
         SETTINGS_MANAGER.addUserNameListener(userName ->
                 REVIEW_SELECTION_PANEL_MODEL.setCurrentUser(SETTINGS_MANAGER.getCurrentUserEmail(), userName)

@@ -12,32 +12,38 @@ import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
-import java.util.stream.Collectors;
 
 /**
  * Watches a newline-delimited user file and emits added/removed user deltas.
+ *
+ * <p>Each line must follow the format {@code username,password}. Whitespace around
+ * either value is trimmed. Lines that are blank or contain only whitespace are ignored.
+ * Lines with no comma are treated as a username with an empty password.
  */
 public class DefaultUserFileWatcher {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultUserFileWatcher.class);
 
     private final Path usersFilePath;
-    private final BiConsumer<Set<String>, Set<String>> onUsersChanged;
+    private final BiConsumer<Map<String, String>, Set<String>> onUsersChanged;
 
-    private final Set<String> knownUsers = new LinkedHashSet<>();
+    private final Map<String, String> knownUsers = new LinkedHashMap<>();
 
     private WatchService watchService;
 
     /**
      * Creates a file watcher for the given users file.
      *
-     * @param usersFilePath   path to the users file
-     * @param onUsersChanged  callback receiving added and removed users
+     * @param usersFilePath  path to the users file
+     * @param onUsersChanged callback receiving a map of added username-password entries
+     *                       and a set of removed usernames
      */
-    public DefaultUserFileWatcher(Path usersFilePath, BiConsumer<Set<String>, Set<String>> onUsersChanged) {
+    public DefaultUserFileWatcher(Path usersFilePath, BiConsumer<Map<String, String>, Set<String>> onUsersChanged) {
         this.usersFilePath = usersFilePath;
         this.onUsersChanged = onUsersChanged;
     }
@@ -109,20 +115,26 @@ public class DefaultUserFileWatcher {
     }
 
     private synchronized void processUserFileChange() {
-        Set<String> latestUsers = readUsers(usersFilePath);
+        Map<String, String> latestUsers = readUsers(usersFilePath);
 
-        Set<String> added = new LinkedHashSet<>(latestUsers);
-        added.removeAll(knownUsers);
+        Map<String, String> added = new LinkedHashMap<>();
+        for (Map.Entry<String, String> entry : latestUsers.entrySet()) {
+            if (!knownUsers.containsKey(entry.getKey())) {
+                added.put(entry.getKey(), entry.getValue());
+            } else if (!knownUsers.get(entry.getKey()).equals(entry.getValue())) {
+                added.put(entry.getKey(), entry.getValue());
+            }
+        }
 
-        Set<String> removed = new LinkedHashSet<>(knownUsers);
-        removed.removeAll(latestUsers);
+        Set<String> removed = new LinkedHashSet<>(knownUsers.keySet());
+        removed.removeAll(latestUsers.keySet());
 
         if (!added.isEmpty() || !removed.isEmpty()) {
-            onUsersChanged.accept(Set.copyOf(added), Set.copyOf(removed));
+            onUsersChanged.accept(Map.copyOf(added), Set.copyOf(removed));
         }
 
         knownUsers.clear();
-        knownUsers.addAll(latestUsers);
+        knownUsers.putAll(latestUsers);
     }
 
     private void ensureUsersFileExists(Path filePath) {
@@ -139,20 +151,26 @@ public class DefaultUserFileWatcher {
         }
     }
 
-    private Set<String> readUsers(Path filePath) {
+    private Map<String, String> readUsers(Path filePath) {
         if (!Files.exists(filePath)) {
-            return Set.of();
+            return Map.of();
         }
         try {
-            return Files.readAllLines(filePath, StandardCharsets.UTF_8)
-                .stream()
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .collect(Collectors.toCollection(LinkedHashSet::new));
+            Map<String, String> users = new LinkedHashMap<>();
+            for (String line : Files.readAllLines(filePath, StandardCharsets.UTF_8)) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+                String[] parts = line.split(",", 2);
+                String username = parts[0].trim();
+                String password = parts.length > 1 ? parts[1].trim() : "";
+                if (!username.isEmpty()) {
+                    users.put(username, password);
+                }
+            }
+            return users;
         } catch (IOException e) {
             LOGGER.error("Failed reading users file: {}", filePath, e);
-            return Set.of();
+            return Map.of();
         }
     }
 }
-

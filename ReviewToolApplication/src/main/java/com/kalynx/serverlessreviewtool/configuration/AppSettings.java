@@ -28,7 +28,8 @@ public class AppSettings {
     // User identity settings
     private String userName;
     private String userEmail;
-    private boolean useGitConfig; // If true, read from .gitconfig instead of manual settings
+    private String loggedInUserName;
+    private String loggedInUserEmail;
 
     public AppSettings() {
         // Default values
@@ -40,7 +41,8 @@ public class AppSettings {
         this.theme = "Dark";
         this.userName = "";
         this.userEmail = "";
-        this.useGitConfig = true; // Default to using Git config
+        this.loggedInUserName = "";
+        this.loggedInUserEmail = "";
     }
 
     // Getters and Setters
@@ -68,8 +70,11 @@ public class AppSettings {
     public String getUserEmail() { return userEmail; }
     public void setUserEmail(String userEmail) { this.userEmail = userEmail; }
 
-    public boolean isUseGitConfig() { return useGitConfig; }
-    public void setUseGitConfig(boolean useGitConfig) { this.useGitConfig = useGitConfig; }
+    public String getLoggedInUserName() { return loggedInUserName; }
+    public void setLoggedInUserName(String loggedInUserName) { this.loggedInUserName = loggedInUserName; }
+
+    public String getLoggedInUserEmail() { return loggedInUserEmail; }
+    public void setLoggedInUserEmail(String loggedInUserEmail) { this.loggedInUserEmail = loggedInUserEmail; }
 
     /**
      * Window settings - size and position

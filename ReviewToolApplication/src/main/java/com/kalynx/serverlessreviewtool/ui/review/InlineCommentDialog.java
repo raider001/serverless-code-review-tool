@@ -1,6 +1,6 @@
 package com.kalynx.serverlessreviewtool.ui.review;
 
-import com.kalynx.serverlessreviewtool.configuration.GitConfigReader;
+import com.kalynx.serverlessreviewtool.configuration.SettingsManager;
 import com.kalynx.serverlessreviewtool.managers.ReviewContextManager;
 import com.kalynx.serverlessreviewtool.models.*;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.*;
@@ -37,7 +37,7 @@ public class InlineCommentDialog extends JDialog {
     private boolean conversationNeedsResolution = false;
     private boolean conversationResolved = false;
 
-    public InlineCommentDialog(Window owner, ReviewContext reviewContext, ReviewContextManager reviewContextManager,
+    public InlineCommentDialog(Window owner, SettingsManager settingsManager, ReviewContext reviewContext, ReviewContextManager reviewContextManager,
                                ReviewFile file, int lineNumber, Runnable onCommentAdded) {
         super(owner, ModalityType.MODELESS);
         this.reviewContext = reviewContext;
@@ -46,10 +46,7 @@ public class InlineCommentDialog extends JDialog {
         this.lineNumber = lineNumber;
         this.onCommentAdded = onCommentAdded;
 
-        String gitUserName = GitConfigReader.getUserName();
-        this.currentUser = (gitUserName != null && !gitUserName.isEmpty())
-            ? gitUserName
-            : "Unknown User";
+        this.currentUser = settingsManager.getCurrentUserName();
 
         // Start loading indicator for dialog initialization
         String loadingId = "load-comments-dialog-" + file.getPath() + "-" + lineNumber;

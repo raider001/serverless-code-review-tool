@@ -1,5 +1,6 @@
 package com.kalynx.serverlessreviewtool.ui.mainpanels;
 
+import com.kalynx.serverlessreviewtool.configuration.SettingsManager;
 import com.kalynx.serverlessreviewtool.git.Git;
 import com.kalynx.serverlessreviewtool.managers.FileDiffManager;
 import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
@@ -33,6 +34,7 @@ public class ReviewPanel extends ThemedPanel {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ReviewPanel.class);
 
+    private final SettingsManager settingsManager;
     private final ReviewContextManager reviewContextManager;
     private final RepositoryManager repositoryManager;
     private final ReviewFormModels reviewFormModels;
@@ -47,19 +49,21 @@ public class ReviewPanel extends ThemedPanel {
     private ReviewContext currentReviewContext;
     private final List<Consumer<Boolean>> additionalReviewerStatusListeners = new ArrayList<>();
 
-    public ReviewPanel(ReviewContextManager reviewContextManager,
+    public ReviewPanel(SettingsManager settingsManager,
+                       ReviewContextManager reviewContextManager,
                       RepositoryManager repositoryManager,
                       ReviewFormModels reviewFormModels,
                       ReviewPanelModel reviewPanelModel,
                       Git git) {
+        this.settingsManager = settingsManager;
         this.reviewContextManager = reviewContextManager;
         this.repositoryManager = repositoryManager;
         this.reviewFormModels = reviewFormModels;
         this.model = reviewPanelModel;
         this.git = git;
         this.fileDiffManager = new FileDiffManager(git, reviewPanelModel.codeViewerModel);
-        this.reviewDetailPanel = new ReviewDetailPanel(reviewPanelModel.reviewDetailModel);
-        this.codePanel = new CodePanel(reviewContextManager, reviewPanelModel.codeViewerModel, fileDiffManager, git);
+        this.reviewDetailPanel = new ReviewDetailPanel(settingsManager, reviewPanelModel.reviewDetailModel);
+        this.codePanel = new CodePanel(settingsManager, reviewContextManager, reviewPanelModel.codeViewerModel, fileDiffManager, git);
 
         setupActions();
 
@@ -69,6 +73,7 @@ public class ReviewPanel extends ThemedPanel {
         reviewDetailPanel.setOnReviewerStatusChanged(this::onReviewerStatusChanged);
 
         reviewContextManager.addListener(this::onReviewContextChanged);
+        settingsManager.addUserNameListener(model.commentsPanelModel::setCurrentUser);
 
         configureLayout();
     }
@@ -113,9 +118,9 @@ public class ReviewPanel extends ThemedPanel {
     private void onReviewContextChanged(ReviewContext context) {
         if (context != null) {
             model.commentsPanelModel.setComments(context.getComments());
-            model.commentsPanelModel.setCurrentUser(System.getProperty("user.name", "Unknown User"));
+            model.commentsPanelModel.setCurrentUser(settingsManager.getCurrentUserName());
             LOGGER.info("Synced {} comments to CommentsPanelModel for user: {}",
-                context.getComments().size(), System.getProperty("user.name"));
+                context.getComments().size(), settingsManager.getCurrentUserName());
         } else {
             model.commentsPanelModel.clear();
         }
@@ -287,9 +292,7 @@ public class ReviewPanel extends ThemedPanel {
             return;
         }
 
-        String currentUserFromGit = com.kalynx.serverlessreviewtool.configuration.GitConfigReader.getUserName();
-        final String currentUser = (currentUserFromGit != null && !currentUserFromGit.isEmpty())
-            ? currentUserFromGit : System.getProperty("user.name", "Unknown User");
+        final String currentUser = settingsManager.getCurrentUserName();
 
         LOGGER.info("Adding {} as reviewer to review: {}", currentUser, currentReviewContext.reviewId);
 
@@ -340,9 +343,7 @@ public class ReviewPanel extends ThemedPanel {
             return;
         }
 
-        String currentUserFromGit = com.kalynx.serverlessreviewtool.configuration.GitConfigReader.getUserName();
-        final String currentUser = (currentUserFromGit != null && !currentUserFromGit.isEmpty())
-            ? currentUserFromGit : System.getProperty("user.name", "Unknown User");
+        final String currentUser = settingsManager.getCurrentUserName();
 
         LOGGER.info("Removing {} from review: {}", currentUser, currentReviewContext.reviewId);
 

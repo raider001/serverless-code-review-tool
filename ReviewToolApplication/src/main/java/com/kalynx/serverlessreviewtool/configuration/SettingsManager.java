@@ -138,16 +138,65 @@ public class SettingsManager {
     public void updateUserName(String userName) {
         currentSettings.setUserName(userName);
         saveSettings();
+        notifyUserNameListeners();
     }
 
     public void updateUserEmail(String userEmail) {
         currentSettings.setUserEmail(userEmail);
         saveSettings();
+        notifyUserNameListeners();
     }
 
-    public void updateUseGitConfig(boolean useGitConfig) {
-        currentSettings.setUseGitConfig(useGitConfig);
+    /**
+     * Stores the currently logged-in user identity used by the application.
+     *
+     * @param userName the logged-in user name
+     * @param userEmail the logged-in user email
+     */
+    public void loginUser(String userName, String userEmail) {
+        currentSettings.setLoggedInUserName(userName != null ? userName.trim() : "");
+        currentSettings.setLoggedInUserEmail(userEmail != null ? userEmail.trim() : "");
         saveSettings();
+        notifyUserNameListeners();
+    }
+
+    /**
+     * Clears the current logged-in user identity.
+     */
+    public void logoutUser() {
+        currentSettings.setLoggedInUserName("");
+        currentSettings.setLoggedInUserEmail("");
+        saveSettings();
+        notifyUserNameListeners();
+    }
+
+    /**
+     * Indicates whether a user is currently logged in.
+     *
+     * @return true when a logged-in user is present
+     */
+    public boolean isLoggedIn() {
+        return !getLoggedInUserName().isEmpty();
+    }
+
+    /**
+     * Returns the persisted logged-in user name.
+     *
+     * @return the logged-in user name, or an empty string
+     */
+    public String getLoggedInUserName() {
+        String loggedInUserName = currentSettings.getLoggedInUserName();
+        return loggedInUserName != null ? loggedInUserName : "";
+    }
+
+    /**
+     * Returns the persisted logged-in user email.
+     *
+     * @return the logged-in user email, or an empty string
+     */
+    public String getLoggedInUserEmail() {
+        String loggedInUserEmail = currentSettings.getLoggedInUserEmail();
+        return loggedInUserEmail != null ? loggedInUserEmail : "";
     }
 
     public void addRepository(AppSettings.RepositoryConfig config) {
@@ -172,11 +221,9 @@ public class SettingsManager {
     }
 
     public String getCurrentUserName() {
-        if (currentSettings.isUseGitConfig()) {
-            String gitName = GitConfigReader.getUserName();
-            if (gitName != null && !gitName.isEmpty()) {
-                return gitName;
-            }
+        String loggedInUserName = getLoggedInUserName();
+        if (!loggedInUserName.isEmpty()) {
+            return loggedInUserName;
         }
 
         String manualName = currentSettings.getUserName();
@@ -188,11 +235,9 @@ public class SettingsManager {
     }
 
     public String getCurrentUserEmail() {
-        if (currentSettings.isUseGitConfig()) {
-            String gitEmail = GitConfigReader.getUserEmail();
-            if (gitEmail != null && !gitEmail.isEmpty()) {
-                return gitEmail;
-            }
+        String loggedInUserEmail = getLoggedInUserEmail();
+        if (!loggedInUserEmail.isEmpty()) {
+            return loggedInUserEmail;
         }
 
         String manualEmail = currentSettings.getUserEmail();

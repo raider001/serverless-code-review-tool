@@ -3,16 +3,17 @@ package com.kalynx.serverlessreviewtool.ui;
 import com.kalynx.lwdi.DI;
 import com.kalynx.serverlessreviewtool.configuration.SettingsManager;
 import com.kalynx.serverlessreviewtool.git.Git;
+import com.kalynx.serverlessreviewtool.managers.PluginManager;
 import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
 import com.kalynx.serverlessreviewtool.managers.ReviewContextManager;
 import com.kalynx.serverlessreviewtool.managers.ReviewItemManager;
-import com.kalynx.serverlessreviewtool.managers.UserManager;
 import com.kalynx.serverlessreviewtool.models.ReviewItem;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.QuickButton;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedFrame;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
 import com.kalynx.serverlessreviewtool.theme.icons.AppIcon;
 import com.kalynx.serverlessreviewtool.theme.icons.RefreshIcon;
+import com.kalynx.serverlessreviewtool.ui.mainpanels.LoginPanel;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.LogsPanel;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.ReviewPanel;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.ReviewSelectionPanel;
@@ -34,7 +35,7 @@ import java.io.PrintStream;
 public class MainFrame extends ThemedFrame {
 
     private final SettingsManager settingsManager;
-    private final UserManager userManager;
+    private final PluginManager pluginManager;
     private final RepositoryManager repositoryManager;
     private final ReviewItemManager reviewItemManager;
     private final ReviewContextManager reviewContextManager;
@@ -43,6 +44,7 @@ public class MainFrame extends ThemedFrame {
     private final ReviewPanelModel reviewPanelModel;
     private final Git git;
 
+    private LoginPanel loginPanel;
     private ReviewSelectionPanel reviewSelectionPanel;
     private ReviewPanel reviewPanel;
     private SwipeActionPanel swipeActionPanel;
@@ -55,7 +57,7 @@ public class MainFrame extends ThemedFrame {
     @DI
     public MainFrame(
             SettingsManager settingsManager,
-            UserManager userManager,
+            PluginManager pluginManager,
             RepositoryManager repositoryManager,
             ReviewItemManager reviewItemManager,
             ReviewContextManager reviewContextManager,
@@ -67,7 +69,7 @@ public class MainFrame extends ThemedFrame {
               settingsManager.getSettings().getWindow().getDefaultWidth(),
               settingsManager.getSettings().getWindow().getDefaultHeight());
         this.settingsManager = settingsManager;
-        this.userManager = userManager;
+        this.pluginManager = pluginManager;
         this.repositoryManager = repositoryManager;
         this.reviewItemManager = reviewItemManager;
         this.reviewContextManager = reviewContextManager;
@@ -80,9 +82,37 @@ public class MainFrame extends ThemedFrame {
         setupMenuItems();
         setupRefreshButton();
         setupReviewDoubleClickHandler();
-        showReviewPanel();
+        setupLoginStateListener();
+        if (needsLogin()) {
+            showLoginPanel();
+        } else {
+            showReviewPanel();
+        }
     }
 
+
+    private void setupLoginStateListener() {
+        settingsManager.addUserNameListener(ignored -> {
+            if (needsLogin()) {
+                SwingUtilities.invokeLater(() -> {
+                    setupMenuItems();
+                    showLoginPanel();
+                });
+            } else {
+                SwingUtilities.invokeLater(this::setupMenuItems);
+            }
+        });
+    }
+
+    private boolean needsLogin() {
+        return pluginManager.hasUserPlugins() && !settingsManager.isLoggedIn();
+    }
+
+    private void showLoginPanel() {
+        setupMenuItems();
+        switchPanel(loginPanel);
+        setWindowTitle("Serverless Review Tool - Login");
+    }
 
     private void setupRefreshButton() {
         refreshButton = createRefreshButton();
@@ -103,8 +133,11 @@ public class MainFrame extends ThemedFrame {
     }
 
     private void initializePanels() {
+        loginPanel = new LoginPanel(settingsManager, pluginManager);
+        loginPanel.setOnLoginSuccess(this::showReviewPanel);
+
         reviewSelectionPanel = new ReviewSelectionPanel(repositoryManager, reviewItemManager, reviewSelectionPanelModel, reviewFormModels, git);
-        reviewPanel = new ReviewPanel(reviewContextManager, repositoryManager, reviewFormModels, reviewPanelModel, git);
+        reviewPanel = new ReviewPanel(settingsManager, reviewContextManager, repositoryManager, reviewFormModels, reviewPanelModel, git);
         swipeActionPanel = new SwipeActionPanel(reviewPanel);
 
         swipeActionPanel.setOnApprove(reviewPanel::handleApprove);
@@ -112,7 +145,7 @@ public class MainFrame extends ThemedFrame {
 
         reviewPanel.addReviewerStatusListener(swipeActionPanel::setEnabled);
 
-        settingsPanel = new SettingsPanel(settingsManager, git);
+        settingsPanel = new SettingsPanel(settingsManager, pluginManager, git);
         logsPanel = new LogsPanel();
         helpPanel = new HelpPanel();
 
@@ -140,6 +173,23 @@ public class MainFrame extends ThemedFrame {
     }
 
     private void setupMenuItems() {
+        if (needsLogin()) {
+            setMenuItems(
+                new MenuItem("Login", this::showLoginPanel)
+            );
+            return;
+        }
+        if (settingsManager.isLoggedIn()) {
+            setMenuItems(
+                new MenuItem("Reviews", this::showReviewPanel),
+                new MenuItem("Review Code", this::showCodeReviewPanel),
+                new MenuItem("Settings", this::showSettingsPanel),
+                new MenuItem("Logs", this::showLogsPanel),
+                new MenuItem("Help", this::showHelpPanel),
+                new MenuItem("Log Out", this::onLogout)
+            );
+            return;
+        }
         setMenuItems(
             new MenuItem("Reviews", this::showReviewPanel),
             new MenuItem("Review Code", this::showCodeReviewPanel),
@@ -149,32 +199,61 @@ public class MainFrame extends ThemedFrame {
         );
     }
 
+    private void onLogout() {
+        settingsManager.logoutUser();
+    }
+
     private void showReviewPanel() {
+        if (needsLogin()) {
+            showLoginPanel();
+            return;
+        }
+        setupMenuItems();
         switchPanel(reviewSelectionPanel);
         setWindowTitle("Serverless Review Tool - Reviews");
     }
 
     private void showCodeReviewPanel() {
+        if (needsLogin()) {
+            showLoginPanel();
+            return;
+        }
         switchPanel(swipeActionPanel);
         setWindowTitle("Serverless Review Tool - Code Review");
     }
 
     private void showSettingsPanel() {
+        if (needsLogin()) {
+            showLoginPanel();
+            return;
+        }
         switchPanel(settingsPanel);
         setWindowTitle("Serverless Review Tool - Settings");
     }
 
     private void showLogsPanel() {
+        if (needsLogin()) {
+            showLoginPanel();
+            return;
+        }
         switchPanel(logsPanel);
         setWindowTitle("Serverless Review Tool - Logs");
     }
 
     private void showHelpPanel() {
+        if (needsLogin()) {
+            showLoginPanel();
+            return;
+        }
         switchPanel(helpPanel);
         setWindowTitle("Serverless Review Tool - Help");
     }
 
     private void switchPanel(ThemedPanel newPanel) {
+        if (needsLogin() && newPanel != loginPanel) {
+            newPanel = loginPanel;
+        }
+
         if (currentPanel != null) {
             getContentPanel().remove(currentPanel);
         }
