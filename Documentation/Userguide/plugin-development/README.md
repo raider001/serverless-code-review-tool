@@ -6,6 +6,7 @@ This guide covers everything you need to produce a working plugin from scratch. 
 
 - [User Plugin](./user-plugin.md)
 - [Notification Plugin](./notification-plugin.md)
+- [Syntax Highlighter Plugin](./syntax-highlighter-plugin.md)
 
 ---
 
@@ -38,6 +39,7 @@ The application discovers plugins at startup using `ServiceLoader`, calls `initi
 |---|---|
 | `UserPlugin` | Provide and validate the list of known users |
 | `NotificationPlugin` | React to review lifecycle events (create, approve, comment …) |
+| `SyntaxHighlighterPlugin` | Provide token-based syntax highlighting in the diff viewer |
 
 More plugin types may be added in future versions. All will extend the base `Plugin` interface.
 

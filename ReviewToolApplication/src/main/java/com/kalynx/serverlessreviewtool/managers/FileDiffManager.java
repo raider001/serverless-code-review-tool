@@ -2,7 +2,6 @@ package com.kalynx.serverlessreviewtool.managers;
 
 import com.kalynx.serverlessreviewtool.git.Git;
 import com.kalynx.serverlessreviewtool.models.Commit;
-import com.kalynx.serverlessreviewtool.models.FileChangeType;
 import com.kalynx.serverlessreviewtool.models.ReviewFile;
 import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewpanel.CodeViewerModel;
 import org.slf4j.Logger;
@@ -31,6 +30,7 @@ public class FileDiffManager {
     /**
      * Loads commits for a review from the specified repository and branch.
      * Updates the model with available commits and sets initial start/end commit range.
+     * For a full branch review, defaults to the parent of the oldest branch commit as the baseline.
      *
      * @param repositoryName name of the repository
      * @param branch branch name to load commits from
@@ -42,80 +42,32 @@ public class FileDiffManager {
 
         return git.listCommits(repositoryName, branch, maxCommits)
             .thenApply(this::parseCommits)
-            .thenAccept(commits -> {
+            .thenCompose(commits -> {
                 logger.info("Loaded {} commits", commits.size());
-                codeViewerModel.setAvailableCommits(commits);
-
-                if (!commits.isEmpty()) {
-                    int startIndex = Math.min(1, commits.size() - 1);
-                    Commit startCommit = commits.get(startIndex);
-                    Commit endCommit = commits.get(0);
-
-                    logger.info("Setting initial commit range: start={}, end={}",
-                        startCommit.getShortHash(), endCommit.getShortHash());
-
-                    codeViewerModel.setCommitRange(startCommit, endCommit);
-                } else {
+                if (commits.isEmpty()) {
                     logger.warn("No commits found for repository: {}, branch: {}", repositoryName, branch);
+                    codeViewerModel.setAvailableCommits(new ArrayList<>());
+                    return CompletableFuture.completedFuture(null);
                 }
+
+                Commit endCommit = commits.getFirst();
+                return resolveBaselineCommit(repositoryName, commits)
+                    .thenAccept(startCommit -> {
+                        List<Commit> commitsForModel = new ArrayList<>(commits);
+                        if (startCommit != null && commitsForModel.stream().noneMatch(c -> c.getHash().equals(startCommit.getHash()))) {
+                            commitsForModel.add(startCommit);
+                        }
+                        codeViewerModel.setAvailableCommits(commitsForModel);
+
+                        Commit baselineCommit = startCommit != null ? startCommit : commits.getLast();
+                        logger.info("Setting initial commit range: start={} (baseline), end={} (latest)",
+                            baselineCommit.getShortHash(), endCommit.getShortHash());
+                        codeViewerModel.setCommitRange(baselineCommit, endCommit);
+                    });
             })
             .exceptionally(error -> {
                 logger.error("Failed to load commits: {}", error.getMessage(), error);
                 codeViewerModel.setAvailableCommits(new ArrayList<>());
-                return null;
-            });
-    }
-
-    public CompletableFuture<Void> loadFilesForReview(String repositoryName, String baseBranch, String reviewBranch) {
-        logger.info("Loading all files for review: repository={}, base={}, review={}",
-            repositoryName, baseBranch, reviewBranch);
-
-        return git.listChangedFiles(repositoryName, baseBranch, reviewBranch)
-            .thenApply(changedFiles -> parseChangedFiles(changedFiles, repositoryName))
-            .thenAccept(codeViewerModel::setAvailableFiles)
-            .exceptionally(error -> {
-                logger.error("Failed to load files for review: {}", error.getMessage(), error);
-                codeViewerModel.setAvailableFiles(new ArrayList<>());
-                return null;
-            });
-    }
-
-    /**
-     * Loads the list of files changed between two commits.
-     * Updates the model with available files.
-     *
-     * @param repositoryName name of the repository
-     * @param startCommit starting commit for comparison
-     * @param endCommit ending commit for comparison
-     * @return future that completes when files are loaded
-     */
-    public CompletableFuture<Void> loadChangedFiles(String repositoryName, Commit startCommit, Commit endCommit) {
-        if (startCommit == null || endCommit == null) {
-            codeViewerModel.setAvailableFiles(new ArrayList<>());
-            return CompletableFuture.completedFuture(null);
-        }
-
-        logger.info("Loading changed files from {} to {}", startCommit.getShortHash(), endCommit.getShortHash());
-
-        return git.listChangedFiles(repositoryName, startCommit.getHash(), endCommit.getHash())
-            .thenApply(changedFiles -> {
-                logger.debug("Got {} changed file lines from git", changedFiles.size());
-                if (!changedFiles.isEmpty()) {
-                    logger.debug("First few lines: {}", changedFiles.subList(0, Math.min(3, changedFiles.size())));
-                }
-                return parseChangedFiles(changedFiles, repositoryName);
-            })
-            .thenAccept(codeViewerModel::setAvailableFiles)
-            .exceptionally(error -> {
-                String errorMessage = error.getMessage();
-                if (errorMessage != null && errorMessage.contains("bad object")) {
-                    logger.error("Failed to load changed files - commit not found in local repository. " +
-                                "Repository may need to be synced. Start: {}, End: {}",
-                                startCommit.getShortHash(), endCommit.getShortHash(), error);
-                } else {
-                    logger.error("Failed to load changed files: {}", errorMessage, error);
-                }
-                codeViewerModel.setAvailableFiles(new ArrayList<>());
                 return null;
             });
     }
@@ -189,144 +141,6 @@ public class FileDiffManager {
             });
     }
 
-    /**
-     * Loads diff content for a specific file between two branches.
-     * This is used for multi-repository reviews where commit hashes don't match across repos.
-     * Loads both side-by-side content (left/right) and unified diff format.
-     * Updates the model with file content.
-     *
-     * @param repositoryName name of the repository
-     * @param file file to load diff for
-     * @param baseBranch base branch for comparison
-     * @param reviewBranch review branch for comparison
-     * @return future that completes when diff is loaded
-     */
-    public CompletableFuture<Void> loadDiffForFileWithBranches(String repositoryName, ReviewFile file,
-                                                                 String baseBranch, String reviewBranch) {
-        if (file == null || baseBranch == null || reviewBranch == null) {
-            return CompletableFuture.completedFuture(null);
-        }
-
-        logger.info("Loading file diff using branches: repo={}, file={}, base={}, review={}",
-            repositoryName, file.getPath(), baseBranch, reviewBranch);
-
-        // For ADDED files, left side doesn't exist
-        CompletableFuture<String> leftContentFuture;
-        if (file.getChangeType() == FileChangeType.ADDED) {
-            leftContentFuture = CompletableFuture.completedFuture(
-                "// File does not exist in branch " + baseBranch + "\n" +
-                "// This file was added in branch " + reviewBranch);
-        } else {
-            leftContentFuture = git.executeAsync(repositoryName, "show", baseBranch + ":" + file.getPath())
-                .exceptionally(error -> {
-                    logger.warn("Failed to load file {} from branch {}: {}",
-                        file.getPath(), baseBranch, error.getMessage());
-                    return "// Error loading file from " + baseBranch + ": " + error.getMessage();
-                });
-        }
-
-        // For DELETED files, right side doesn't exist
-        CompletableFuture<String> rightContentFuture;
-        if (file.getChangeType() == FileChangeType.DELETED) {
-            rightContentFuture = CompletableFuture.completedFuture(
-                "// File was deleted in branch " + reviewBranch + "\n" +
-                "// This file existed in branch " + baseBranch);
-        } else {
-            rightContentFuture = git.executeAsync(repositoryName, "show", reviewBranch + ":" + file.getPath())
-                .exceptionally(error -> {
-                    logger.warn("Failed to load file {} from branch {}: {}",
-                        file.getPath(), reviewBranch, error.getMessage());
-                    return "// Error loading file from " + reviewBranch + ": " + error.getMessage();
-                });
-        }
-
-        CompletableFuture<String> unifiedDiffFuture = git.executeAsync(repositoryName,
-            "diff", baseBranch, reviewBranch, "--", file.getPath())
-            .exceptionally(error -> {
-                logger.warn("Failed to generate unified diff for {}: {}", file.getPath(), error.getMessage());
-                return "// Error generating diff: " + error.getMessage();
-            });
-
-        return CompletableFuture.allOf(leftContentFuture, rightContentFuture, unifiedDiffFuture)
-            .thenAccept(ignored -> {
-                String leftContent = leftContentFuture.join();
-                String rightContent = rightContentFuture.join();
-                String unifiedDiff = unifiedDiffFuture.join();
-
-                codeViewerModel.setLeftContent(leftContent);
-                codeViewerModel.setRightContent(rightContent);
-                codeViewerModel.setUnifiedDiffContent(unifiedDiff);
-            })
-            .exceptionally(error -> {
-                logger.error("Failed to load diff for file {}: {}", file.getPath(), error.getMessage());
-                codeViewerModel.setLeftContent("// Error loading content: " + error.getMessage());
-                codeViewerModel.setRightContent("// Error loading content: " + error.getMessage());
-                codeViewerModel.setUnifiedDiffContent("// Error loading diff: " + error.getMessage());
-                return null;
-            });
-    }
-
-    /**
-     * Refreshes the current view by reloading changed files and the currently selected file's diff.
-     * Used when user clicks the refresh button.
-     *
-     * @param repositoryName name of the repository
-     * @return future that completes when refresh is done
-     */
-    public CompletableFuture<Void> refreshCurrentView(String repositoryName) {
-        Commit startCommit = codeViewerModel.startCommit.getValue();
-        Commit endCommit = codeViewerModel.endCommit.getValue();
-        ReviewFile currentFile = codeViewerModel.selectedFile.getValue();
-
-        if (startCommit == null || endCommit == null) {
-            return CompletableFuture.completedFuture(null);
-        }
-
-        CompletableFuture<Void> filesRefresh = loadChangedFiles(repositoryName, startCommit, endCommit);
-
-        if (currentFile != null) {
-            CompletableFuture<Void> diffRefresh = loadDiffForFile(repositoryName, currentFile,
-                startCommit, endCommit);
-            return CompletableFuture.allOf(filesRefresh, diffRefresh);
-        }
-
-        return filesRefresh;
-    }
-
-    private CompletableFuture<String> loadFileContent(String repositoryName, String filePath,
-                                                       String commitHash, ReviewFile file) {
-        return git.executeAsync(repositoryName, "show", commitHash + ":" + filePath)
-            .exceptionally(error -> {
-                String errorMsg = error.getMessage();
-
-                // Handle cases where file doesn't exist in this commit
-                if (errorMsg != null && (errorMsg.contains("does not exist") ||
-                                        errorMsg.contains("not in") ||
-                                        errorMsg.contains("path") && errorMsg.contains("exists on disk"))) {
-
-                    if (file.getChangeType() == FileChangeType.ADDED) {
-                        return "// File does not exist in this commit\n" +
-                               "// File: " + filePath + "\n" +
-                               "// This file was added in a later commit";
-                    } else if (file.getChangeType() == FileChangeType.DELETED) {
-                        return "// File was deleted in a later commit\n" +
-                               "// File: " + filePath + "\n" +
-                               "// This file existed in an earlier commit";
-                    } else {
-                        return "// File not available in commit " + commitHash.substring(0, 8) + "\n" +
-                               "// File: " + filePath;
-                    }
-                }
-
-                // Other errors
-                logger.warn("Failed to load file content for {} at {}: {}",
-                           filePath, commitHash, errorMsg);
-                return "// Error loading file content\n" +
-                       "// File: " + filePath + "\n" +
-                       "// Error: " + errorMsg;
-            });
-    }
-
     private CompletableFuture<String> loadUnifiedDiff(String repositoryName, String filePath,
                                                         String fromCommit, String toCommit) {
         return git.executeAsync(repositoryName, "diff", fromCommit, toCommit, "--", filePath)
@@ -339,6 +153,41 @@ public class FileDiffManager {
                        "# File: " + filePath + "\n" +
                        "# Error: " + errorMsg;
             });
+    }
+
+    private CompletableFuture<Commit> resolveBaselineCommit(String repositoryName, List<Commit> commits) {
+        if (commits.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        Commit oldestBranchCommit = commits.getLast();
+        String parentRef = oldestBranchCommit.getHash() + "^";
+        return git.executeAsync(repositoryName, "rev-parse", parentRef)
+            .thenApply(String::trim)
+            .thenCompose(parentHash -> git.executeAsync(repositoryName,
+                "show", "-s", "--format=%H|%an|%ad|%s", "--date=short", parentHash)
+                .thenApply(this::parseSingleCommit)
+                .exceptionally(ignored -> new Commit(
+                    parentHash,
+                    "Baseline (parent of " + oldestBranchCommit.getShortHash() + ")",
+                    oldestBranchCommit.getAuthor(),
+                    oldestBranchCommit.getDate()
+                )))
+            .exceptionally(ignored -> oldestBranchCommit);
+    }
+
+    private Commit parseSingleCommit(String output) {
+        String[] lines = output.split("\\R");
+        for (String line : lines) {
+            if (line == null || line.isBlank()) {
+                continue;
+            }
+            String[] parts = line.split("\\|", 4);
+            if (parts.length >= 4) {
+                return new Commit(parts[0], parts[3], parts[1], parts[2]);
+            }
+        }
+        throw new IllegalArgumentException("Unable to parse commit output: " + output);
     }
 
     private List<Commit> parseCommits(List<String> commitStrings) {
@@ -356,45 +205,6 @@ public class FileDiffManager {
             }
         }
         return commits;
-    }
-
-    private List<ReviewFile> parseChangedFiles(List<String> changedFileStrings, String repositoryName) {
-        List<ReviewFile> files = new ArrayList<>();
-        for (String fileString : changedFileStrings) {
-            try {
-                String trimmed = fileString.trim();
-                if (trimmed.isEmpty()) {
-                    continue;
-                }
-
-                String[] parts = trimmed.split("\\s+", 2);
-                if (parts.length >= 2) {
-                    String status = parts[0];
-                    String path = parts[1];
-                    FileChangeType changeType = parseFileChangeType(status);
-                    files.add(new ReviewFile(path, repositoryName, changeType));
-                } else {
-                    logger.warn("Skipping malformed changed file line: '{}' (only {} parts)", trimmed, parts.length);
-                }
-            } catch (Exception e) {
-                logger.error("Error parsing changed file line '{}': {}", fileString, e.getMessage(), e);
-            }
-        }
-        return files;
-    }
-
-    private FileChangeType parseFileChangeType(String status) {
-        if (status == null || status.isEmpty()) {
-            logger.warn("Empty or null status, defaulting to MODIFIED");
-            return FileChangeType.MODIFIED;
-        }
-        return switch (status.toUpperCase().charAt(0)) {
-            case 'A' -> FileChangeType.ADDED;
-            case 'M' -> FileChangeType.MODIFIED;
-            case 'D' -> FileChangeType.DELETED;
-            case 'R' -> FileChangeType.RENAMED;
-            default -> FileChangeType.MODIFIED;
-        };
     }
 }
 

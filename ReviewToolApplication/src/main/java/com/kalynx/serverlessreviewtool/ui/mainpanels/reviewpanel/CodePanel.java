@@ -43,7 +43,7 @@ public class CodePanel extends ThemedPanel {
         this.reviewContextManager = reviewContextManager;
         this.codeViewerModel = codeViewerModel;
         this.fileDiffManager = fileDiffManager;
-        this.commitSelectorPanel = new CommitSelectorPanel(reviewContextManager, codeViewerModel, git);
+        this.commitSelectorPanel = new CommitSelectorPanel(codeViewerModel, git);
         this.fileNavigationPanel = new FileNavigationPanel(reviewContextManager, codeViewerModel);
         this.diffViewerPanel = new DiffViewerPanel(codeViewerModel, pluginManager);
         configureLayout();

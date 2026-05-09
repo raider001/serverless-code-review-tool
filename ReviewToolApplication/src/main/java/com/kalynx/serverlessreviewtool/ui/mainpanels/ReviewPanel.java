@@ -279,49 +279,47 @@ public class ReviewPanel extends ThemedPanel {
                     .thenCompose(ignored -> {
                         com.kalynx.serverlessreviewtool.models.Repository primaryRepo = repositories.getFirst();
 
-                        return git.getDefaultBranch(primaryRepo.getName())
-                            .thenCompose(defaultBranch -> {
-                                String remoteBranch = "origin/" + defaultBranch;
+                        String reviewBranchName = reviewContext.getBranch();
+                        String remoteBranch = "origin/" + reviewBranchName;
 
-                                CompletableFuture<Void> commitsFuture = fileDiffManager
-                                    .loadCommitsForReview(primaryRepo.getName(), remoteBranch, 1000);
+                        CompletableFuture<Void> commitsFuture = fileDiffManager
+                            .loadCommitsForReview(primaryRepo.getName(), remoteBranch, 1000);
 
-                                LOGGER.info("=== LOADING FILES FROM REPOSITORIES ===");
-                                LOGGER.info("Repositories being passed to loadFilesFromReviewCommits:");
-                                for (com.kalynx.serverlessreviewtool.models.Repository repo : repositories) {
-                                    LOGGER.info("  - {}", repo.getName());
+                        LOGGER.info("=== LOADING FILES FROM REPOSITORIES ===");
+                        LOGGER.info("Repositories being passed to loadFilesFromReviewCommits:");
+                        for (com.kalynx.serverlessreviewtool.models.Repository repo : repositories) {
+                            LOGGER.info("  - {}", repo.getName());
+                        }
+
+                        CompletableFuture<List<ReviewFile>> filesFuture = reviewContextManager
+                            .loadFilesFromReviewCommits(repositories, reviewContext.getBranch(), reviewContext.getBaseBranch());
+
+                        return CompletableFuture.allOf(commitsFuture, filesFuture)
+                            .thenAccept(_ -> {
+                                List<ReviewFile> allFiles = filesFuture.join();
+
+                                LOGGER.info("=== FILES LOADED FROM REVIEW ===");
+                                LOGGER.info("Total files: {}", allFiles.size());
+
+                                for (ReviewFile file : allFiles) {
+                                    LOGGER.info("  - {} (repository: {})", file.getPath(), file.getRepository());
                                 }
 
-                                CompletableFuture<List<ReviewFile>> filesFuture = reviewContextManager
-                                    .loadFilesFromReviewCommits(repositories, reviewContext.getBranch(), reviewContext.getBaseBranch());
+                                if (!allFiles.isEmpty()) {
+                                    ReviewFile firstFile = allFiles.getFirst();
+                                    String reviewBranch = firstFile.getReviewBranch();
+                                    String baseBranch = firstFile.getBaseBranch();
 
-                                return CompletableFuture.allOf(commitsFuture, filesFuture)
-                                    .thenAccept(_ -> {
-                                        List<ReviewFile> allFiles = filesFuture.join();
+                                    if (reviewBranch != null && baseBranch != null) {
+                                        LOGGER.info("Setting review branches in model: base={}, review={}",
+                                            baseBranch, reviewBranch);
+                                        model.codeViewerModel.setReviewBranches(reviewBranch, baseBranch);
+                                    }
+                                }
 
-                                        LOGGER.info("=== FILES LOADED FROM REVIEW ===");
-                                        LOGGER.info("Total files: {}", allFiles.size());
-
-                                        for (ReviewFile file : allFiles) {
-                                            LOGGER.info("  - {} (repository: {})", file.getPath(), file.getRepository());
-                                        }
-
-                                        if (!allFiles.isEmpty()) {
-                                            ReviewFile firstFile = allFiles.getFirst();
-                                            String reviewBranch = firstFile.getReviewBranch();
-                                            String baseBranch = firstFile.getBaseBranch();
-                                            
-                                            if (reviewBranch != null && baseBranch != null) {
-                                                LOGGER.info("Setting review branches in model: base={}, review={}",
-                                                    baseBranch, reviewBranch);
-                                                model.codeViewerModel.setReviewBranches(reviewBranch, baseBranch);
-                                            }
-                                        }
-
-                                        LOGGER.info("=== SETTING FILES TO MODEL ===");
-                                        model.codeViewerModel.setAvailableFiles(allFiles);
-                                        LOGGER.info("=== REVIEW PANEL LOAD COMPLETE ===");
-                                    });
+                                LOGGER.info("=== SETTING FILES TO MODEL ===");
+                                model.codeViewerModel.setAvailableFiles(allFiles);
+                                LOGGER.info("=== REVIEW PANEL LOAD COMPLETE ===");
                             });
                     });
             })

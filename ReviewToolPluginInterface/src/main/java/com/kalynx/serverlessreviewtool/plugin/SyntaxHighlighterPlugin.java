@@ -41,12 +41,13 @@ public abstract class SyntaxHighlighterPlugin implements Plugin {
 
     /**
      * Returns the foreground colour to use when rendering the given token type.
-     * This allows each plugin to define its own colour palette.
+     * This allows each plugin to define readable colours for both dark and light themes.
      *
-     * @param type the semantic token type
+     * @param type semantic token type
+     * @param darkTheme true when the active theme is dark
      * @return colour for this token type; never {@code null}
      */
-    public abstract Color getColorForTokenType(TokenType type);
+    public abstract Color getColorForTokenType(TokenType type, boolean darkTheme);
 
     /**
      * A typed, positioned region within a source string.
@@ -78,7 +79,7 @@ public abstract class SyntaxHighlighterPlugin implements Plugin {
 
     /**
      * Semantic categories for syntax tokens.
-     * Each plugin defines its own colour mapping via {@link #getColorForTokenType(TokenType)}.
+     * Each plugin defines its own colour mapping via {@link #getColorForTokenType(TokenType, boolean)}.
      */
     public enum TokenType {
         /** Language keywords (e.g. {@code if}, {@code class}, {@code return}). */
@@ -95,6 +96,10 @@ public abstract class SyntaxHighlighterPlugin implements Plugin {
         ANNOTATION,
         /** Operators and punctuation with semantic meaning. */
         OPERATOR,
+        /** Object identifiers, typically instance references before member access. */
+        OBJECT,
+        /** Variable and identifier names. */
+        VARIABLE,
         /** All other text; rendered with the default foreground colour. */
         DEFAULT
     }

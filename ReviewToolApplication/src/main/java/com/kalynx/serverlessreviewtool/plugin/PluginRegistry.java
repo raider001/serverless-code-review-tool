@@ -118,12 +118,20 @@ public class PluginRegistry {
     }
 
     private Class<?> resolvePluginInterface(Plugin plugin) {
-        Class<?> cls = plugin.getClass().getSuperclass();
+        Class<?> cls = plugin.getClass();
+        Class<?> resolvedSuperclassType = null;
         while (cls != null && !cls.equals(Object.class)) {
-            if (Plugin.class.isAssignableFrom(cls) && !cls.equals(Plugin.class)) {
-                return cls;
+            Class<?> superClass = cls.getSuperclass();
+            if (superClass == null) {
+                break;
             }
-            cls = cls.getSuperclass();
+            if (Plugin.class.isAssignableFrom(superClass) && !superClass.equals(Plugin.class)) {
+                resolvedSuperclassType = superClass;
+            }
+            cls = superClass;
+        }
+        if (resolvedSuperclassType != null) {
+            return resolvedSuperclassType;
         }
         for (Class<?> iface : plugin.getClass().getInterfaces()) {
             if (Plugin.class.isAssignableFrom(iface) && !iface.equals(Plugin.class)) {

@@ -779,14 +779,24 @@ public class DiffViewerPanel extends ThemedPanel {
         pluginManager.getSyntaxHighlighterFor(ext).ifPresent(plugin -> {
             List<SyntaxHighlighterPlugin.SyntaxToken> tokens = plugin.tokenize(source);
             StyledDocument doc = textPane.getStyledDocument();
+            boolean darkTheme = isDarkTheme();
             for (SyntaxHighlighterPlugin.SyntaxToken token : tokens) {
                 if (token.offset < 0 || token.length <= 0) continue;
                 if (token.offset + token.length > doc.getLength()) continue;
                 Style style = textPane.addStyle(null, null);
-                StyleConstants.setForeground(style, plugin.getColorForTokenType(token.type));
+                StyleConstants.setForeground(style, plugin.getColorForTokenType(token.type, darkTheme));
                 doc.setCharacterAttributes(token.offset, token.length, style, false);
             }
         });
+    }
+
+    private boolean isDarkTheme() {
+        Theme theme = themeManager.getCurrentTheme();
+        Color background = theme.getBackgroundColor();
+        double luminance = (0.2126 * background.getRed())
+            + (0.7152 * background.getGreen())
+            + (0.0722 * background.getBlue());
+        return luminance < 128.0;
     }
 
     public void setOnLineDoubleClickListener(java.util.function.Consumer<Integer> listener) {

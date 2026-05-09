@@ -3,8 +3,6 @@ package com.kalynx.serverlessreviewtool.ui.review;
 import java.io.Serial;
 
 import com.kalynx.serverlessreviewtool.git.Git;
-import com.kalynx.serverlessreviewtool.managers.ReviewContextManager;
-import com.kalynx.serverlessreviewtool.models.ReviewContext;
 import com.kalynx.serverlessreviewtool.models.*;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedComboBox;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedLabel;
@@ -21,6 +19,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * CommitSelectorPanel - Custom dual-slider for commit range selection for specific files
@@ -31,22 +30,16 @@ public class CommitSelectorPanel extends ThemedPanel {
     private static final long serialVersionUID = 1L;
     private static final Logger LOGGER = LoggerFactory.getLogger(CommitSelectorPanel.class);
 
-    private transient final ReviewContextManager reviewContextManager;
     private transient final CodeViewerModel codeViewerModel;
     private transient final Git git;
 
     private ThemedComboBox<DiffViewMode> viewModeComboBox;
     private CommitSliderPanel commitSliderPanel;
 
-    private transient final List<CommitRangeListener> commitRangeListeners = new ArrayList<>();
-    private transient final List<ViewModeListener> viewModeListeners = new ArrayList<>();
-
-    public CommitSelectorPanel(ReviewContextManager reviewContextManager, CodeViewerModel codeViewerModel, Git git) {
-        this.reviewContextManager = reviewContextManager;
+    public CommitSelectorPanel(CodeViewerModel codeViewerModel, Git git) {
         this.codeViewerModel = codeViewerModel;
         this.git = git;
         configureLayout();
-        setupListeners();
         setupModelListeners();
     }
 
@@ -63,10 +56,6 @@ public class CommitSelectorPanel extends ThemedPanel {
 
         add(viewLabel);
         add(viewModeComboBox, "w 120!");
-    }
-
-    private void setupListeners() {
-        reviewContextManager.addListener(this::onReviewContextChanged);
     }
 
     private void setupModelListeners() {
@@ -103,8 +92,8 @@ public class CommitSelectorPanel extends ThemedPanel {
 
         String commitRange = baseBranch + ".." + branch;
         git.executeAsync(repositoryName, "log", "--format=%H|%an|%ad|%s", "--date=short", "--follow", commitRange, "--", filePath)
-            .thenAccept(output -> {
-                List<Commit> commits = parseCommits(output.lines().toList());
+            .thenApply(output -> parseCommits(output.lines().toList()))
+            .thenCompose(commits -> {
                 LOGGER.info("Loaded {} commits for file {}", commits.size(), filePath);
 
                 if (!commits.isEmpty()) {
@@ -112,19 +101,30 @@ public class CommitSelectorPanel extends ThemedPanel {
                     LOGGER.info("Last commit: {} - {}", commits.getLast().getShortHash(), commits.getLast().getMessage());
                 }
 
-                List<Commit> reversedCommits = new ArrayList<>(commits);
-                java.util.Collections.reverse(reversedCommits);
-
-                commitSliderPanel.setCommits(reversedCommits);
-
-                if (!reversedCommits.isEmpty()) {
-                    commitSliderPanel.setStartIndex(0);
-                    commitSliderPanel.setEndIndex(reversedCommits.size() - 1);
-                    Commit start = reversedCommits.getFirst();
-                    Commit end = reversedCommits.getLast();
-                    LOGGER.info("Setting initial commit range: {} -> {}", start.getShortHash(), end.getShortHash());
-                    fireCommitRangeChanged(start, end);
+                if (commits.isEmpty()) {
+                    commitSliderPanel.setCommits(new ArrayList<>());
+                    return CompletableFuture.completedFuture(null);
                 }
+
+                Commit oldestCommit = commits.getLast();
+                Commit newestCommit = commits.getFirst();
+                return resolveBaselineCommit(repositoryName, oldestCommit)
+                    .thenAccept(baseline -> {
+                        List<Commit> reversedCommits = new ArrayList<>(commits);
+                        java.util.Collections.reverse(reversedCommits);
+
+                        if (baseline != null && reversedCommits.stream().noneMatch(c -> c.getHash().equals(baseline.getHash()))) {
+                            reversedCommits.addFirst(baseline);
+                        }
+
+                        commitSliderPanel.setCommits(reversedCommits);
+                        commitSliderPanel.setStartIndex(0);
+                        commitSliderPanel.setEndIndex(reversedCommits.size() - 1);
+
+                        Commit start = baseline != null ? baseline : oldestCommit;
+                        LOGGER.info("Setting initial commit range: {} -> {}", start.getShortHash(), newestCommit.getShortHash());
+                        fireCommitRangeChanged(start, newestCommit);
+                    });
             })
             .exceptionally(error -> {
                 LOGGER.error("Failed to load commits for file {}: {}", filePath, error.getMessage());
@@ -148,7 +148,34 @@ public class CommitSelectorPanel extends ThemedPanel {
         return commits;
     }
 
-    private void onReviewContextChanged(ReviewContext context) {
+    private CompletableFuture<Commit> resolveBaselineCommit(String repositoryName, Commit oldestCommit) {
+        String parentRef = oldestCommit.getHash() + "^";
+        return git.executeAsync(repositoryName, "rev-parse", parentRef)
+            .thenApply(String::trim)
+            .thenCompose(parentHash -> git.executeAsync(repositoryName,
+                "show", "-s", "--format=%H|%an|%ad|%s", "--date=short", parentHash)
+                .thenApply(this::parseCommit)
+                .exceptionally(ignored -> new Commit(
+                    parentHash,
+                    "Baseline (parent of " + oldestCommit.getShortHash() + ")",
+                    oldestCommit.getAuthor(),
+                    oldestCommit.getDate()
+                )))
+            .exceptionally(ignored -> oldestCommit);
+    }
+
+    private Commit parseCommit(String output) {
+        String[] lines = output.split("\\R");
+        for (String line : lines) {
+            if (line == null || line.isBlank()) {
+                continue;
+            }
+            String[] parts = line.split("\\|", 4);
+            if (parts.length >= 4) {
+                return new Commit(parts[0], parts[3], parts[1], parts[2]);
+            }
+        }
+        throw new IllegalArgumentException("Unable to parse commit output: " + output);
     }
 
     private void onViewModeChanged() {
@@ -159,32 +186,7 @@ public class CommitSelectorPanel extends ThemedPanel {
             } else {
                 codeViewerModel.setDiffMode(CodeViewerModel.DiffMode.UNIFIED);
             }
-            fireViewModeChanged(mode);
         }
-    }
-
-    public Commit getStartCommit() {
-        return commitSliderPanel.getStartCommit();
-    }
-
-    public Commit getEndCommit() {
-        return commitSliderPanel.getEndCommit();
-    }
-
-    public interface CommitRangeListener {
-        void onCommitRangeChanged(Commit startCommit, Commit endCommit);
-    }
-
-    public interface ViewModeListener {
-        void onViewModeChanged(DiffViewMode mode);
-    }
-
-    public void addCommitRangeListener(CommitRangeListener listener) {
-        commitRangeListeners.add(listener);
-    }
-
-    public void addViewModeListener(ViewModeListener listener) {
-        viewModeListeners.add(listener);
     }
 
     private void fireCommitRangeChanged(Commit startCommit, Commit endCommit) {
@@ -192,15 +194,6 @@ public class CommitSelectorPanel extends ThemedPanel {
         LOGGER.info("Start: {} - {}", startCommit.getShortHash(), startCommit.getMessage());
         LOGGER.info("End: {} - {}", endCommit.getShortHash(), endCommit.getMessage());
         codeViewerModel.setCommitRange(startCommit, endCommit);
-        for (CommitRangeListener listener : commitRangeListeners) {
-            listener.onCommitRangeChanged(startCommit, endCommit);
-        }
-    }
-
-    private void fireViewModeChanged(DiffViewMode mode) {
-        for (ViewModeListener listener : viewModeListeners) {
-            listener.onViewModeChanged(mode);
-        }
     }
 
 
@@ -379,16 +372,6 @@ public class CommitSelectorPanel extends ThemedPanel {
             repaint();
         }
 
-        public Commit getStartCommit() {
-            if (commits.isEmpty() || startIndex >= commits.size()) return null;
-            return commits.get(startIndex);
-        }
-
-        public Commit getEndCommit() {
-            if (commits.isEmpty() || endIndex >= commits.size()) return null;
-            return commits.get(endIndex);
-        }
-
         @Override
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
@@ -402,6 +385,7 @@ public class CommitSelectorPanel extends ThemedPanel {
             int height = getHeight();
             int centerY = height / 2 + themeManager.scale(5);
             int trackWidth = width - 2 * MARGIN;
+            int trackArc = themeManager.scale(8);
 
             g2.setFont(new Font("Consolas", Font.PLAIN, themeManager.scale(9)));
             FontMetrics fm = g2.getFontMetrics();
@@ -422,12 +406,12 @@ public class CommitSelectorPanel extends ThemedPanel {
             }
 
             g2.setColor(theme.getBorderColor());
-            g2.fillRoundRect(MARGIN, centerY - TRACK_HEIGHT / 2, trackWidth, TRACK_HEIGHT, TRACK_HEIGHT, TRACK_HEIGHT);
+            g2.fillRoundRect(MARGIN, centerY - TRACK_HEIGHT / 2, trackWidth, TRACK_HEIGHT, trackArc, trackArc);
 
             int startX = getThumbX(startIndex);
             int endX = getThumbX(endIndex);
             g2.setColor(theme.getAccentColor());
-            g2.fillRoundRect(startX, centerY - TRACK_HEIGHT / 2, endX - startX, TRACK_HEIGHT, TRACK_HEIGHT, TRACK_HEIGHT);
+            g2.fillRoundRect(startX, centerY - TRACK_HEIGHT / 2, endX - startX, TRACK_HEIGHT, trackArc, trackArc);
 
             drawThumb(g2, startX, centerY, startIndex == dragThumb, theme);
             drawThumb(g2, endX, centerY, endIndex == dragThumb, theme);
