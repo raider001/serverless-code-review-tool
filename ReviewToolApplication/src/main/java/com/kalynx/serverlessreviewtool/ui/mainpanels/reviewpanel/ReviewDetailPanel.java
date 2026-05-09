@@ -44,9 +44,11 @@ public class ReviewDetailPanel extends ThemedPanel {
     private Consumer<Boolean> onReviewerStatusChanged;
     private Runnable onJoinReviewAction;
     private Runnable onLeaveReviewAction;
+    private Runnable onCloseReviewAction;
 
     private String currentUserName;
     private boolean isCurrentUserReviewer = false;
+    private boolean isCurrentUserAuthor = false;
     private boolean hasCheckedReviewerStatus = false;
 
     public ReviewDetailPanel(SettingsManager settingsManager, ReviewDetailModel reviewDetailModel) {
@@ -79,7 +81,10 @@ public class ReviewDetailPanel extends ThemedPanel {
     private void configureReviewContextListeners() {
 
         reviewDetailModel.title.addChangeListener(val -> setLabelText(titleLabel, () -> val != null ? val : ""));
-        reviewDetailModel.author.addChangeListener(val -> setLabelText(authorLabel, () -> val != null ? "Authored By " + val : ""));
+        reviewDetailModel.author.addChangeListener(val -> {
+            setLabelText(authorLabel, () -> val != null ? "Authored By " + val : "");
+            checkAuthorStatus(val);
+        });
         reviewDetailModel.summary.addChangeListener(val -> setLabelText(summaryLabel, () -> val != null ? val : ""));
         reviewDetailModel.status.addChangeListener(this::updateStatusBadge);
 
@@ -131,12 +136,27 @@ public class ReviewDetailPanel extends ThemedPanel {
 
     private void onCurrentUserChanged(String currentUserName) {
         this.currentUserName = currentUserName != null ? currentUserName : "";
+        checkAuthorStatus(reviewDetailModel.author.getValue());
         List<ReviewerInfo> reviewers = reviewDetailModel.reviewers.getValue();
         checkReviewerStatus(reviewers != null ? reviewers : List.of());
     }
 
+    private void checkAuthorStatus(String author) {
+        String normalizedAuthor = author == null ? "" : author.trim();
+        String normalizedCurrentUser = currentUserName == null ? "" : currentUserName.trim();
+        boolean wasAuthor = isCurrentUserAuthor;
+        isCurrentUserAuthor = !normalizedAuthor.isEmpty() && normalizedAuthor.equals(normalizedCurrentUser);
+        if (wasAuthor != isCurrentUserAuthor) {
+            SwingUtilities.invokeLater(this::updateButtonStates);
+        }
+    }
+
     private void updateButtonStates() {
-        if (isCurrentUserReviewer) {
+        if (isCurrentUserReviewer && isCurrentUserAuthor) {
+            editReviewButton.setEnabled(true);
+            closeReviewButton.setText("Close Review");
+            closeReviewButton.setEnabled(true);
+        } else if (isCurrentUserReviewer) {
             editReviewButton.setEnabled(true);
             closeReviewButton.setText("Leave Review");
             closeReviewButton.setEnabled(true);
@@ -161,7 +181,13 @@ public class ReviewDetailPanel extends ThemedPanel {
     }
 
     private void handleCloseOrJoinReview() {
-        if (isCurrentUserReviewer) {
+        if (isCurrentUserReviewer && isCurrentUserAuthor) {
+            if (onCloseReviewAction != null) {
+                onCloseReviewAction.run();
+            } else {
+                LOGGER.warn("Close review action not configured");
+            }
+        } else if (isCurrentUserReviewer) {
             if (onLeaveReviewAction != null) {
                 onLeaveReviewAction.run();
             } else {
@@ -188,17 +214,20 @@ public class ReviewDetailPanel extends ThemedPanel {
         this.onLeaveReviewAction = action;
     }
 
+    /**
+     * Set callback for closing review when current user is both author and reviewer.
+     *
+     * @param action action to run when close review is clicked
+     */
+    public void setOnCloseReviewAction(Runnable action) {
+        this.onCloseReviewAction = action;
+    }
+
     public void setOnReviewerStatusChanged(Consumer<Boolean> callback) {
         this.onReviewerStatusChanged = callback;
     }
 
-    public boolean isCurrentUserReviewer() {
-        return isCurrentUserReviewer;
-    }
-
     private void setLabelText(ThemedLabel label, Supplier<String> textSetter) {
-        SwingUtilities.invokeLater(() -> {
-            label.setText(textSetter.get());
-        });
+        SwingUtilities.invokeLater(() -> label.setText(textSetter.get()));
     }
 }

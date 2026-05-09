@@ -70,6 +70,7 @@ public class ReviewPanel extends ThemedPanel {
         reviewDetailPanel.setOnEditAction(this::handleEditReview);
         reviewDetailPanel.setOnJoinReviewAction(this::handleJoinReview);
         reviewDetailPanel.setOnLeaveReviewAction(this::handleLeaveReview);
+        reviewDetailPanel.setOnCloseReviewAction(this::handleCloseReview);
         reviewDetailPanel.setOnReviewerStatusChanged(this::onReviewerStatusChanged);
 
         reviewContextManager.addListener(this::onReviewContextChanged);
@@ -417,6 +418,68 @@ public class ReviewPanel extends ThemedPanel {
             .exceptionally(error -> {
                 LoadingStateManager.getInstance().stopLoading("Leaving review...");
                 LOGGER.error("Failed to leave review", error);
+                return null;
+            });
+    }
+
+    private void handleCloseReview() {
+        if (currentReviewContext == null) {
+            LOGGER.warn("Cannot close review - no review context loaded");
+            return;
+        }
+
+        String currentUser = settingsManager.getCurrentUserName();
+        if (currentUser == null || currentUser.isBlank()) {
+            LOGGER.warn("Cannot close review - current user is not set");
+            return;
+        }
+
+        if (!currentUser.trim().equals(currentReviewContext.author != null ? currentReviewContext.author.trim() : "")) {
+            LOGGER.warn("Cannot close review - current user is not the review author");
+            return;
+        }
+
+        if (currentReviewContext.status == ReviewStatus.COMPLETED) {
+            LOGGER.info("Review {} is already completed", currentReviewContext.reviewId);
+            return;
+        }
+
+        LOGGER.info("Closing review {} by author {}", currentReviewContext.reviewId, currentUser);
+        LoadingStateManager.getInstance().startLoading("Closing review...");
+
+        ReviewContext completedContext = new ReviewContext(
+            currentReviewContext.reviewId,
+            currentReviewContext.title,
+            currentReviewContext.summary,
+            currentReviewContext.author,
+            ReviewStatus.COMPLETED,
+            new ArrayList<>(currentReviewContext.reviewers),
+            new ArrayList<>(currentReviewContext.repositories),
+            new ArrayList<>(currentReviewContext.comments)
+        );
+
+        reviewContextManager.saveReviewMetadata(completedContext)
+            .thenCompose(ignored -> reviewContextManager.loadReviewMetadata(
+                currentReviewContext.reviewId,
+                currentReviewContext.repositories.stream().map(Repository::getName).toList()
+            ))
+            .thenAccept(updatedContext -> {
+                LoadingStateManager.getInstance().stopLoading("Closing review...");
+                if (updatedContext != null) {
+                    currentReviewContext = updatedContext;
+                    SwingUtilities.invokeLater(() -> model.reviewDetailModel.setReviewData(
+                        updatedContext.reviewId,
+                        updatedContext.title,
+                        updatedContext.author,
+                        updatedContext.summary,
+                        updatedContext.status,
+                        updatedContext.reviewers
+                    ));
+                }
+            })
+            .exceptionally(error -> {
+                LoadingStateManager.getInstance().stopLoading("Closing review...");
+                LOGGER.error("Failed to close review", error);
                 return null;
             });
     }

@@ -276,29 +276,70 @@ public class GitReviewNotesManager {
             .thenApply(ignored -> null);
     }
 
+    private static final int MAX_WRITE_RETRIES = 3;
+
     private CompletableFuture<Void> writeToStream(String reviewId, String streamPath, IOOperation writer) {
+        return writeToStreamWithRetry(reviewId, streamPath, writer, MAX_WRITE_RETRIES);
+    }
+
+    private CompletableFuture<Void> writeToStreamWithRetry(String reviewId, String streamPath, IOOperation writer, int retriesLeft) {
         String ref = NOTES_REF_PREFIX + reviewId + "/" + streamPath;
 
         return fetchAndMergeNotes(reviewId, streamPath)
-            .thenCompose(ignored -> getAnchorCommit(reviewId))
-            .thenCompose(anchorCommit -> {
-                try {
-                    Path filePath = getStreamPath(reviewId, streamPath);
-
-                    writer.execute();
-
-                    resolveAndNormalize(filePath);
-
-                    return addNotesToGit(reviewId, streamPath, filePath, anchorCommit);
-                } catch (IOException e) {
-                    return CompletableFuture.failedFuture(e);
+            .thenCompose(ignored -> getAnchorCommit())
+            .thenCompose(anchorCommit ->
+                extractNoteToFile(reviewId, streamPath, anchorCommit).thenCompose(filePath -> {
+                    try {
+                        writer.execute();
+                        resolveAndNormalize(filePath);
+                        return addNotesToGit(reviewId, streamPath, filePath, anchorCommit);
+                    } catch (IOException e) {
+                        return CompletableFuture.failedFuture(e);
+                    }
+                })
+            )
+            .thenCompose(ignored -> pushNotes(ref))
+            .handle((_, ex) -> {
+                if (ex == null) {
+                    return CompletableFuture.<Void>completedFuture(null);
                 }
+                Throwable cause = unwrapCause(ex);
+                if (retriesLeft > 0 && isPushConflict(cause.getMessage())) {
+                    return forceResetFromRemote(reviewId, streamPath)
+                        .thenCompose(ignored -> writeToStreamWithRetry(reviewId, streamPath, writer, retriesLeft - 1));
+                }
+                if (cause instanceof RuntimeException re) {
+                    return CompletableFuture.<Void>failedFuture(re);
+                }
+                return CompletableFuture.<Void>failedFuture(new RuntimeException(cause));
             })
-            .thenCompose(ignored -> fetchAndMergeNotes(reviewId, streamPath))
-            .thenCompose(ignored -> pushNotes(ref));
+            .thenCompose(f -> f);
     }
 
-    private CompletableFuture<String> getAnchorCommit(String reviewId) {
+    private CompletableFuture<Void> forceResetFromRemote(String reviewId, String streamPath) {
+        String ref = NOTES_REF_PREFIX + reviewId + "/" + streamPath;
+        return git.executeAsync(repositoryName, "fetch", REMOTE, "+" + ref + ":" + ref)
+            .thenApply(ignored -> (Void) null)
+            .exceptionally(_ -> null);
+    }
+
+    private boolean isPushConflict(String message) {
+        if (message == null) return false;
+        return message.contains("cannot lock ref") ||
+               message.contains("[rejected]") ||
+               message.contains("non-fast-forward") ||
+               message.contains("stale info");
+    }
+
+    private Throwable unwrapCause(Throwable ex) {
+        Throwable cause = ex;
+        while (cause.getCause() != null && cause instanceof RuntimeException) {
+            cause = cause.getCause();
+        }
+        return cause;
+    }
+
+    private CompletableFuture<String> getAnchorCommit() {
         return getRepositoryRootCommit();
     }
 
@@ -474,9 +515,7 @@ public class GitReviewNotesManager {
                     .distinct()
                     .toList();
             })
-            .exceptionally(ex -> {
-                return List.<String>of();
-            });
+            .exceptionally(_ ->  List.of());
     }
 
     /**
@@ -500,7 +539,7 @@ public class GitReviewNotesManager {
         );
 
         return fetchAllNotes(reviewId, streamPaths)
-            .thenCompose(ignored -> getAnchorCommit(reviewId))
+            .thenCompose(ignored -> getAnchorCommit())
             .thenCompose(anchorCommit -> {
                 List<CompletableFuture<Path>> extractFutures = streamPaths.stream()
                     .map(streamPath -> extractNoteToFile(reviewId, streamPath, anchorCommit))
@@ -564,7 +603,7 @@ public class GitReviewNotesManager {
             IOReader<T> reader) {
 
         return fetchAndMergeNotes(reviewId, streamPath)
-            .thenCompose(ignored -> getAnchorCommit(reviewId))
+            .thenCompose(ignored -> getAnchorCommit())
             .thenCompose(anchorCommit -> extractNoteToFile(reviewId, streamPath, anchorCommit))
             .thenApply(filePath -> {
                 try {

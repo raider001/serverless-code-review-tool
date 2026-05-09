@@ -614,6 +614,15 @@ public class ReviewContextManager {
         notifyListeners();
     }
 
+    /**
+     * Save review metadata to git notes.
+     * Writes all current reviewer statuses and explicitly writes a "left" entry for any
+     * reviewer that was present in the previous context but has since been removed, ensuring
+     * the removal is persisted correctly in the append-only notes stream.
+     *
+     * @param reviewContext the updated review context to persist
+     * @return future that completes when all metadata has been written and pushed
+     */
     public CompletableFuture<Void> saveReviewMetadata(ReviewContext reviewContext) {
         if (reviewContext == null || reviewContext.reviewId == null || reviewContext.reviewId.isEmpty()) {
             LOGGER.warn("Cannot save review - invalid review context");
@@ -647,6 +656,8 @@ public class ReviewContextManager {
             });
         }
 
+        saveFuture = appendLeftStatusForRemovedReviewers(saveFuture, notesManager, reviewContext);
+
         return saveFuture.thenRun(() -> {
                 LOGGER.info("Review metadata saved successfully for review: {}", reviewContext.reviewId);
                 setReviewContext(reviewContext);
@@ -655,6 +666,34 @@ public class ReviewContextManager {
                 LOGGER.error("Failed to save review metadata for review: " + reviewContext.reviewId, error);
                 throw new RuntimeException("Failed to save review metadata", error);
             });
+    }
+
+    private CompletableFuture<Void> appendLeftStatusForRemovedReviewers(
+            CompletableFuture<Void> saveFuture,
+            GitReviewNotesManager notesManager,
+            ReviewContext reviewContext) {
+        if (currentReviewContext == null) {
+            return saveFuture;
+        }
+
+        Set<String> newReviewerNames = reviewContext.reviewers.stream()
+            .map(ReviewerInfo::getName)
+            .collect(Collectors.toSet());
+
+        for (ReviewerInfo previousReviewer : currentReviewContext.reviewers) {
+            if (newReviewerNames.contains(previousReviewer.getName())) {
+                continue;
+            }
+            String removedName = previousReviewer.getName();
+            LOGGER.info("Writing LEFT status for removed reviewer {} on review {}", removedName, reviewContext.reviewId);
+            saveFuture = saveFuture.thenCompose(ignored -> {
+                com.kalynx.serverlessreviewtool.models.review.ReviewerData leftData =
+                    new com.kalynx.serverlessreviewtool.models.review.ReviewerData("left", "");
+                return notesManager.writeReviewer(reviewContext.reviewId, removedName, leftData);
+            });
+        }
+
+        return saveFuture;
     }
 
     /**

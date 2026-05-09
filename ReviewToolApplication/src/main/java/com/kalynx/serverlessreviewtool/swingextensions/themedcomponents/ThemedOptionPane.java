@@ -87,7 +87,7 @@ public class ThemedOptionPane extends JDialog {
     }
 
     private void positionToRight(Window owner) {
-        if (owner == null) {
+        if (owner == null || !owner.isShowing()) {
             setLocationRelativeTo(null);
             return;
         }
@@ -118,9 +118,20 @@ public class ThemedOptionPane extends JDialog {
     }
 
     public static void showMessageDialog(Component parent, String message, String title, MessageType type) {
-        Window owner = parent instanceof Window ? (Window) parent : SwingUtilities.getWindowAncestor(parent);
+        Window owner = resolveOwner(parent);
         ThemedOptionPane dialog = new ThemedOptionPane(owner, title, message, type);
         dialog.setVisible(true);
+    }
+
+    private static Window resolveOwner(Component parent) {
+        if (parent == null) {
+            return null;
+        }
+        Window window = parent instanceof Window ? (Window) parent : SwingUtilities.getWindowAncestor(parent);
+        if (window == null || !window.isShowing()) {
+            return null;
+        }
+        return window;
     }
 
     public static void showWarning(Component parent, String message) {
