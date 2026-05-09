@@ -3,13 +3,14 @@ import com.kalynx.lwdi.DependencyInjector;
 import com.kalynx.serverlessreviewtool.configuration.SettingsManager;
 import com.kalynx.serverlessreviewtool.git.*;
 import com.kalynx.serverlessreviewtool.managers.PollingService;
+import com.kalynx.serverlessreviewtool.managers.PluginManager;
 import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
 import com.kalynx.serverlessreviewtool.managers.ReviewContextManager;
 import com.kalynx.serverlessreviewtool.managers.ReviewItemManager;
 import com.kalynx.serverlessreviewtool.managers.UserManager;
-import com.kalynx.serverlessreviewtool.mockdata.UserMockData;
 import com.kalynx.serverlessreviewtool.models.Repository;
 import com.kalynx.serverlessreviewtool.models.User;
+import com.kalynx.serverlessreviewtool.plugin.UserPlugin;
 import com.kalynx.serverlessreviewtool.ui.MainFrame;
 import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewpanel.ReviewPanelModel;
 import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewselectionpanel.ReviewSelectionPanelModel;
@@ -18,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
+import java.util.Arrays;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -33,6 +35,7 @@ public class Main {
     private static final ReviewItemManager REVIEW_ITEM_MANAGER;
     private static final ReviewContextManager REVIEW_CONTEXT_MANAGER;
     private static final UserManager USER_MANAGER;
+    private static final PluginManager PLUGIN_MANAGER;
     private static final ReviewFormModels REVIEW_FORM_MODELS;
     private static final ReviewSelectionPanelModel REVIEW_SELECTION_PANEL_MODEL;
     private static final ReviewPanelModel REVIEW_PANEL_MODEL;
@@ -48,6 +51,7 @@ public class Main {
             REVIEW_CONTEXT_MANAGER = DI.inject(ReviewContextManager.class);
             DI.inject(PollingService.class);
             USER_MANAGER = DI.inject(UserManager.class);
+            PLUGIN_MANAGER = DI.inject(PluginManager.class);
             REVIEW_FORM_MODELS = DI.inject(ReviewFormModels.class);
             REVIEW_SELECTION_PANEL_MODEL = DI.inject(ReviewSelectionPanelModel.class);
             REVIEW_PANEL_MODEL = DI.inject(ReviewPanelModel.class);
@@ -60,10 +64,22 @@ public class Main {
         logger.info("ServerlessReviewTool - Java Application");
         logger.info("Launching application...");
 
+
+
         USER_MANAGER.addListener(users -> REVIEW_FORM_MODELS.availableReviewers.setValue(users.stream().map(User::getName).toList()));
         REPOSITORY_MANAGER.addListener(ignore -> REVIEW_ITEM_MANAGER.refresh());
 
-        UserMockData.loadMockData(USER_MANAGER);
+        PLUGIN_MANAGER.addListenerToUserPlugins(UserPlugin.NotificationType.USER_ADDED, usernames ->
+                USER_MANAGER.addUsers(Arrays.stream(usernames).map(u -> new User(u, "", u)).toList())
+        );
+
+        PLUGIN_MANAGER.addListenerToUserPlugins(UserPlugin.NotificationType.USER_REMOVED,
+                USER_MANAGER::removeUsers
+        );
+
+        PLUGIN_MANAGER.initialize();
+        Runtime.getRuntime().addShutdownHook(new Thread(PLUGIN_MANAGER::shutdown));
+
 
         setupReviewFormModelUpdaters();
         setupReviewSelectionPanelModelUpdaters();

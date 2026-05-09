@@ -24,7 +24,7 @@ Define how third-party services can integrate with the Serverless Review Tool wi
 
 ## Plugin Model
 
-Plugins are Java class implementations. The tool defines a base `Plugin` contract and abstract plugin types (`UserPlugin`, `NotificationPlugin`) in a dedicated interface/API module. A third party extends one or more of those abstract types and registers the implementation with the tool.
+Plugins are Java class implementations. The tool defines a base `Plugin` contract and abstract plugin types (`UserPlugin`, `NotificationPlugin`) in a dedicated interface/API module. A third party extends one or more of those abstract types and registers their implementation with the tool.
 
 The tool calls plugins. Plugins do not call into the tool (no reverse dependency).
 

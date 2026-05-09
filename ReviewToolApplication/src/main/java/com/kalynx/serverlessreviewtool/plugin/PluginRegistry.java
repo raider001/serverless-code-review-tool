@@ -33,7 +33,8 @@ public class PluginRegistry {
     private URLClassLoader pluginClassLoader;
 
     /**
-     * Loads all plugin JARs from the plugins directory and registers discovered implementations.
+     * Discovers and registers plugins from the plugins directory without initializing them.
+     * Call {@link #initializePlugins()} after attaching any listeners.
      */
     public void load() {
         Path pluginsDir = resolvePluginsDir();
@@ -51,6 +52,23 @@ public class PluginRegistry {
 
         LOGGER.info("Plugin registry loaded. Registered types: {}", registry.keySet().stream()
             .map(Class::getSimpleName).toList());
+    }
+
+    /**
+     * Calls {@code initialize()} on all registered plugins.
+     * Must be called after listeners have been attached via the PluginManager.
+     */
+    public void initializePlugins() {
+        registry.values().stream()
+            .flatMap(List::stream)
+            .forEach(plugin -> {
+                try {
+                    plugin.initialize();
+                    LOGGER.info("Initialized plugin: {}", plugin.getClass().getName());
+                } catch (Exception e) {
+                    LOGGER.error("Plugin initialization failed: {}", plugin.getClass().getName(), e);
+                }
+            });
     }
 
     /**
@@ -97,13 +115,6 @@ public class PluginRegistry {
         Class<?> pluginType = resolvePluginInterface(plugin);
         registry.computeIfAbsent(pluginType, ignored -> new ArrayList<>()).add(plugin);
         LOGGER.info("Registered plugin: {} as {}", plugin.getClass().getName(), pluginType.getSimpleName());
-        try {
-            plugin.initialize();
-            LOGGER.info("Initialized plugin: {}", plugin.getClass().getName());
-        } catch (Exception e) {
-            LOGGER.error("Plugin initialization failed, it will remain registered but may not function: {}",
-                plugin.getClass().getName(), e);
-        }
     }
 
     private Class<?> resolvePluginInterface(Plugin plugin) {
