@@ -7,7 +7,13 @@ import com.kalynx.serverlessreviewtool.utils.Validator;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import java.awt.*;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 
 public class ReviewDetailsPanel extends ThemedPanel {
@@ -18,14 +24,16 @@ public class ReviewDetailsPanel extends ThemedPanel {
 
     private final ThemeManager themeManager;
     private final ThemedTextField titleField;
-    private final ThemedTextField authorField;
+    private final ThemedSearchableComboBox authorCombo;
     private final ThemedTextArea summaryArea;
 
     private boolean updatingFromModel = false;
+    private transient String authorValueOnFocusGained;
 
     public ReviewDetailsPanel(ComponentModel<String> titleModel,
                               ComponentModel<String> authorModel,
-                              ComponentModel<String> summaryModel) {
+                              ComponentModel<String> summaryModel,
+                              ComponentModel<List<String>> availableAuthorsModel) {
         this.themeManager = ThemeManager.getInstance();
 
         setLayout(new MigLayout(
@@ -38,9 +46,10 @@ public class ReviewDetailsPanel extends ThemedPanel {
         titleField = new ThemedTextField(20);
         titleField.setPreferredSize(new Dimension(0, themeManager.scale(FIELD_H)));
 
-        authorField = new ThemedTextField(20);
-        authorField.setPreferredSize(new Dimension(0, themeManager.scale(FIELD_H)));
-        authorField.setToolTipText("Name of the review author");
+        authorCombo = new ThemedSearchableComboBox(new ArrayList<>());
+        authorCombo.setPreferredSize(new Dimension(0, themeManager.scale(FIELD_H)));
+        authorCombo.setToolTipText("Search for the review author");
+        authorCombo.bindTo(availableAuthorsModel);
 
         summaryArea = new ThemedTextArea(3, 40);
         summaryArea.setLineWrap(true);
@@ -53,29 +62,23 @@ public class ReviewDetailsPanel extends ThemedPanel {
     private void bindToModels(ComponentModel<String> titleModel,
                               ComponentModel<String> authorModel,
                               ComponentModel<String> summaryModel) {
-        titleModel.addChangeListener(value -> {
-            SwingUtilities.invokeLater(() -> {
-                updatingFromModel = true;
-                titleField.setText(value != null ? value : "");
-                updatingFromModel = false;
-            });
-        });
+        titleModel.addChangeListener(value -> SwingUtilities.invokeLater(() -> {
+            updatingFromModel = true;
+            titleField.setText(value != null ? value : "");
+            updatingFromModel = false;
+        }));
 
-        authorModel.addChangeListener(value -> {
-            SwingUtilities.invokeLater(() -> {
-                updatingFromModel = true;
-                authorField.setText(value != null ? value : "");
-                updatingFromModel = false;
-            });
-        });
+        authorModel.addChangeListener(value -> SwingUtilities.invokeLater(() -> {
+            updatingFromModel = true;
+            authorCombo.setSelectedItem(value != null ? value : "");
+            updatingFromModel = false;
+        }));
 
-        summaryModel.addChangeListener(value -> {
-            SwingUtilities.invokeLater(() -> {
-                updatingFromModel = true;
-                summaryArea.setText(value != null ? value : "");
-                updatingFromModel = false;
-            });
-        });
+        summaryModel.addChangeListener(value -> SwingUtilities.invokeLater(() -> {
+            updatingFromModel = true;
+            summaryArea.setText(value != null ? value : "");
+            updatingFromModel = false;
+        }));
 
         titleField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
             public void insertUpdate(javax.swing.event.DocumentEvent e) { updateModel(); }
@@ -88,14 +91,21 @@ public class ReviewDetailsPanel extends ThemedPanel {
             }
         });
 
-        authorField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
-            public void insertUpdate(javax.swing.event.DocumentEvent e) { updateModel(); }
-            public void removeUpdate(javax.swing.event.DocumentEvent e) { updateModel(); }
-            public void changedUpdate(javax.swing.event.DocumentEvent e) { updateModel(); }
+        JTextField authorEditor = (JTextField) authorCombo.getEditor().getEditorComponent();
+        authorEditor.getDocument().addDocumentListener(new DocumentListener() {
+            public void insertUpdate(DocumentEvent e) { updateModel(); }
+            public void removeUpdate(DocumentEvent e) { updateModel(); }
+            public void changedUpdate(DocumentEvent e) { updateModel(); }
             private void updateModel() {
                 if (!updatingFromModel) {
-                    authorModel.setValue(authorField.getText());
+                    authorModel.setValue(authorEditor.getText());
                 }
+            }
+        });
+
+        authorCombo.addActionListener(ignored -> {
+            if (!updatingFromModel) {
+                authorModel.setValue(getAuthor());
             }
         });
 
@@ -111,7 +121,7 @@ public class ReviewDetailsPanel extends ThemedPanel {
         });
 
         if (titleModel.getValue() != null) titleField.setText(titleModel.getValue());
-        if (authorModel.getValue() != null) authorField.setText(authorModel.getValue());
+        if (authorModel.getValue() != null) authorCombo.setSelectedItem(authorModel.getValue());
         if (summaryModel.getValue() != null) summaryArea.setText(summaryModel.getValue());
     }
 
@@ -120,7 +130,7 @@ public class ReviewDetailsPanel extends ThemedPanel {
         add(titleField, "growx, wrap");
 
         add(rightLabel("Author:"));
-        add(authorField, "growx, wrap");
+        add(authorCombo, "growx, wrap");
 
         ThemedScrollPane summaryScroll = new ThemedScrollPane(summaryArea);
         summaryScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
@@ -142,7 +152,12 @@ public class ReviewDetailsPanel extends ThemedPanel {
     }
 
     public String getAuthor() {
-        return authorField.getText();
+        Object selected = authorCombo.getSelectedItem();
+        if (selected != null) {
+            return selected.toString();
+        }
+        JTextField authorEditor = (JTextField) authorCombo.getEditor().getEditorComponent();
+        return authorEditor.getText();
     }
 
     public String getSummary() {
@@ -154,7 +169,32 @@ public class ReviewDetailsPanel extends ThemedPanel {
     }
 
     public void setupAuthorValidation(Validator validator, Consumer<String> onValidValueSaved) {
-        authorField.setupValidation(validator, onValidValueSaved);
+        JTextField authorEditor = (JTextField) authorCombo.getEditor().getEditorComponent();
+        authorEditor.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusGained(FocusEvent e) {
+                authorValueOnFocusGained = authorEditor.getText();
+            }
+
+            @Override
+            public void focusLost(FocusEvent e) {
+                String currentValue = authorEditor.getText().trim();
+                if (!currentValue.equals(authorValueOnFocusGained)) {
+                    Validator.ValidationResult result = validator.validate(currentValue);
+                    if (result.isValid()) {
+                        onValidValueSaved.accept(currentValue);
+                    }
+                }
+            }
+        });
+
+        authorCombo.setOnApply(value -> {
+            String appliedValue = value == null ? "" : value.trim();
+            Validator.ValidationResult result = validator.validate(appliedValue);
+            if (result.isValid()) {
+                onValidValueSaved.accept(appliedValue);
+            }
+        });
     }
 
     public void setupSummaryValidation(Validator validator, Consumer<String> onValidValueSaved) {

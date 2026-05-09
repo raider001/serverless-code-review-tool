@@ -49,7 +49,8 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
         this.detailsPanel = new ReviewDetailsPanel(
             models.title,
             models.author,
-            models.summary
+            models.summary,
+            models.availableReviewers
         );
         this.sourcePanel = new SourcePanel(
             models.availableBranches,
