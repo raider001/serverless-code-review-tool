@@ -215,6 +215,11 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
             return;
         }
 
+        if (isValidAuthor(detailsPanel.getAuthor())) {
+            warn(getInvalidAuthorMessage());
+            return;
+        }
+
         if (sourcePanel.getBranchName().trim().isEmpty()) {
             warn("Please enter a branch name to review");
             return;
@@ -258,10 +263,6 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
         return confirmed;
     }
 
-    public String getReviewTitle() {
-        return detailsPanel.getTitle();
-    }
-
     public String getAuthor() {
         return detailsPanel.getAuthor();
     }
@@ -270,12 +271,26 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
         return detailsPanel.getSummary();
     }
 
-    public String getBranchName() {
-        return sourcePanel.getBranchName();
+    protected boolean isValidAuthor(String author) {
+        if (author == null || author.trim().isEmpty()) {
+            return true;
+        }
+
+        List<String> validAuthors = models.availableReviewers.getValue();
+        if (validAuthors == null || validAuthors.isEmpty()) {
+            return false;
+        }
+
+        String normalizedAuthor = author.trim();
+        return validAuthors.stream().noneMatch(normalizedAuthor::equals);
     }
 
-    public String getReviewAgainstBranch() {
-        return sourcePanel.getReviewAgainstBranch();
+    protected String getInvalidAuthorMessage() {
+        List<String> validAuthors = models.availableReviewers.getValue();
+        if (validAuthors == null || validAuthors.isEmpty()) {
+            return "Please enter an author name";
+        }
+        return "Please enter a valid author from the known users list";
     }
 
     protected abstract String getSubmitButtonLabel();

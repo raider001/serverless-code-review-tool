@@ -11,6 +11,7 @@ import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedOp
 import com.kalynx.serverlessreviewtool.theme.LoadingStateManager;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel.ReviewFormDialog;
 import com.kalynx.serverlessreviewtool.ui.models.reviewpanel.reviewformdialog.ReviewFormModels;
+import com.kalynx.serverlessreviewtool.models.review.StreamEntry;
 import com.kalynx.serverlessreviewtool.utils.Validator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,7 +65,7 @@ public class EditReviewDialog extends ReviewFormDialog {
     }
 
     private void loadBranchInformationAndDisable(ReviewContext context) {
-        Repository primaryRepo = context.repositories.isEmpty() ? null : context.repositories.get(0);
+        Repository primaryRepo = context.repositories.isEmpty() ? null : context.repositories.getFirst();
         if (primaryRepo == null) {
             sourcePanel.setEnabled(false);
             return;
@@ -92,16 +93,11 @@ public class EditReviewDialog extends ReviewFormDialog {
                 return null;
             });
     }
-
-    private <T> T getLatestValue(List<?> entries) {
+    private String getLatestValue(List<StreamEntry<String>> entries) {
         if (entries == null || entries.isEmpty()) {
             return null;
         }
-        Object lastEntry = entries.getLast();
-        if (lastEntry instanceof com.kalynx.serverlessreviewtool.models.review.StreamEntry) {
-            return ((com.kalynx.serverlessreviewtool.models.review.StreamEntry<T>) lastEntry).data();
-        }
-        return null;
+        return entries.getLast().data();
     }
 
     @Override
@@ -127,17 +123,17 @@ public class EditReviewDialog extends ReviewFormDialog {
     private void setupAutoSaveListeners() {
         detailsPanel.setupValidation(
             this::validateTitle,
-            title -> saveField("title", title, () -> lastSavedTitle = title)
+            title -> saveField("title", () -> lastSavedTitle = title)
         );
 
         detailsPanel.setupAuthorValidation(
             this::validateAuthor,
-            author -> saveField("author", author, () -> lastSavedAuthor = author)
+            author -> saveField("author", () -> lastSavedAuthor = author)
         );
 
         detailsPanel.setupSummaryValidation(
             this::validateSummary,
-            summary -> saveField("summary", summary, () -> lastSavedSummary = summary)
+            summary -> saveField("summary", () -> lastSavedSummary = summary)
         );
 
         models.selectedReviewers.addChangeListener(this::onReviewersChanged);
@@ -182,15 +178,13 @@ public class EditReviewDialog extends ReviewFormDialog {
         ReviewContext updatedContext = buildUpdatedContext();
 
         reviewContextManager.saveReviewMetadata(updatedContext)
-            .thenRun(() -> {
-                SwingUtilities.invokeLater(() -> {
-                    loadingStateManager.stopLoading(operationId);
-                    lastSavedReviewers = new ArrayList<>(reviewers);
-                    if (onReviewUpdated != null) {
-                        onReviewUpdated.run();
-                    }
-                });
-            })
+            .thenRun(() -> SwingUtilities.invokeLater(() -> {
+                loadingStateManager.stopLoading(operationId);
+                lastSavedReviewers = new ArrayList<>(reviewers);
+                if (onReviewUpdated != null) {
+                    onReviewUpdated.run();
+                }
+            }))
             .exceptionally(error -> {
                 SwingUtilities.invokeLater(() -> {
                     loadingStateManager.stopLoading(operationId);
@@ -207,15 +201,13 @@ public class EditReviewDialog extends ReviewFormDialog {
         ReviewContext updatedContext = buildUpdatedContext();
 
         reviewContextManager.saveReviewMetadata(updatedContext)
-            .thenRun(() -> {
-                SwingUtilities.invokeLater(() -> {
-                    loadingStateManager.stopLoading(operationId);
-                    lastSavedRepositories = new ArrayList<>(repositories);
-                    if (onReviewUpdated != null) {
-                        onReviewUpdated.run();
-                    }
-                });
-            })
+            .thenRun(() -> SwingUtilities.invokeLater(() -> {
+                loadingStateManager.stopLoading(operationId);
+                lastSavedRepositories = new ArrayList<>(repositories);
+                if (onReviewUpdated != null) {
+                    onReviewUpdated.run();
+                }
+            }))
             .exceptionally(error -> {
                 SwingUtilities.invokeLater(() -> {
                     loadingStateManager.stopLoading(operationId);
@@ -237,32 +229,30 @@ public class EditReviewDialog extends ReviewFormDialog {
         models.selectedRepositories.setValue(new ArrayList<>(lastSavedRepositories));
     }
 
-    private void saveField(String fieldName, String value, Runnable onSuccess) {
+    private void saveField(String fieldName, Runnable onSuccess) {
         String operationId = "edit-review-" + fieldName + "-" + UUID.randomUUID();
         loadingStateManager.startLoading(operationId);
 
         ReviewContext updatedContext = buildUpdatedContext();
 
         reviewContextManager.saveReviewMetadata(updatedContext)
-            .thenRun(() -> {
-                SwingUtilities.invokeLater(() -> {
-                    loadingStateManager.stopLoading(operationId);
-                    onSuccess.run();
-                    if (onReviewUpdated != null) {
-                        onReviewUpdated.run();
-                    }
-                });
-            })
+            .thenRun(() -> SwingUtilities.invokeLater(() -> {
+                loadingStateManager.stopLoading(operationId);
+                onSuccess.run();
+                if (onReviewUpdated != null) {
+                    onReviewUpdated.run();
+                }
+            }))
             .exceptionally(error -> {
                 SwingUtilities.invokeLater(() -> {
                     loadingStateManager.stopLoading(operationId);
-                    handleSaveError(fieldName, value, error);
+                    handleSaveError(fieldName, error);
                 });
                 return null;
             });
     }
 
-    private void handleSaveError(String fieldName, String attemptedValue, Throwable error) {
+    private void handleSaveError(String fieldName, Throwable error) {
         String message = "Failed to save " + fieldName + ": " + error.getMessage();
         ThemedOptionPane.showError(this, message);
 
@@ -287,8 +277,8 @@ public class EditReviewDialog extends ReviewFormDialog {
     }
 
     private Validator.ValidationResult validateAuthor(String author) {
-        if (author == null || author.trim().isEmpty()) {
-            return Validator.ValidationResult.invalid("Author cannot be empty");
+        if (isValidAuthor(author)) {
+            return Validator.ValidationResult.invalid(getInvalidAuthorMessage());
         }
         return Validator.ValidationResult.valid();
     }

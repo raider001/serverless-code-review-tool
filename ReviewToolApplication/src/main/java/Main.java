@@ -1,5 +1,6 @@
 import com.kalynx.lwdi.DependencyInjectionException;
 import com.kalynx.lwdi.DependencyInjector;
+import com.kalynx.serverlessreviewtool.configuration.AppSettings;
 import com.kalynx.serverlessreviewtool.configuration.SettingsManager;
 import com.kalynx.serverlessreviewtool.git.*;
 import com.kalynx.serverlessreviewtool.managers.PollingService;
@@ -8,6 +9,7 @@ import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
 import com.kalynx.serverlessreviewtool.managers.ReviewContextManager;
 import com.kalynx.serverlessreviewtool.managers.ReviewItemManager;
 import com.kalynx.serverlessreviewtool.managers.UserManager;
+import com.kalynx.serverlessreviewtool.mockdata.GitRepositoryInitializer;
 import com.kalynx.serverlessreviewtool.models.Repository;
 import com.kalynx.serverlessreviewtool.models.User;
 import com.kalynx.serverlessreviewtool.plugin.UserPlugin;
@@ -20,6 +22,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.util.Arrays;
+import java.util.List;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -68,6 +71,7 @@ public class Main {
 
         USER_MANAGER.addListener(users -> REVIEW_FORM_MODELS.availableReviewers.setValue(users.stream().map(User::getName).toList()));
         REPOSITORY_MANAGER.addListener(ignore -> REVIEW_ITEM_MANAGER.refresh());
+        ensureConfiguredMockRepositoriesExist();
 
         PLUGIN_MANAGER.addListenerToUserPlugins(UserPlugin.NotificationType.USER_ADDED, usernames ->
                 USER_MANAGER.addUsers(Arrays.stream(usernames).map(u -> new User(u, "", u)).toList())
@@ -134,7 +138,39 @@ public class Main {
         return USER_MANAGER.getUsers().stream().anyMatch(u -> u.getUsername().equals(username));
     }
 
-    private static void setupReviewSelectionPanelModelUpdaters() {        REVIEW_ITEM_MANAGER.addListener(REVIEW_SELECTION_PANEL_MODEL::setAllReviews);
+    private static void ensureConfiguredMockRepositoriesExist() {
+        List<String> configuredMockUrls = SETTINGS_MANAGER.getSettings().getRepositories().stream()
+            .map(AppSettings.RepositoryConfig::getUrl)
+            .filter(Main::isConfiguredMockRepositoryUrl)
+            .toList();
+
+        if (configuredMockUrls.isEmpty()) {
+            return;
+        }
+
+        try {
+            GitRepositoryInitializer.ensureMockRepositoriesExist();
+        } catch (Exception e) {
+            logger.error("Failed to initialize configured mock repositories", e);
+        }
+    }
+
+    private static boolean isConfiguredMockRepositoryUrl(String url) {
+        if (url == null || url.isBlank()) {
+            return false;
+        }
+
+        try {
+            Path configuredPath = Path.of(url).toAbsolutePath().normalize();
+            Path mockBasePath = GitRepositoryInitializer.getBasePath().toAbsolutePath().normalize();
+            return configuredPath.startsWith(mockBasePath);
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private static void setupReviewSelectionPanelModelUpdaters() {
+        REVIEW_ITEM_MANAGER.addListener(REVIEW_SELECTION_PANEL_MODEL::setAllReviews);
         REVIEW_SELECTION_PANEL_MODEL.setCurrentUser(SETTINGS_MANAGER.getCurrentUserEmail(), SETTINGS_MANAGER.getCurrentUserName());
         SETTINGS_MANAGER.addUserNameListener(userName ->
                 REVIEW_SELECTION_PANEL_MODEL.setCurrentUser(SETTINGS_MANAGER.getCurrentUserEmail(), userName)

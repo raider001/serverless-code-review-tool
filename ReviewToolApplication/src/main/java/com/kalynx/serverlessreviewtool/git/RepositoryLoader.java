@@ -37,7 +37,7 @@ public class RepositoryLoader {
         String repoName = config.getName();
         String repoUrl = config.getUrl();
 
-        return ensureRepositoryCloned(repoName, repoUrl)
+        return ensureRepositoryCloned(repoUrl)
             .thenCompose(_ -> git.fetch(repoName))
             .thenCompose(_ -> loadRepositoryData(config))
             .exceptionally(ex -> {
@@ -46,12 +46,8 @@ public class RepositoryLoader {
             });
     }
 
-    private CompletableFuture<Void> ensureRepositoryCloned(String name, String url) {
-        return git.cloneRepository(url)
-            .exceptionally(ex -> {
-                System.err.println("Failed to clone or initialize repository " + name + ": " + ex.getMessage());
-                return null;
-            });
+    private CompletableFuture<Void> ensureRepositoryCloned(String url) {
+        return git.cloneRepository(url);
     }
 
     private CompletableFuture<Repository> loadRepositoryData(AppSettings.RepositoryConfig config) {
@@ -74,27 +70,25 @@ public class RepositoryLoader {
 
     private CompletableFuture<Void> loadChangedFiles(Repository repository, String repoName) {
         return git.getDefaultBranch(repoName)
-            .thenCompose(defaultBranch -> {
-                return git.listCommits(repoName, "origin/" + defaultBranch, 2)
-                    .thenCompose(commitLines -> {
-                        if (commitLines.size() < 2) {
-                            return CompletableFuture.completedFuture(null);
-                        }
+            .thenCompose(defaultBranch -> git.listCommits(repoName, "origin/" + defaultBranch, 2)
+                .thenCompose(commitLines -> {
+                    if (commitLines.size() < 2) {
+                        return CompletableFuture.completedFuture(null);
+                    }
 
-                        String latestCommit = commitLines.get(0).split("\\|")[0];
-                        String previousCommit = commitLines.get(1).split("\\|")[0];
+                    String latestCommit = commitLines.get(0).split("\\|")[0];
+                    String previousCommit = commitLines.get(1).split("\\|")[0];
 
-                        return git.listChangedFiles(repoName, previousCommit, latestCommit)
-                            .thenAccept(fileLines -> {
-                                for (String line : fileLines) {
-                                    ReviewFile file = parseChangedFile(line, repoName);
-                                    if (file != null) {
-                                        repository.addFile(file);
-                                    }
+                    return git.listChangedFiles(repoName, previousCommit, latestCommit)
+                        .thenAccept(fileLines -> {
+                            for (String line : fileLines) {
+                                ReviewFile file = parseChangedFile(line, repoName);
+                                if (file != null) {
+                                    repository.addFile(file);
                                 }
-                            });
-                    });
-            })
+                            }
+                        });
+                }))
             .exceptionally(ex -> {
                 System.err.println("Failed to load changed files for " + repoName + ": " + ex.getMessage());
                 return null;

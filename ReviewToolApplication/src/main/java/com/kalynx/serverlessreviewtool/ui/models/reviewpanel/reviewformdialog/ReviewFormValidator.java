@@ -6,6 +6,10 @@ import java.util.List;
 public class ReviewFormValidator {
 
     public static ValidationResult validate(ReviewFormModels models) {
+        return validate(models, models.availableReviewers.getValue());
+    }
+
+    public static ValidationResult validate(ReviewFormModels models, List<String> validAuthors) {
         List<String> errors = new ArrayList<>();
 
         if (models.title.getValue() == null || models.title.getValue().trim().isEmpty()) {
@@ -14,6 +18,12 @@ public class ReviewFormValidator {
 
         if (models.author.getValue() == null || models.author.getValue().trim().isEmpty()) {
             errors.add("Please enter an author name");
+        } else if (validAuthors != null && !validAuthors.isEmpty()) {
+            String author = models.author.getValue().trim();
+            boolean isValidAuthor = validAuthors.stream().anyMatch(author::equals);
+            if (!isValidAuthor) {
+                errors.add("Please enter a valid author from the known users list");
+            }
         }
 
         if (models.selectedBranchModel.getValue() == null || models.selectedBranchModel.getValue().trim().isEmpty()) {
@@ -46,14 +56,6 @@ public class ReviewFormValidator {
 
         public boolean isValid() {
             return valid;
-        }
-
-        public List<String> getErrors() {
-            return new ArrayList<>(errors);
-        }
-
-        public String getFirstError() {
-            return errors.isEmpty() ? "" : errors.getFirst();
         }
 
         public String getAllErrors() {

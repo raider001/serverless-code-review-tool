@@ -56,13 +56,28 @@ public class GitImpl implements Git {
                     return ensureRemoteConfigured(repoPath, remoteUrl)
                         .thenCompose(ignored -> detachHead(repoPath));
                 } else {
-                    return executeAsync(gitLocalPath, "git", "clone", remoteUrl, repoName)
+                    return prepareRepositoryPathForClone(repoPath)
+                        .thenCompose(ignored -> executeAsync(gitLocalPath, "git", "clone", remoteUrl, repoName))
                         .thenCompose(ignored -> detachHead(repoPath));
                 }
             })
             .thenCompose(ignored -> configureNotesMergeStrategy(repoPath))
             .thenCompose(ignored -> fetchAllBranches(repoPath))
             .thenCompose(ignored -> fetchNotes(repoPath));
+    }
+
+    private CompletableFuture<Void> prepareRepositoryPathForClone(Path repoPath) {
+        return CompletableFuture.runAsync(() -> {
+            if (!Files.exists(repoPath)) {
+                return;
+            }
+
+            try {
+                deleteDirectory(repoPath);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to remove invalid repository directory: " + repoPath, e);
+            }
+        });
     }
 
     private CompletableFuture<Void> detachHead(Path repoPath) {
@@ -211,7 +226,7 @@ public class GitImpl implements Git {
 
         return executeAsync(repoPath, "git", "rev-parse", "--git-dir")
             .thenApply(output -> !output.trim().isEmpty())
-            .exceptionally(ex -> false);
+            .exceptionally(_ -> false);
     }
 
     private CompletableFuture<Boolean> refExists(Path repoPath, String ref) {
@@ -257,10 +272,10 @@ public class GitImpl implements Git {
                 List<String> noteRefs = Arrays.stream(output.split("\n"))
                     .map(String::trim)
                     .filter(line -> !line.isEmpty())
-                    .collect(Collectors.toList());
+                    .toList();
 
                 if (noteRefs.isEmpty()) {
-                    return CompletableFuture.completedFuture((Void) null);
+                    return CompletableFuture.completedFuture(null);
                 }
 
                 List<CompletableFuture<Void>> mergeFutures = noteRefs.stream()
@@ -279,11 +294,11 @@ public class GitImpl implements Git {
                     .toList();
 
                 return CompletableFuture.allOf(mergeFutures.toArray(new CompletableFuture[0]))
-                    .thenApply(ignored -> (Void) null);
+                    .thenRun(() -> {});
             })
             .exceptionally(ex -> {
                 System.err.println("Warning: Failed to list note refs: " + ex.getMessage());
-                return (Void) null;
+                return null;
             });
     }
 
@@ -323,6 +338,12 @@ public class GitImpl implements Git {
     }
 
     private CompletableFuture<String> executeAsync(Path workingDir, String... command) {
+        if (!Files.exists(workingDir) || !Files.isDirectory(workingDir)) {
+            return CompletableFuture.failedFuture(
+                new RuntimeException("Working directory not found: " + workingDir)
+            );
+        }
+
         CompletableFuture<String> future = new CompletableFuture<>();
 
         ProcessUtils.runProcess(command)
@@ -408,18 +429,16 @@ public class GitImpl implements Git {
                 }
                 return ref;
             })
-            .exceptionally(ex -> {
-                return executeAsync(repoPath, "git", "rev-parse", "--abbrev-ref", "origin/HEAD")
-                    .thenApply(output -> {
-                        String ref = output.trim();
-                        if (ref.startsWith("origin/")) {
-                            return ref.substring("origin/".length());
-                        }
-                        return ref;
-                    })
-                    .exceptionally(ex2 -> "main")
-                    .join();
-            });
+            .exceptionally(_ -> executeAsync(repoPath, "git", "rev-parse", "--abbrev-ref", "origin/HEAD")
+                .thenApply(output -> {
+                    String ref = output.trim();
+                    if (ref.startsWith("origin/")) {
+                        return ref.substring("origin/".length());
+                    }
+                    return ref;
+                })
+                .exceptionally(_ -> "main")
+                .join());
     }
 
     @Override
