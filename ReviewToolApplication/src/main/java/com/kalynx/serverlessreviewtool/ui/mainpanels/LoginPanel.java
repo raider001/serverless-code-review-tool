@@ -2,12 +2,19 @@ package com.kalynx.serverlessreviewtool.ui.mainpanels;
 
 import com.kalynx.serverlessreviewtool.configuration.SettingsManager;
 import com.kalynx.serverlessreviewtool.managers.PluginManager;
-import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.*;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedButton;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedLabel;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPasswordField;
+import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedTextField;
 import com.kalynx.serverlessreviewtool.theme.icons.AppIcon;
 import net.miginfocom.swing.MigLayout;
 
-import javax.swing.*;
-import java.awt.*;
+import javax.swing.ImageIcon;
+import java.awt.BorderLayout;
+import java.awt.Font;
+import java.awt.GridBagLayout;
+import java.util.Arrays;
 
 /**
  * LoginPanel displays a centered login form within the main application window.
@@ -21,7 +28,7 @@ public class LoginPanel extends ThemedPanel {
     private final PluginManager pluginManager;
 
     private final ThemedTextField usernameField = new ThemedTextField(20);
-    private final ThemedTextField validationField = new ThemedTextField(20);
+    private final ThemedPasswordField validationField = new ThemedPasswordField(20);
     private final ThemedButton loginButton = new ThemedButton("Log In");
     private final ThemedLabel statusLabel = new ThemedLabel("");
 
@@ -65,13 +72,14 @@ public class LoginPanel extends ThemedPanel {
         ThemedLabel subtitle = new ThemedLabel("Please log in to continue");
 
         loginButton.setAccentStyle(true);
+        validationField.setFont(usernameField.getFont());
 
         form.add(iconLabel, "span 2, align center, wrap 10");
         form.add(appTitle, "span 2, align center, wrap 5");
         form.add(subtitle, "span 2, align center, wrap 20");
         form.add(new ThemedLabel("Username:"), "");
         form.add(usernameField, "growx, wrap");
-        form.add(new ThemedLabel("Validation:"), "");
+        form.add(new ThemedLabel("Password:"), "");
         form.add(validationField, "growx, wrap");
         form.add(loginButton, "span 2, align center, wrap 5");
         form.add(statusLabel, "span 2, align center");
@@ -88,7 +96,9 @@ public class LoginPanel extends ThemedPanel {
 
     private void onLogin() {
         String username = usernameField.getText() != null ? usernameField.getText().trim() : "";
-        String validation = validationField.getText() != null ? validationField.getText().trim() : "";
+        char[] passwordChars = validationField.getPassword();
+        String validation = new String(passwordChars).trim();
+        Arrays.fill(passwordChars, '\0');
 
         if (username.isEmpty()) {
             statusLabel.setText("Please enter your username.");
@@ -110,6 +120,3 @@ public class LoginPanel extends ThemedPanel {
         }
     }
 }
-
-
-
