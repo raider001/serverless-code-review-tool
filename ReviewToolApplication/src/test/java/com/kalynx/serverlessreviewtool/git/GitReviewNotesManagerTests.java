@@ -4,6 +4,8 @@ import com.kalynx.serverlessreviewtool.mockdata.GitRepositoryInitializer;
 import com.kalynx.serverlessreviewtool.models.review.*;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -17,10 +19,11 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class GitReviewNotesManagerTests {
 
+    private static final Logger logger = LoggerFactory.getLogger(GitReviewNotesManagerTests.class);
+
     @TempDir
     Path tempDir;
 
-    private GitImpl git;
     private GitReviewNotesManager notesManager;
     private static final String REPO_NAME = "java-backend-service";
     private static final String TEST_REVIEW_ID = "01890a5d-ac96-774b-bcce-b302099a8057";
@@ -31,7 +34,7 @@ class GitReviewNotesManagerTests {
     static void setUpMockRepositories() {
         try {
             System.out.println("Setting up mock Git repositories for GitReviewNotesManager tests...");
-            GitRepositoryInitializer.main(new String[]{});
+            GitRepositoryInitializer.main();
         } catch (Exception e) {
             System.err.println("Failed to initialize mock repositories: " + e.getMessage());
             throw new RuntimeException("Cannot run tests without mock repositories", e);
@@ -41,7 +44,7 @@ class GitReviewNotesManagerTests {
     @BeforeEach
     void setUp() throws Exception {
         testRepoPath = tempDir.resolve("test-repos");
-        git = new GitImpl(testRepoPath);
+        GitImpl git = new GitImpl(testRepoPath);
         notesManager = new GitReviewNotesManager(git, REPO_NAME);
 
         Path mockRepo = GitRepositoryInitializer.getBasePath().resolve(REPO_NAME);
@@ -449,7 +452,9 @@ class GitReviewNotesManagerTests {
         for (int i = 0; i < maxRetries; i++) {
             try {
                 if (Files.exists(path) && !Files.isDirectory(path)) {
-                    path.toFile().setWritable(true);
+                    if (!path.toFile().setWritable(true)) {
+                        logger.warn("Could not set file writable: {}", path);
+                    }
                 }
                 Files.delete(path);
                 return;

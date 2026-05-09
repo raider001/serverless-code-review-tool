@@ -1,5 +1,8 @@
 package com.kalynx.serverlessreviewtool.git;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,6 +21,8 @@ import java.util.stream.Stream;
  * fetching and pushing notes, and managing references.
  */
 public class GitImpl implements Git {
+
+    private static final Logger logger = LoggerFactory.getLogger(GitImpl.class);
 
     public static final String ORIGIN = "origin";
     private final Path gitLocalPath;
@@ -83,7 +88,7 @@ public class GitImpl implements Git {
     private CompletableFuture<Void> detachHead(Path repoPath) {
         return executeAsync(repoPath, "git", "checkout", "--detach")
             .exceptionally(ex -> {
-                System.err.println("Warning: Failed to detach HEAD: " + ex.getMessage());
+                logger.warn("Failed to detach HEAD: {}", ex.getMessage());
                 return "";
             })
             .thenApply(ignored -> null);
@@ -95,7 +100,7 @@ public class GitImpl implements Git {
                 if (ex.getMessage() != null && ex.getMessage().contains("refusing to fetch into branch")) {
                     return "NEEDS_DETACH";
                 }
-                System.err.println("Warning: Failed to fetch all branches: " + ex.getMessage());
+                logger.warn("Failed to fetch all branches: {}", ex.getMessage());
                 return "";
             })
             .thenCompose(result -> {
@@ -103,7 +108,7 @@ public class GitImpl implements Git {
                     return detachHead(repoPath)
                         .thenCompose(ignored -> executeAsync(repoPath, "git", "fetch", ORIGIN, "+refs/heads/*:refs/heads/*"))
                         .exceptionally(ex -> {
-                            System.err.println("Warning: Failed to fetch all branches after detach: " + ex.getMessage());
+                            logger.warn("Failed to fetch all branches after detach: {}", ex.getMessage());
                             return "";
                         });
                 }
@@ -261,7 +266,7 @@ public class GitImpl implements Git {
                 if (ex.getMessage() != null && ex.getMessage().contains("Couldn't find remote ref")) {
                     return null;
                 }
-                System.err.println("Warning: Failed to fetch notes: " + ex.getMessage());
+                logger.warn("Failed to fetch notes: {}", ex.getMessage());
                 return null;
             });
     }
@@ -288,16 +293,20 @@ public class GitImpl implements Git {
                                                msg.contains("not found"))) {
                                 return null;
                             }
-                            System.err.println("Warning: Failed to merge notes for " + ref + ": " + msg);
+                            logger.warn("Failed to merge notes for {}: {}", ref, msg);
                             return null;
                         }))
                     .toList();
+
+                if (mergeFutures.isEmpty()) {
+                    return CompletableFuture.completedFuture(null);
+                }
 
                 return CompletableFuture.allOf(mergeFutures.toArray(new CompletableFuture[0]))
                     .thenRun(() -> {});
             })
             .exceptionally(ex -> {
-                System.err.println("Warning: Failed to list note refs: " + ex.getMessage());
+                logger.warn("Failed to list note refs: {}", ex.getMessage());
                 return null;
             });
     }
@@ -388,7 +397,7 @@ public class GitImpl implements Git {
             try {
                 if (Files.exists(path) && !Files.isDirectory(path)) {
                     if (!path.toFile().setWritable(true)) {
-                        System.err.println("Warning: Could not set file writable: " + path);
+                        logger.warn("Could not set file writable: {}", path);
                     }
                 }
                 Files.delete(path);

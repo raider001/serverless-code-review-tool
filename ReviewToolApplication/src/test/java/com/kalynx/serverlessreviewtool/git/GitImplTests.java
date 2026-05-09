@@ -6,6 +6,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -25,6 +27,8 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 public class GitImplTests {
 
+    private static final Logger logger = LoggerFactory.getLogger(GitImplTests.class);
+
     @TempDir
     Path tempDir;
 
@@ -35,7 +39,7 @@ public class GitImplTests {
     static void setUpMockRepositories() {
         try {
             System.out.println("Setting up mock Git repositories for tests...");
-            GitRepositoryInitializer.main(new String[]{});
+            GitRepositoryInitializer.main();
         } catch (Exception e) {
             System.err.println("Failed to initialize mock repositories: " + e.getMessage());
             throw new RuntimeException("Cannot run tests without mock repositories", e);
@@ -1007,7 +1011,7 @@ public class GitImplTests {
         process.waitFor();
     }
 
-    private String addTestCommitToRemote(Path remotePath, String fileName, String content) throws Exception {
+    private void addTestCommitToRemote(Path remotePath, String fileName, String content) throws Exception {
         Path testFile = remotePath.resolve(fileName);
         Files.writeString(testFile, content);
 
@@ -1023,7 +1027,7 @@ public class GitImplTests {
         process = pb.start();
         process.waitFor();
 
-        return getRemoteCommitHash(remotePath);
+        getRemoteCommitHash(remotePath);
     }
 
     private void addTestNoteToRemote(Path remotePath, String commitHash, String noteRef, String noteContent) throws Exception {
@@ -1098,7 +1102,7 @@ public class GitImplTests {
             try {
                 if (Files.exists(path) && !Files.isDirectory(path)) {
                     if (!path.toFile().setWritable(true)) {
-                        System.err.println("Warning: Could not set file writable: " + path);
+                        logger.warn("Could not set file writable: {}", path);
                     }
                 }
                 Files.delete(path);

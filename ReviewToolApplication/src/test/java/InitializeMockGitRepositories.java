@@ -1,50 +1,42 @@
 import com.kalynx.serverlessreviewtool.mockdata.GitRepositoryInitializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.lang.invoke.MethodHandles;
 import java.nio.file.Path;
 
-public class InitializeMockGitRepositories {
+Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-    public static void main(String[] args) {
-        try {
-            System.out.println("=================================================");
-            System.out.println("  Mock Git Repository Initialization");
-            System.out.println("=================================================\n");
+void main() {
+    try {
+        logger.info("=================================================");
+        logger.info("  Mock Git Repository Initialization");
+        logger.info("=================================================");
+        logger.info("Starting initialization...");
+        GitRepositoryInitializer.main();
 
-            System.out.println("Starting initialization...");
-            GitRepositoryInitializer.main(new String[0]);
+        Path basePath = GitRepositoryInitializer.getBasePath();
 
-            Path basePath = GitRepositoryInitializer.getBasePath();
+        logger.info("=================================================");
+        logger.info("  Summary");
+        logger.info("=================================================");
+        logger.info("Mock repositories created at: {}", basePath);
+        logger.info("Created repositories:");
+        logger.info("  1. java-backend-repo");
+        logger.info("     - Location: {}", basePath.resolve("java-backend-repo"));
+        logger.info("     - Features: Multiple commits, branches, Git notes");
+        logger.info("  2. python-api-repo");
+        logger.info("     - Location: {}", basePath.resolve("python-api-repo"));
+        logger.info("     - Features: Multiple commits, branches, Git notes");
+        logger.info("  3. react-frontend-repo");
+        logger.info("     - Location: {}", basePath.resolve("react-frontend-repo"));
+        logger.info("     - Features: Multiple commits, branches, Git notes");
+        logger.info("=================================================");
+        logger.info("  All repositories initialized successfully!");
+        logger.info("=================================================");
 
-            System.out.println("\n=================================================");
-            System.out.println("  Summary");
-            System.out.println("=================================================");
-            System.out.println("Mock repositories created at:");
-            System.out.println("  " + basePath);
-            System.out.println();
-            System.out.println("Created repositories:");
-            System.out.println("  1. java-backend-repo");
-            System.out.println("     - Location: " + basePath.resolve("java-backend-repo"));
-            System.out.println("     - Features: Multiple commits, branches, Git notes");
-            System.out.println();
-            System.out.println("  2. python-api-repo");
-            System.out.println("     - Location: " + basePath.resolve("python-api-repo"));
-            System.out.println("     - Features: Multiple commits, branches, Git notes");
-            System.out.println();
-            System.out.println("  3. react-frontend-repo");
-            System.out.println("     - Location: " + basePath.resolve("react-frontend-repo"));
-            System.out.println("     - Features: Multiple commits, branches, Git notes");
-            System.out.println();
-            System.out.println("=================================================");
-            System.out.println("  ✓ All repositories initialized successfully!");
-            System.out.println("=================================================");
-
-        } catch (Exception e) {
-            System.err.println("Failed to initialize mock repositories:");
-            System.err.println(e.getMessage());
-            e.printStackTrace(System.err);
-            System.exit(1);
-        }
+    } catch (Exception e) {
+        logger.error("Failed to initialize mock repositories: {}", e.getMessage(), e);
+        System.exit(1);
     }
 }
-
-
