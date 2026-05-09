@@ -32,8 +32,11 @@ public class ReviewDetailPanel extends ThemedPanel {
 
     private final ThemedBadge headerStatusBadge = new ThemedBadge("Status").setCustomColor(Color.DARK_GRAY);
     private final ThemedLabel titleLabel = new ThemedLabel("");
+    private final ThemedPanel headerButtonPanel = new ThemedPanel();
     private final ThemedButton editReviewButton = new ThemedButton("Edit");
     private final ThemedButton closeReviewButton = new ThemedButton("Close Review");
+    private final ThemedButton markInProgressButton = new ThemedButton("Mark In Progress");
+    private final ThemedButton cancelReviewButton = new ThemedButton("Cancel Review");
 
     private final ThemedLabel authorLabel = new ThemedLabel("author..");
     private final ThemedLabel summaryLabel = new ThemedLabel("summary..");
@@ -45,11 +48,14 @@ public class ReviewDetailPanel extends ThemedPanel {
     private Runnable onJoinReviewAction;
     private Runnable onLeaveReviewAction;
     private Runnable onCloseReviewAction;
+    private Runnable onMarkInProgressAction;
+    private Runnable onCancelReviewAction;
 
     private String currentUserName;
     private boolean isCurrentUserReviewer = false;
     private boolean isCurrentUserAuthor = false;
     private boolean hasCheckedReviewerStatus = false;
+    private ReviewStatus currentStatus;
 
     public ReviewDetailPanel(SettingsManager settingsManager, ReviewDetailModel reviewDetailModel) {
         this.reviewDetailModel = reviewDetailModel;
@@ -66,14 +72,18 @@ public class ReviewDetailPanel extends ThemedPanel {
     }
 
     private void configureLayout() {
-        setLayout(new MigLayout("",
-                "[]5lp[][grow][]", "[]8lp[]6lp[]10lp[]"));
+        headerButtonPanel.setLayout(new MigLayout("insets 0, hidemode 3", "", ""));
+        headerButtonPanel.add(editReviewButton);
+        headerButtonPanel.add(closeReviewButton);
+        headerButtonPanel.add(markInProgressButton);
+        headerButtonPanel.add(cancelReviewButton);
+
+        setLayout(new MigLayout("", "[]5lp[grow][]", "[]8lp[]6lp[]10lp[]"));
         add(headerStatusBadge, "cell 0 0");
         add(titleLabel, "cell 1 0");
-        add(editReviewButton, "cell 2 0, align right");
-        add(closeReviewButton, "cell 3 0");
+        add(headerButtonPanel, "cell 2 0");
 
-        add(authorLabel, "cell 0 1 2 1");
+        add(authorLabel, "cell 0 1 3 1");
         add(summaryLabel, "cell 0 2 3 1");
         add(reviewerPanel, "cell 0 3 3 1");
     }
@@ -86,7 +96,11 @@ public class ReviewDetailPanel extends ThemedPanel {
             checkAuthorStatus(val);
         });
         reviewDetailModel.summary.addChangeListener(val -> setLabelText(summaryLabel, () -> val != null ? val : ""));
-        reviewDetailModel.status.addChangeListener(this::updateStatusBadge);
+        reviewDetailModel.status.addChangeListener(status -> {
+            currentStatus = status;
+            updateStatusBadge(status);
+            SwingUtilities.invokeLater(this::updateButtonStates);
+        });
 
         reviewDetailModel.reviewers.addChangeListener(val -> {
             reviewerPanel.removeAll();
@@ -152,10 +166,12 @@ public class ReviewDetailPanel extends ThemedPanel {
     }
 
     private void updateButtonStates() {
+        boolean isTerminal = currentStatus == ReviewStatus.COMPLETED || currentStatus == ReviewStatus.CANCELLED;
+
         if (isCurrentUserReviewer && isCurrentUserAuthor) {
             editReviewButton.setEnabled(true);
             closeReviewButton.setText("Close Review");
-            closeReviewButton.setEnabled(true);
+            closeReviewButton.setEnabled(!isTerminal);
         } else if (isCurrentUserReviewer) {
             editReviewButton.setEnabled(true);
             closeReviewButton.setText("Leave Review");
@@ -165,11 +181,19 @@ public class ReviewDetailPanel extends ThemedPanel {
             closeReviewButton.setText("Join Review");
             closeReviewButton.setEnabled(true);
         }
+
+        markInProgressButton.setVisible(isCurrentUserAuthor);
+        markInProgressButton.setEnabled(!isTerminal && currentStatus != ReviewStatus.IN_PROGRESS);
+
+        cancelReviewButton.setVisible(isCurrentUserAuthor);
+        cancelReviewButton.setEnabled(!isTerminal);
     }
 
     private void setupListeners() {
         editReviewButton.addActionListener(ignored -> handleEditReview());
         closeReviewButton.addActionListener(ignored -> handleCloseOrJoinReview());
+        markInProgressButton.addActionListener(ignored -> handleMarkInProgress());
+        cancelReviewButton.addActionListener(ignored -> handleCancelReview());
     }
 
     private void handleEditReview() {
@@ -202,6 +226,22 @@ public class ReviewDetailPanel extends ThemedPanel {
         }
     }
 
+    private void handleMarkInProgress() {
+        if (onMarkInProgressAction != null) {
+            onMarkInProgressAction.run();
+        } else {
+            LOGGER.warn("Mark in progress action not configured");
+        }
+    }
+
+    private void handleCancelReview() {
+        if (onCancelReviewAction != null) {
+            onCancelReviewAction.run();
+        } else {
+            LOGGER.warn("Cancel review action not configured");
+        }
+    }
+
     public void setOnEditAction(Runnable action) {
         this.onEditAction = action;
     }
@@ -221,6 +261,24 @@ public class ReviewDetailPanel extends ThemedPanel {
      */
     public void setOnCloseReviewAction(Runnable action) {
         this.onCloseReviewAction = action;
+    }
+
+    /**
+     * Set callback for marking the review as in progress. Available to the author only.
+     *
+     * @param action action to run when mark in progress is clicked
+     */
+    public void setOnMarkInProgressAction(Runnable action) {
+        this.onMarkInProgressAction = action;
+    }
+
+    /**
+     * Set callback for cancelling the review. Available to the author only.
+     *
+     * @param action action to run when cancel review is clicked
+     */
+    public void setOnCancelReviewAction(Runnable action) {
+        this.onCancelReviewAction = action;
     }
 
     public void setOnReviewerStatusChanged(Consumer<Boolean> callback) {

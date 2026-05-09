@@ -48,6 +48,8 @@ public class ReviewPanel extends ThemedPanel {
 
     private ReviewContext currentReviewContext;
     private final List<Consumer<Boolean>> additionalReviewerStatusListeners = new ArrayList<>();
+    private boolean isCurrentUserReviewer = false;
+    private boolean isReviewTerminal = false;
 
     public ReviewPanel(SettingsManager settingsManager,
                        ReviewContextManager reviewContextManager,
@@ -71,10 +73,13 @@ public class ReviewPanel extends ThemedPanel {
         reviewDetailPanel.setOnJoinReviewAction(this::handleJoinReview);
         reviewDetailPanel.setOnLeaveReviewAction(this::handleLeaveReview);
         reviewDetailPanel.setOnCloseReviewAction(this::handleCloseReview);
+        reviewDetailPanel.setOnMarkInProgressAction(this::handleMarkInProgress);
+        reviewDetailPanel.setOnCancelReviewAction(this::handleCancelReview);
         reviewDetailPanel.setOnReviewerStatusChanged(this::onReviewerStatusChanged);
 
         reviewContextManager.addListener(this::onReviewContextChanged);
         settingsManager.addUserNameListener(model.commentsPanelModel::setCurrentUser);
+        model.reviewDetailModel.status.addChangeListener(this::onReviewStatusChanged);
 
         configureLayout();
     }
@@ -124,17 +129,40 @@ public class ReviewPanel extends ThemedPanel {
         LoadingStateManager.getInstance().startLoading(loadingMessage);
         reviewContextManager.updateReviewerStatus(currentReviewContext.reviewId, currentUser, status, repositoryNames)
             .thenCompose(ignored -> reviewContextManager.loadReviewMetadata(currentReviewContext.reviewId, repositoryNames))
-            .thenAccept(updatedContext -> {
-                LoadingStateManager.getInstance().stopLoading(loadingMessage);
-                if (updatedContext != null) {
-                    currentReviewContext = updatedContext;
-                    SwingUtilities.invokeLater(() -> model.reviewDetailModel.setReviewData(
+            .thenCompose(updatedContext -> {
+                if (updatedContext == null) {
+                    return CompletableFuture.completedFuture(null);
+                }
+                currentReviewContext = updatedContext;
+                ReviewStatus desired = computeOverallStatus(updatedContext);
+                if (desired != updatedContext.status && !isTerminalStatus(updatedContext.status)) {
+                    LOGGER.info("Syncing overall status to {} based on reviewer decisions", desired);
+                    ReviewContext synced = new ReviewContext(
                         updatedContext.reviewId,
                         updatedContext.title,
-                        updatedContext.author,
                         updatedContext.summary,
-                        updatedContext.status,
-                        updatedContext.reviewers
+                        updatedContext.author,
+                        desired,
+                        new ArrayList<>(updatedContext.reviewers),
+                        new ArrayList<>(updatedContext.repositories),
+                        new ArrayList<>(updatedContext.comments)
+                    );
+                    return reviewContextManager.saveReviewMetadata(synced)
+                        .thenCompose(ignored2 -> reviewContextManager.loadReviewMetadata(updatedContext.reviewId, repositoryNames));
+                }
+                return CompletableFuture.completedFuture(updatedContext);
+            })
+            .thenAccept(finalContext -> {
+                LoadingStateManager.getInstance().stopLoading(loadingMessage);
+                if (finalContext != null) {
+                    currentReviewContext = finalContext;
+                    SwingUtilities.invokeLater(() -> model.reviewDetailModel.setReviewData(
+                        finalContext.reviewId,
+                        finalContext.title,
+                        finalContext.author,
+                        finalContext.summary,
+                        finalContext.status,
+                        finalContext.reviewers
                     ));
                 }
             })
@@ -145,10 +173,31 @@ public class ReviewPanel extends ThemedPanel {
             });
     }
 
+    private ReviewStatus computeOverallStatus(ReviewContext context) {
+        boolean anyChangesRequested = context.reviewers.stream()
+            .anyMatch(r -> r.getStatus() == ReviewerStatus.CHANGES_REQUESTED);
+        return anyChangesRequested ? ReviewStatus.CHANGES_REQUESTED : ReviewStatus.IN_PROGRESS;
+    }
+
+    private boolean isTerminalStatus(ReviewStatus status) {
+        return status == ReviewStatus.COMPLETED || status == ReviewStatus.CANCELLED;
+    }
+
     private void onReviewerStatusChanged(Boolean isReviewer) {
-        rejectApprovePanel.setButtonsEnabled(isReviewer);
-        codePanel.setCommentsEnabled(isReviewer);
+        isCurrentUserReviewer = Boolean.TRUE.equals(isReviewer);
+        updateActionButtonStates();
         additionalReviewerStatusListeners.forEach(listener -> listener.accept(isReviewer));
+    }
+
+    private void onReviewStatusChanged(ReviewStatus status) {
+        isReviewTerminal = isTerminalStatus(status);
+        SwingUtilities.invokeLater(this::updateActionButtonStates);
+    }
+
+    private void updateActionButtonStates() {
+        boolean actionsEnabled = isCurrentUserReviewer && !isReviewTerminal;
+        rejectApprovePanel.setButtonsEnabled(actionsEnabled);
+        codePanel.setCommentsEnabled(actionsEnabled);
     }
 
     public void addReviewerStatusListener(Consumer<Boolean> listener) {
@@ -423,63 +472,75 @@ public class ReviewPanel extends ThemedPanel {
     }
 
     private void handleCloseReview() {
+        applyAuthorStatusChange(ReviewStatus.COMPLETED, "Closing review...", "close review");
+    }
+
+    private void handleMarkInProgress() {
+        applyAuthorStatusChange(ReviewStatus.IN_PROGRESS, "Updating review...", "mark review in progress");
+    }
+
+    private void handleCancelReview() {
+        applyAuthorStatusChange(ReviewStatus.CANCELLED, "Cancelling review...", "cancel review");
+    }
+
+    private void applyAuthorStatusChange(ReviewStatus targetStatus, String loadingMessage, String actionDescription) {
         if (currentReviewContext == null) {
-            LOGGER.warn("Cannot close review - no review context loaded");
+            LOGGER.warn("Cannot {} - no review context loaded", actionDescription);
             return;
         }
 
         String currentUser = settingsManager.getCurrentUserName();
         if (currentUser == null || currentUser.isBlank()) {
-            LOGGER.warn("Cannot close review - current user is not set");
+            LOGGER.warn("Cannot {} - current user is not set", actionDescription);
             return;
         }
 
         if (!currentUser.trim().equals(currentReviewContext.author != null ? currentReviewContext.author.trim() : "")) {
-            LOGGER.warn("Cannot close review - current user is not the review author");
+            LOGGER.warn("Cannot {} - current user is not the review author", actionDescription);
             return;
         }
 
-        if (currentReviewContext.status == ReviewStatus.COMPLETED) {
-            LOGGER.info("Review {} is already completed", currentReviewContext.reviewId);
+        if (currentReviewContext.status == targetStatus) {
+            LOGGER.info("Review {} is already {}", currentReviewContext.reviewId, targetStatus);
             return;
         }
 
-        LOGGER.info("Closing review {} by author {}", currentReviewContext.reviewId, currentUser);
-        LoadingStateManager.getInstance().startLoading("Closing review...");
+        LOGGER.info("Applying status {} to review {} by author {}", targetStatus, currentReviewContext.reviewId, currentUser);
+        LoadingStateManager.getInstance().startLoading(loadingMessage);
 
-        ReviewContext completedContext = new ReviewContext(
+        ReviewContext updatedContext = new ReviewContext(
             currentReviewContext.reviewId,
             currentReviewContext.title,
             currentReviewContext.summary,
             currentReviewContext.author,
-            ReviewStatus.COMPLETED,
+            targetStatus,
             new ArrayList<>(currentReviewContext.reviewers),
             new ArrayList<>(currentReviewContext.repositories),
             new ArrayList<>(currentReviewContext.comments)
         );
 
-        reviewContextManager.saveReviewMetadata(completedContext)
+        reviewContextManager.saveReviewMetadata(updatedContext)
             .thenCompose(ignored -> reviewContextManager.loadReviewMetadata(
                 currentReviewContext.reviewId,
                 currentReviewContext.repositories.stream().map(Repository::getName).toList()
             ))
-            .thenAccept(updatedContext -> {
-                LoadingStateManager.getInstance().stopLoading("Closing review...");
-                if (updatedContext != null) {
-                    currentReviewContext = updatedContext;
+            .thenAccept(reloaded -> {
+                LoadingStateManager.getInstance().stopLoading(loadingMessage);
+                if (reloaded != null) {
+                    currentReviewContext = reloaded;
                     SwingUtilities.invokeLater(() -> model.reviewDetailModel.setReviewData(
-                        updatedContext.reviewId,
-                        updatedContext.title,
-                        updatedContext.author,
-                        updatedContext.summary,
-                        updatedContext.status,
-                        updatedContext.reviewers
+                        reloaded.reviewId,
+                        reloaded.title,
+                        reloaded.author,
+                        reloaded.summary,
+                        reloaded.status,
+                        reloaded.reviewers
                     ));
                 }
             })
             .exceptionally(error -> {
-                LoadingStateManager.getInstance().stopLoading("Closing review...");
-                LOGGER.error("Failed to close review", error);
+                LoadingStateManager.getInstance().stopLoading(loadingMessage);
+                LOGGER.error("Failed to {}", actionDescription, error);
                 return null;
             });
     }

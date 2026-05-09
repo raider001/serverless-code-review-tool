@@ -5,7 +5,8 @@ public enum ReviewStatus {
     IN_PROGRESS("in_progress"),
     APPROVED("approved"),
     REJECTED("rejected"),
-    CHANGES_REQUESTED("changes_requested");
+    CHANGES_REQUESTED("changes_requested"),
+    CANCELLED("cancelled");
 
     private final String value;
 
@@ -15,15 +16,6 @@ public enum ReviewStatus {
 
     public String getValue() {
         return value;
-    }
-
-    public static ReviewStatus fromValue(String value) {
-        for (ReviewStatus status : values()) {
-            if (status.value.equals(value)) {
-                return status;
-            }
-        }
-        throw new IllegalArgumentException("Unknown review status: " + value);
     }
 }
 

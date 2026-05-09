@@ -7,8 +7,10 @@ import java.awt.Color;
  */
 public enum ReviewStatus {
     OPEN             ("Open",              new Color(58,  150, 221)),  // blue
+    IN_PROGRESS      ("In Progress",       new Color(235, 152,  78)),  // amber
     CHANGES_REQUESTED("Changes Requested", new Color(220,  80,  80)),  // red
-    COMPLETED        ("Completed",         new Color(66,  184, 131));  // green
+    COMPLETED        ("Completed",         new Color(66,  184, 131)),  // green
+    CANCELLED        ("Cancelled",         new Color(150, 150, 150));  // grey
 
     private final String displayName;
     private final Color  color;
