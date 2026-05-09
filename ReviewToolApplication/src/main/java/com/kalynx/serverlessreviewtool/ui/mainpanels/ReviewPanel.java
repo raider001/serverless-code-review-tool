@@ -89,7 +89,7 @@ public class ReviewPanel extends ThemedPanel {
             return;
         }
 
-        LOGGER.info("Approve action triggered for review: {}", currentReviewContext.reviewId);
+        applyReviewerDecision(ReviewerStatus.APPROVED, "Approving review...");
     }
 
     public void handleRequestChanges() {
@@ -98,11 +98,50 @@ public class ReviewPanel extends ThemedPanel {
             return;
         }
 
-        LOGGER.info("Request Changes action triggered for review: {}", currentReviewContext.reviewId);
+        applyReviewerDecision(ReviewerStatus.CHANGES_REQUESTED, "Requesting changes...");
     }
 
-    public boolean isCurrentUserReviewer() {
-        return reviewDetailPanel.isCurrentUserReviewer();
+    private void applyReviewerDecision(ReviewerStatus status, String loadingMessage) {
+        if (currentReviewContext == null) {
+            LOGGER.warn("Cannot apply reviewer decision - no review context loaded");
+            return;
+        }
+
+        String currentUser = settingsManager.getCurrentUserName();
+        if (currentUser == null || currentUser.isBlank()) {
+            LOGGER.warn("Cannot apply reviewer decision - current user is not set");
+            return;
+        }
+
+        List<String> repositoryNames = currentReviewContext.repositories.stream()
+            .map(Repository::getName)
+            .toList();
+
+        LOGGER.info("Applying reviewer decision {} for user {} on review {}",
+            status, currentUser, currentReviewContext.reviewId);
+
+        LoadingStateManager.getInstance().startLoading(loadingMessage);
+        reviewContextManager.updateReviewerStatus(currentReviewContext.reviewId, currentUser, status, repositoryNames)
+            .thenCompose(ignored -> reviewContextManager.loadReviewMetadata(currentReviewContext.reviewId, repositoryNames))
+            .thenAccept(updatedContext -> {
+                LoadingStateManager.getInstance().stopLoading(loadingMessage);
+                if (updatedContext != null) {
+                    currentReviewContext = updatedContext;
+                    SwingUtilities.invokeLater(() -> model.reviewDetailModel.setReviewData(
+                        updatedContext.reviewId,
+                        updatedContext.title,
+                        updatedContext.author,
+                        updatedContext.summary,
+                        updatedContext.status,
+                        updatedContext.reviewers
+                    ));
+                }
+            })
+            .exceptionally(error -> {
+                LoadingStateManager.getInstance().stopLoading(loadingMessage);
+                LOGGER.error("Failed to apply reviewer decision {}", status, error);
+                return null;
+            });
     }
 
     private void onReviewerStatusChanged(Boolean isReviewer) {
@@ -203,7 +242,7 @@ public class ReviewPanel extends ThemedPanel {
                                     .loadFilesFromReviewCommits(reviewId, repositories);
 
                                 return CompletableFuture.allOf(commitsFuture, filesFuture)
-                                    .thenAccept(v -> {
+                                    .thenAccept(_ -> {
                                         List<ReviewFile> allFiles = filesFuture.join();
 
                                         LOGGER.info("=== FILES LOADED FROM REVIEW ===");
@@ -232,7 +271,7 @@ public class ReviewPanel extends ThemedPanel {
                             });
                     });
             })
-            .whenComplete((ignored, error) -> LoadingStateManager.getInstance().stopLoading("Loading review context..."))
+            .whenComplete((ignored, _) -> LoadingStateManager.getInstance().stopLoading("Loading review context..."))
             .exceptionally(error -> {
                 model.setError("Failed to load review: " + error.getMessage());
                 return null;
@@ -265,16 +304,14 @@ public class ReviewPanel extends ThemedPanel {
                 .thenAccept(updatedContext -> {
                     if (updatedContext != null) {
                         currentReviewContext = updatedContext;
-                        SwingUtilities.invokeLater(() -> {
-                            model.reviewDetailModel.setReviewData(
-                                updatedContext.reviewId,
-                                updatedContext.title,
-                                updatedContext.author,
-                                updatedContext.summary,
-                                updatedContext.status,
-                                updatedContext.reviewers
-                            );
-                        });
+                        SwingUtilities.invokeLater(() -> model.reviewDetailModel.setReviewData(
+                            updatedContext.reviewId,
+                            updatedContext.title,
+                            updatedContext.author,
+                            updatedContext.summary,
+                            updatedContext.status,
+                            updatedContext.reviewers
+                        ));
                     }
                 })
                 .exceptionally(error -> {
@@ -302,7 +339,7 @@ public class ReviewPanel extends ThemedPanel {
             currentReviewContext.repositories.stream()
                 .map(Repository::getName)
                 .toList())
-            .thenAccept(v -> {
+            .thenAccept(_ -> {
                 LOGGER.info("Successfully added {} as reviewer", currentUser);
                 reviewContextManager.loadReviewMetadata(currentReviewContext.reviewId,
                     currentReviewContext.repositories.stream()
@@ -312,16 +349,14 @@ public class ReviewPanel extends ThemedPanel {
                         LoadingStateManager.getInstance().stopLoading("Joining review...");
                         if (updatedContext != null) {
                             currentReviewContext = updatedContext;
-                            SwingUtilities.invokeLater(() -> {
-                                model.reviewDetailModel.setReviewData(
-                                    updatedContext.reviewId,
-                                    updatedContext.title,
-                                    updatedContext.author,
-                                    updatedContext.summary,
-                                    updatedContext.status,
-                                    updatedContext.reviewers
-                                );
-                            });
+                            SwingUtilities.invokeLater(() -> model.reviewDetailModel.setReviewData(
+                                updatedContext.reviewId,
+                                updatedContext.title,
+                                updatedContext.author,
+                                updatedContext.summary,
+                                updatedContext.status,
+                                updatedContext.reviewers
+                            ));
                         }
                     })
                     .exceptionally(error -> {
@@ -353,7 +388,7 @@ public class ReviewPanel extends ThemedPanel {
             currentReviewContext.repositories.stream()
                 .map(Repository::getName)
                 .toList())
-            .thenAccept(v -> {
+            .thenAccept(_ -> {
                 LOGGER.info("Successfully removed {} from reviewers", currentUser);
                 reviewContextManager.loadReviewMetadata(currentReviewContext.reviewId,
                     currentReviewContext.repositories.stream()
@@ -363,16 +398,14 @@ public class ReviewPanel extends ThemedPanel {
                         LoadingStateManager.getInstance().stopLoading("Leaving review...");
                         if (updatedContext != null) {
                             currentReviewContext = updatedContext;
-                            SwingUtilities.invokeLater(() -> {
-                                model.reviewDetailModel.setReviewData(
-                                    updatedContext.reviewId,
-                                    updatedContext.title,
-                                    updatedContext.author,
-                                    updatedContext.summary,
-                                    updatedContext.status,
-                                    updatedContext.reviewers
-                                );
-                            });
+                            SwingUtilities.invokeLater(() -> model.reviewDetailModel.setReviewData(
+                                updatedContext.reviewId,
+                                updatedContext.title,
+                                updatedContext.author,
+                                updatedContext.summary,
+                                updatedContext.status,
+                                updatedContext.reviewers
+                            ));
                         }
                     })
                     .exceptionally(error -> {

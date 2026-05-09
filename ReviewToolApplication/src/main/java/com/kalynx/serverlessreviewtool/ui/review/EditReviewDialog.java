@@ -333,7 +333,11 @@ public class EditReviewDialog extends ReviewFormDialog {
 
     private void populateModelsFromContext(ReviewContext ctx) {
         models.title.setValue(ctx.title);
-        models.author.setValue(ctx.author);
+        String existingAuthor = ctx.author;
+        if (existingAuthor != null && !existingAuthor.isBlank() && !"Unknown".equalsIgnoreCase(existingAuthor.trim())) {
+            models.author.setValue(existingAuthor);
+            SwingUtilities.invokeLater(() -> models.author.setValue(existingAuthor));
+        }
         models.summary.setValue(ctx.summary);
 
         List<String> repoNames = ctx.repositories.stream()
