@@ -147,6 +147,10 @@ public class FileNavigationPanel extends ThemedPanel {
             addFileToTree(repoNode, file);
         }
 
+        for (DefaultMutableTreeNode repoNode : repoNodes.values()) {
+            compactDirectoryNodes(repoNode);
+        }
+
         LOGGER.info("Tree model has {} repository nodes", rootNode.getChildCount());
         treeModel.reload();
         LOGGER.info("Tree model reloaded");
@@ -199,6 +203,8 @@ public class FileNavigationPanel extends ThemedPanel {
                 addFileToTree(repoNode, file);
             }
 
+            compactDirectoryNodes(repoNode);
+
             rootNode.add(repoNode);
         }
 
@@ -240,6 +246,34 @@ public class FileNavigationPanel extends ThemedPanel {
         DefaultMutableTreeNode newNode = new DefaultMutableTreeNode(name);
         parent.add(newNode);
         return newNode;
+    }
+
+    private void compactDirectoryNodes(DefaultMutableTreeNode node) {
+        for (int i = 0; i < node.getChildCount(); i++) {
+            DefaultMutableTreeNode child = (DefaultMutableTreeNode) node.getChildAt(i);
+            compactDirectoryNodes(child);
+            compactSingleChildDirectories(child);
+        }
+    }
+
+    private void compactSingleChildDirectories(DefaultMutableTreeNode node) {
+        while (canCompactWithSingleDirectoryChild(node)) {
+            DefaultMutableTreeNode child = (DefaultMutableTreeNode) node.getChildAt(0);
+            String mergedName = node.getUserObject() + "/" + child.getUserObject();
+            node.setUserObject(mergedName);
+            node.removeAllChildren();
+            while (child.getChildCount() > 0) {
+                node.add((DefaultMutableTreeNode) child.getChildAt(0));
+            }
+        }
+    }
+
+    private boolean canCompactWithSingleDirectoryChild(DefaultMutableTreeNode node) {
+        if (!(node.getUserObject() instanceof String) || node.getChildCount() != 1) {
+            return false;
+        }
+        DefaultMutableTreeNode onlyChild = (DefaultMutableTreeNode) node.getChildAt(0);
+        return onlyChild.getUserObject() instanceof String;
     }
 
     public ReviewFile getSelectedFile() {
