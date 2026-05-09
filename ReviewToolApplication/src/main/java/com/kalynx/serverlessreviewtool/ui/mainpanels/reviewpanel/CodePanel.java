@@ -4,6 +4,7 @@ import java.io.Serial;
 
 import com.kalynx.serverlessreviewtool.configuration.SettingsManager;
 import com.kalynx.serverlessreviewtool.git.Git;
+import com.kalynx.serverlessreviewtool.managers.PluginManager;
 import com.kalynx.serverlessreviewtool.managers.ReviewContextManager;
 import com.kalynx.serverlessreviewtool.models.Commit;
 import com.kalynx.serverlessreviewtool.models.ReviewFile;
@@ -37,14 +38,14 @@ public class CodePanel extends ThemedPanel {
     private boolean commentsEnabled = false;
 
     public CodePanel(SettingsManager settingsManager, ReviewContextManager reviewContextManager, CodeViewerModel codeViewerModel,
-                     com.kalynx.serverlessreviewtool.managers.FileDiffManager fileDiffManager, Git git) {
+                     com.kalynx.serverlessreviewtool.managers.FileDiffManager fileDiffManager, Git git, PluginManager pluginManager) {
         this.settingsManager = settingsManager;
         this.reviewContextManager = reviewContextManager;
         this.codeViewerModel = codeViewerModel;
         this.fileDiffManager = fileDiffManager;
         this.commitSelectorPanel = new CommitSelectorPanel(reviewContextManager, codeViewerModel, git);
         this.fileNavigationPanel = new FileNavigationPanel(reviewContextManager, codeViewerModel);
-        this.diffViewerPanel = new DiffViewerPanel(codeViewerModel);
+        this.diffViewerPanel = new DiffViewerPanel(codeViewerModel, pluginManager);
         configureLayout();
         setupModelListeners();
     }
@@ -104,60 +105,10 @@ public class CodePanel extends ThemedPanel {
                 reviewContextManager,
                 file,
                 lineNumber,
-                () -> {
-                    onCommentAdded();
-                }
+                this::onCommentAdded
             );
             dialog.setVisible(true);
         });
-    }
-
-    private void saveCommentsToGit(String reviewId) {
-        com.kalynx.serverlessreviewtool.models.ReviewContext context = reviewContextManager.getReviewContext();
-        if (context == null) {
-            return;
-        }
-
-        java.util.List<com.kalynx.serverlessreviewtool.models.ReviewComment> allComments = context.getComments();
-        java.util.List<com.kalynx.serverlessreviewtool.models.ReviewComment> newComments = allComments.stream()
-            .filter(comment -> !persistedCommentIds.contains(comment.getId()))
-            .toList();
-
-        java.util.List<com.kalynx.serverlessreviewtool.models.ReviewComment> existingComments = allComments.stream()
-            .filter(comment -> persistedCommentIds.contains(comment.getId()))
-            .toList();
-
-        if (newComments.isEmpty() && existingComments.isEmpty()) {
-            LOGGER.debug("No comments to save");
-            return;
-        }
-
-        if (!newComments.isEmpty()) {
-            LOGGER.info("Saving {} new comments for review {}", newComments.size(), reviewId);
-
-            for (com.kalynx.serverlessreviewtool.models.ReviewComment comment : newComments) {
-                reviewContextManager.saveComment(reviewId, comment)
-                    .thenRun(() -> {
-                        persistedCommentIds.add(comment.getId());
-                        LOGGER.info("Comment {} saved and marked as persisted", comment.getId());
-                    })
-                    .exceptionally(error -> {
-                        LOGGER.error("Failed to save comment: {}", comment.getId(), error);
-                        return null;
-                    });
-            }
-        }
-
-        if (!existingComments.isEmpty()) {
-            LOGGER.info("Updating {} existing comments (resolution status may have changed) for review {}",
-                existingComments.size(), reviewId);
-
-            reviewContextManager.saveAllComments(reviewId, existingComments)
-                .exceptionally(error -> {
-                    LOGGER.error("Failed to update existing comments", error);
-                    return null;
-                });
-        }
     }
 
     private void onCommentAdded() {

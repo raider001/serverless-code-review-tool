@@ -1,3 +1,6 @@
 com.kalynx.serverlessreviewtool.plugins.defaults.DefaultUserPlugin
 com.kalynx.serverlessreviewtool.plugins.defaults.DefaultNotificationPlugin
+com.kalynx.serverlessreviewtool.plugins.defaults.highlighters.JavaSyntaxHighlighter
+com.kalynx.serverlessreviewtool.plugins.defaults.highlighters.PythonSyntaxHighlighter
+com.kalynx.serverlessreviewtool.plugins.defaults.highlighters.TypeScriptSyntaxHighlighter
 

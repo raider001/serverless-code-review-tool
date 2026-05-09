@@ -1,12 +1,14 @@
 package com.kalynx.serverlessreviewtool.managers;
 
 import com.kalynx.serverlessreviewtool.plugin.PluginRegistry;
+import com.kalynx.serverlessreviewtool.plugin.SyntaxHighlighterPlugin;
 import com.kalynx.serverlessreviewtool.plugin.UserPlugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
@@ -59,16 +61,6 @@ public class PluginManager {
     }
 
     /**
-     * Removes a listener from all registered user plugins.
-     *
-     * @param type     the notification type
-     * @param listener the listener to remove
-     */
-    public void removeListenerFromUserPlugins(UserPlugin.NotificationType type, Consumer<String[]> listener) {
-        pluginRegistry.getPlugins(UserPlugin.class).forEach(plugin -> plugin.removeListener(type, listener));
-    }
-
-    /**
      * Indicates whether any user plugins are currently registered.
      *
      * @return true when at least one user plugin is available
@@ -90,6 +82,19 @@ public class PluginManager {
     }
 
 
+
+    /**
+     * Returns the registered syntax highlighter plugin for the given file extension, if any.
+     * Each plugin handles exactly one extension, so the match is precise.
+     *
+     * @param fileExtension lower-case file extension without dot (e.g. {@code "java"})
+     * @return optional containing the plugin for this extension, or empty if none registered
+     */
+    public Optional<SyntaxHighlighterPlugin> getSyntaxHighlighterFor(String fileExtension) {
+        return pluginRegistry.getPlugins(SyntaxHighlighterPlugin.class).stream()
+            .filter(plugin -> fileExtension.equalsIgnoreCase(plugin.getFileExtension()))
+            .findFirst();
+    }
 
     /**
      * Releases plugin classloader resources.

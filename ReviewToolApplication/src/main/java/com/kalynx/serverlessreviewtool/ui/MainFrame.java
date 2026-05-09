@@ -137,7 +137,7 @@ public class MainFrame extends ThemedFrame {
         loginPanel.setOnLoginSuccess(this::showReviewPanel);
 
         reviewSelectionPanel = new ReviewSelectionPanel(repositoryManager, reviewItemManager, reviewSelectionPanelModel, reviewFormModels, git);
-        reviewPanel = new ReviewPanel(settingsManager, reviewContextManager, repositoryManager, reviewFormModels, reviewPanelModel, git);
+        reviewPanel = new ReviewPanel(settingsManager, reviewContextManager, repositoryManager, reviewFormModels, reviewPanelModel, git, pluginManager);
         swipeActionPanel = new SwipeActionPanel(reviewPanel);
 
         swipeActionPanel.setOnApprove(reviewPanel::handleApprove);

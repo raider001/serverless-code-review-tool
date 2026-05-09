@@ -2,7 +2,9 @@ package com.kalynx.serverlessreviewtool.ui.review;
 
 import java.io.Serial;
 
+import com.kalynx.serverlessreviewtool.managers.PluginManager;
 import com.kalynx.serverlessreviewtool.models.*;
+import com.kalynx.serverlessreviewtool.plugin.SyntaxHighlighterPlugin;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.LineNumberedTextPane;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedScrollPane;
@@ -14,6 +16,7 @@ import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewpanel.CodeView
 import javax.swing.*;
 import javax.swing.text.*;
 import java.awt.*;
+import java.util.List;
 
 /**
  * DiffViewerPanel - Shows file diffs in side-by-side or unified mode
@@ -24,6 +27,7 @@ public class DiffViewerPanel extends ThemedPanel {
 
     private transient final ThemeManager themeManager = ThemeManager.getInstance();
     private transient final CodeViewerModel codeViewerModel;
+    private transient final PluginManager pluginManager;
 
     private DiffViewMode currentMode = DiffViewMode.SIDE_BY_SIDE;
     private ThemedPanel contentPanel;
@@ -37,8 +41,9 @@ public class DiffViewerPanel extends ThemedPanel {
     private transient Commit endCommit;
     private transient Theme lastRenderedTheme;
 
-    public DiffViewerPanel(CodeViewerModel codeViewerModel) {
+    public DiffViewerPanel(CodeViewerModel codeViewerModel, PluginManager pluginManager) {
         this.codeViewerModel = codeViewerModel;
+        this.pluginManager = pluginManager;
         setLayout(new BorderLayout());
         initializeComponents();
         setupModelListeners();
@@ -61,9 +66,9 @@ public class DiffViewerPanel extends ThemedPanel {
     }
 
     private void setupModelListeners() {
-        codeViewerModel.leftContent.addChangeListener(content -> updateLeftContent());
-        codeViewerModel.rightContent.addChangeListener(content -> updateRightContent());
-        codeViewerModel.unifiedDiffContent.addChangeListener(content -> updateUnifiedContent());
+        codeViewerModel.leftContent.addChangeListener(_ -> updateLeftContent());
+        codeViewerModel.rightContent.addChangeListener(_ -> updateRightContent());
+        codeViewerModel.unifiedDiffContent.addChangeListener(_ -> updateUnifiedContent());
         codeViewerModel.diffMode.addChangeListener(mode -> {
             if (mode == CodeViewerModel.DiffMode.SIDE_BY_SIDE) {
                 setViewMode(DiffViewMode.SIDE_BY_SIDE);
@@ -76,12 +81,8 @@ public class DiffViewerPanel extends ThemedPanel {
             this.startCommit = codeViewerModel.startCommit.getValue();
             this.endCommit = codeViewerModel.endCommit.getValue();
         });
-        codeViewerModel.startCommit.addChangeListener(commit -> {
-            this.startCommit = commit;
-        });
-        codeViewerModel.endCommit.addChangeListener(commit -> {
-            this.endCommit = commit;
-        });
+        codeViewerModel.startCommit.addChangeListener(commit -> this.startCommit = commit);
+        codeViewerModel.endCommit.addChangeListener(commit -> this.endCommit = commit);
     }
 
     private void updateLeftContent() {
@@ -217,13 +218,13 @@ public class DiffViewerPanel extends ThemedPanel {
         this.lastRenderedTheme = themeManager.getCurrentTheme();
 
         if (currentMode == DiffViewMode.SIDE_BY_SIDE) {
-            showSideBySideDiff(file, newStartCommit, newEndCommit);
+            showSideBySideDiff(file);
         } else {
-            showUnifiedDiff(file, newStartCommit, newEndCommit);
+            showUnifiedDiff(file);
         }
     }
 
-    private void showSideBySideDiff(ReviewFile file, Commit startCommit, Commit endCommit) {
+    private void showSideBySideDiff(ReviewFile file) {
         // Get content from model
         String beforeContent = codeViewerModel.leftContent.getValue();
         String afterContent = codeViewerModel.rightContent.getValue();
@@ -240,7 +241,7 @@ public class DiffViewerPanel extends ThemedPanel {
         highlightDiffWithInlineChanges(leftPane, rightPane, beforeContent, afterContent);
     }
 
-    private void showUnifiedDiff(ReviewFile file, Commit startCommit, Commit endCommit) {
+    private void showUnifiedDiff(ReviewFile file) {
         // Get unified diff from model
         String unifiedDiff = codeViewerModel.unifiedDiffContent.getValue();
 
@@ -417,6 +418,9 @@ public class DiffViewerPanel extends ThemedPanel {
             leftOffset += leftLineLength;
             rightOffset += rightLineLength;
         }
+
+        applySyntaxHighlighting(leftTextPane, aligned.leftContent);
+        applySyntaxHighlighting(rightTextPane, aligned.rightContent);
     }
 
     private AlignedContent alignContentUsingDiff(String beforeContent, String afterContent, String unifiedDiff) {
@@ -460,9 +464,6 @@ public class DiffViewerPanel extends ThemedPanel {
         int afterIdx = 0;
         int currentLine = 0;
 
-        int hunkBeforeStart = -1;
-        int hunkAfterStart = -1;
-
         // Pre-scan to identify modification patterns (consecutive - and + lines)
         java.util.List<DiffLine> parsedDiff = new java.util.ArrayList<>();
         for (String diffLine : diffLines) {
@@ -471,11 +472,11 @@ public class DiffViewerPanel extends ThemedPanel {
                     String header = diffLine.substring(3, diffLine.indexOf("@@", 3)).trim();
                     String[] parts = header.split(" ");
                     String beforePart = parts[0].substring(1);
-                    hunkBeforeStart = beforePart.contains(",") ?
+                    int hunkBeforeStart = beforePart.contains(",") ?
                         Integer.parseInt(beforePart.split(",")[0]) - 1 :
                         Integer.parseInt(beforePart) - 1;
                     String afterPart = parts[1].substring(1);
-                    hunkAfterStart = afterPart.contains(",") ?
+                    int hunkAfterStart = afterPart.contains(",") ?
                         Integer.parseInt(afterPart.split(",")[0]) - 1 :
                         Integer.parseInt(afterPart) - 1;
 
@@ -525,7 +526,6 @@ public class DiffViewerPanel extends ThemedPanel {
 
                 if (isModification) {
                     // Modified line - show both versions
-                    DiffLine next = parsedDiff.get(i + 1);
                     if (beforeIdx < beforeLines.length && afterIdx < afterLines.length) {
                         alignedLeft.add(beforeLines[beforeIdx]);
                         alignedRight.add(afterLines[afterIdx]);
@@ -683,6 +683,8 @@ public class DiffViewerPanel extends ThemedPanel {
             offset += lineLength;
             lineNumber++;
         }
+
+        applySyntaxHighlighting(textPane, cleaned.content);
     }
 
     private CleanedDiff cleanUnifiedDiff(String unifiedDiff) {
@@ -764,6 +766,28 @@ public class DiffViewerPanel extends ThemedPanel {
         currentFile = null;
     }
 
+    private String getFileExtension() {
+        if (currentFile == null || currentFile.getPath() == null) return "";
+        String path = currentFile.getPath();
+        int dot = path.lastIndexOf('.');
+        return dot >= 0 ? path.substring(dot + 1).toLowerCase() : "";
+    }
+
+    private void applySyntaxHighlighting(JTextPane textPane, String source) {
+        String ext = getFileExtension();
+        if (ext.isEmpty()) return;
+        pluginManager.getSyntaxHighlighterFor(ext).ifPresent(plugin -> {
+            List<SyntaxHighlighterPlugin.SyntaxToken> tokens = plugin.tokenize(source);
+            StyledDocument doc = textPane.getStyledDocument();
+            for (SyntaxHighlighterPlugin.SyntaxToken token : tokens) {
+                if (token.offset < 0 || token.length <= 0) continue;
+                if (token.offset + token.length > doc.getLength()) continue;
+                Style style = textPane.addStyle(null, null);
+                StyleConstants.setForeground(style, plugin.getColorForTokenType(token.type));
+                doc.setCharacterAttributes(token.offset, token.length, style, false);
+            }
+        });
+    }
 
     public void setOnLineDoubleClickListener(java.util.function.Consumer<Integer> listener) {
         leftPane.setOnLineDoubleClickListener(listener);
