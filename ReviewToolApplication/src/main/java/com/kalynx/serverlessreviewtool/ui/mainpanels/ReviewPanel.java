@@ -242,12 +242,15 @@ public class ReviewPanel extends ThemedPanel {
         model.setCurrentReview(reviewId);
         LoadingStateManager.getInstance().startLoading("Loading review context...");
 
-        LOGGER.debug("=== REVIEW PANEL LOAD START ===");
-        LOGGER.debug("Review ID: {}", reviewId);
+        long overallStart = System.nanoTime();
+        LOGGER.info("TIMING [{}] === REVIEW LOAD START ===", reviewId);
         LOGGER.debug("Repository Names from ReviewItem: {}", repositoryNames);
 
+        long metadataStart = System.nanoTime();
         reviewContextManager.loadReviewMetadata(reviewId, repositoryNames)
             .thenCompose(reviewContext -> {
+                LOGGER.info("TIMING [{}] loadReviewMetadata: {}ms", reviewId, elapsedMs(metadataStart));
+
                 if (reviewContext == null) {
                     LOGGER.warn("ReviewContext is null for review: {}", reviewId);
                     model.setError("Review not found");
@@ -272,12 +275,16 @@ public class ReviewPanel extends ThemedPanel {
 
                 model.setRepositories(repositories);
 
+                long fetchStart = System.nanoTime();
                 List<CompletableFuture<Void>> fetchFutures = repositories.stream()
                     .map(repo -> git.fetch(repo.getName()))
                     .toList();
 
                 return CompletableFuture.allOf(fetchFutures.toArray(new CompletableFuture[0]))
                     .thenCompose(ignored -> {
+                        LOGGER.info("TIMING [{}] git.fetch ({} repos, parallel): {}ms",
+                            reviewId, repositories.size(), elapsedMs(fetchStart));
+
                         com.kalynx.serverlessreviewtool.models.Repository primaryRepo = repositories.getFirst();
 
                         String reviewBranchName = reviewContext.getBranch();
@@ -285,6 +292,8 @@ public class ReviewPanel extends ThemedPanel {
 
                         CompletableFuture<Void> commitsFuture;
                         CompletableFuture<List<ReviewFile>> filesFuture;
+                        long commitsAndFilesStart = System.nanoTime();
+
                         if (reviewContext.hasClosedHistory()) {
                             LOGGER.debug("Review {} has closed-history; using stored commit snapshot loading", reviewId);
                             String snapshotEditor = settingsManager.getCurrentUserName();
@@ -313,28 +322,36 @@ public class ReviewPanel extends ThemedPanel {
                                         reviewContext.getBranch(),
                                         reviewContext.getBaseBranch()));
                         } else {
+                            long commitsStart = System.nanoTime();
                             commitsFuture = fileDiffManager
-                                .loadCommitsForReview(primaryRepo.getName(), remoteBranch, 1000);
+                                .loadCommitsForReview(primaryRepo.getName(), remoteBranch, 1000)
+                                .thenRun(() -> LOGGER.info("TIMING [{}] loadCommitsForReview ({}): {}ms",
+                                    reviewId, primaryRepo.getName(), elapsedMs(commitsStart)));
+
+                            long filesStart = System.nanoTime();
                             filesFuture = reviewContextManager
                                 .loadFilesFromReviewCommits(
                                     repositories,
                                     reviewContext.getBranch(),
-                                    reviewContext.getBaseBranch());
+                                    reviewContext.getBaseBranch())
+                                .thenApply(files -> {
+                                    LOGGER.info("TIMING [{}] loadFilesFromReviewCommits ({} repos): {}ms",
+                                        reviewId, repositories.size(), elapsedMs(filesStart));
+                                    return files;
+                                });
                         }
 
-                        LOGGER.debug("=== LOADING FILES FROM REPOSITORIES ===");
-                        LOGGER.debug("Repositories being passed to loadFilesFromReviewCommits:");
-                        for (com.kalynx.serverlessreviewtool.models.Repository repo : repositories) {
-                            LOGGER.debug("  - {}", repo.getName());
-                        }
+                        LOGGER.debug("Repositories being passed to loadFilesFromReviewCommits: {}",
+                            repositories.stream().map(r -> r.getName()).toList());
 
                         return CompletableFuture.allOf(commitsFuture, filesFuture)
                             .thenAccept(_ -> {
+                                LOGGER.info("TIMING [{}] commits+files (parallel): {}ms",
+                                    reviewId, elapsedMs(commitsAndFilesStart));
+
                                 List<ReviewFile> allFiles = filesFuture.join();
 
-                                LOGGER.debug("=== FILES LOADED FROM REVIEW ===");
                                 LOGGER.debug("Total files: {}", allFiles.size());
-
                                 for (ReviewFile file : allFiles) {
                                     LOGGER.debug("  - {} (repository: {})", file.getPath(), file.getRepository());
                                 }
@@ -351,17 +368,23 @@ public class ReviewPanel extends ThemedPanel {
                                     }
                                 }
 
-                                LOGGER.debug("=== SETTING FILES TO MODEL ===");
                                 model.codeViewerModel.setAvailableFiles(allFiles);
-                                LOGGER.debug("=== REVIEW PANEL LOAD COMPLETE ===");
+
+                                LOGGER.info("TIMING [{}] === REVIEW LOAD COMPLETE: {}ms total ===",
+                                    reviewId, elapsedMs(overallStart));
                             });
                     });
             })
             .whenComplete((ignored, _) -> LoadingStateManager.getInstance().stopLoading("Loading review context..."))
             .exceptionally(error -> {
+                LOGGER.info("TIMING [{}] === REVIEW LOAD FAILED: {}ms ===", reviewId, elapsedMs(overallStart));
                 model.setError("Failed to load review: " + error.getMessage());
                 return null;
             });
+    }
+
+    private static long elapsedMs(long startNano) {
+        return (System.nanoTime() - startNano) / 1_000_000;
     }
 
     private void handleEditReview() {

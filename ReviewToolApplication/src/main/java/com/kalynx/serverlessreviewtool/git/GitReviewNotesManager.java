@@ -548,6 +548,7 @@ public class GitReviewNotesManager {
 
     private CompletableFuture<Void> fetchAndMergeNotes(String reviewId, String streamPath) {
         String ref = NOTES_REF_PREFIX + reviewId + "/" + streamPath;
+        long start = System.nanoTime();
 
         return git.executeAsync(
             repositoryName,
@@ -563,7 +564,11 @@ public class GitReviewNotesManager {
                 return "";
             }
             throw new RuntimeException("Failed to fetch notes: " + msg, ex);
-        }).thenApply(ignored -> null);
+        }).thenApply(ignored -> {
+            LOGGER.info("TIMING [{}] fetchAndMergeNotes ({}/{}): {}ms",
+                reviewId, repositoryName, streamPath, elapsedMs(start));
+            return null;
+        });
     }
 
     private void resolveAndNormalize(Path filePath) throws IOException {
@@ -741,15 +746,23 @@ public class GitReviewNotesManager {
             "reviewers"
         );
 
+        long fetchAllStart = System.nanoTime();
         return fetchAllNotes(reviewId, streamPaths)
-            .thenCompose(ignored -> getAnchorCommit())
+            .thenCompose(ignored -> {
+                LOGGER.info("TIMING [{}] readAllMetadata fetchAllNotes ({} streams, parallel, repo={}): {}ms",
+                    reviewId, streamPaths.size(), repositoryName, elapsedMs(fetchAllStart));
+                return getAnchorCommit();
+            })
             .thenCompose(anchorCommit -> {
+                long extractStart = System.nanoTime();
                 List<CompletableFuture<Path>> extractFutures = streamPaths.stream()
                     .map(streamPath -> extractNoteToFile(reviewId, streamPath, anchorCommit))
                     .toList();
 
                 return CompletableFuture.allOf(extractFutures.toArray(new CompletableFuture[0]))
                     .thenApply(ignored2 -> {
+                        LOGGER.info("TIMING [{}] readAllMetadata extractNoteToFile ({} streams, parallel, repo={}): {}ms",
+                            reviewId, streamPaths.size(), repositoryName, elapsedMs(extractStart));
                         try {
                             Path titlePath = extractFutures.get(0).join();
                             Path descPath = extractFutures.get(1).join();
@@ -858,6 +871,10 @@ public class GitReviewNotesManager {
     }
 
     private record EntryWithTimestamp(String id, String timestamp, String json) {}
+
+    private static long elapsedMs(long startNano) {
+        return (System.nanoTime() - startNano) / 1_000_000;
+    }
 }
 
 

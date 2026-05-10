@@ -39,10 +39,13 @@ public class FileDiffManager {
      */
     public CompletableFuture<Void> loadCommitsForReview(String repositoryName, String branch, int maxCommits) {
         logger.info("Loading commits for repository: {}, branch: {}, max: {}", repositoryName, branch, maxCommits);
+        long start = System.nanoTime();
 
         return git.listCommits(repositoryName, branch, maxCommits)
             .thenApply(this::parseCommits)
             .thenCompose(commits -> {
+                logger.info("TIMING loadCommitsForReview git.listCommits (repo={}, branch={}): {}ms",
+                    repositoryName, branch, elapsedMs(start));
                 logger.info("Loaded {} commits", commits.size());
                 if (commits.isEmpty()) {
                     logger.warn("No commits found for repository: {}, branch: {}", repositoryName, branch);
@@ -257,6 +260,10 @@ public class FileDiffManager {
             }
         }
         return commits;
+    }
+
+    private static long elapsedMs(long startNano) {
+        return (System.nanoTime() - startNano) / 1_000_000;
     }
 }
 
