@@ -798,41 +798,58 @@ public class ReviewContextManager {
             String reviewId,
             List<Repository> repositories,
             String reviewBranch,
+            String baseBranch,
             String editor) {
         if (reviewId == null || reviewId.isBlank() || repositories == null || repositories.isEmpty()) {
             return CompletableFuture.completedFuture(null);
         }
-        if (reviewBranch == null || reviewBranch.isBlank()) {
-            LOGGER.warn("Skipping commit snapshot capture for review {} - review branch is empty", reviewId);
+        if (reviewBranch == null || reviewBranch.isBlank() || baseBranch == null || baseBranch.isBlank()) {
+            LOGGER.warn("Skipping commit snapshot capture for review {} - review/base branch is empty", reviewId);
             return CompletableFuture.completedFuture(null);
         }
 
-        String branchRef = normalizeRemoteBranch(reviewBranch);
         List<CompletableFuture<Void>> futures = repositories.stream()
-            .map(repo -> git.listCommits(repo.getName(), branchRef, 1000)
-                .thenApply(this::extractCommitHashes)
-                .thenCompose(commitHashes -> {
-                    if (commitHashes.isEmpty()) {
-                        LOGGER.warn("No commits resolved for review {} in repo {} while capturing snapshot",
-                            reviewId, repo.getName());
-                        return CompletableFuture.completedFuture(null);
-                    }
-                    GitReviewNotesManager notesManager = new GitReviewNotesManager(git, repo.getName());
-                    return notesManager.writeReviewCommits(reviewId, editor, commitHashes);
-                })
-                .exceptionally(error -> {
-                    LOGGER.warn("Failed to capture commits for review {} in repo {}: {}",
-                        reviewId, repo.getName(), error.getMessage());
-                    return null;
-                }))
+            .map(repo -> {
+                GitReviewNotesManager notesManager = new GitReviewNotesManager(git, repo.getName());
+                String commitRange = baseBranch + ".." + reviewBranch;
+                return loadLatestReviewCommits(reviewId, repo.getName())
+                    .thenCompose(existingCommits -> {
+                        return git.listCommits(repo.getName(), commitRange, 1000)
+                            .thenApply(this::extractCommitHashes)
+                            .thenCompose(commitHashes -> {
+                                if (commitHashes.isEmpty()) {
+                                    if (existingCommits != null && !existingCommits.isEmpty()) {
+                                        LOGGER.info("Scoped review range {} is empty for review {} in repo {}; keeping existing stored snapshot of {} commits",
+                                            commitRange, reviewId, repo.getName(), existingCommits.size());
+                                    } else {
+                                        LOGGER.warn("No scoped review commits resolved for review {} in repo {} using range {}",
+                                            reviewId, repo.getName(), commitRange);
+                                    }
+                                    return CompletableFuture.completedFuture(null);
+                                }
+
+                                if (existingCommits != null && existingCommits.equals(commitHashes)) {
+                                    LOGGER.info("Stored commit snapshot for review {} in repo {} is already correct ({} commits)",
+                                        reviewId, repo.getName(), commitHashes.size());
+                                    return CompletableFuture.completedFuture(null);
+                                }
+
+                                LOGGER.info("Capturing {} scoped review commits for review {} in repo {}",
+                                    commitHashes.size(), reviewId, repo.getName());
+                                return notesManager.writeReviewCommits(reviewId, editor, commitHashes);
+                            });
+                    })
+                    .exceptionally(error -> {
+                        LOGGER.warn("Failed to capture commits for review {} in repo {}: {}",
+                            reviewId, repo.getName(), error.getMessage());
+                        return null;
+                    });
+            })
             .toList();
 
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
     }
 
-    private String normalizeRemoteBranch(String reviewBranch) {
-        return reviewBranch.startsWith("origin/") ? reviewBranch : "origin/" + reviewBranch;
-    }
 
     private List<String> extractCommitHashes(List<String> commitRows) {
         if (commitRows == null || commitRows.isEmpty()) {

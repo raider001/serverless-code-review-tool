@@ -287,16 +287,31 @@ public class ReviewPanel extends ThemedPanel {
                         CompletableFuture<List<ReviewFile>> filesFuture;
                         if (reviewContext.hasClosedHistory()) {
                             LOGGER.info("Review {} has closed-history; using stored commit snapshot loading", reviewId);
-                            commitsFuture = reviewContextManager
-                                .loadLatestReviewCommits(reviewId, primaryRepo.getName())
-                                .thenCompose(commitHashes -> fileDiffManager.loadCommitsForSnapshot(
-                                    primaryRepo.getName(), commitHashes));
-                            filesFuture = reviewContextManager
-                                .loadFilesFromStoredReviewCommits(
+                            String snapshotEditor = settingsManager.getCurrentUserName();
+                            if (snapshotEditor == null || snapshotEditor.isBlank()) {
+                                snapshotEditor = "system";
+                            }
+
+                            CompletableFuture<Void> reconcileSnapshotsFuture = reviewContextManager
+                                .captureReviewCommitSnapshots(
                                     reviewId,
                                     repositories,
                                     reviewContext.getBranch(),
-                                    reviewContext.getBaseBranch());
+                                    reviewContext.getBaseBranch(),
+                                    snapshotEditor);
+
+                            commitsFuture = reconcileSnapshotsFuture
+                                .thenCompose(ignored2 -> reviewContextManager
+                                    .loadLatestReviewCommits(reviewId, primaryRepo.getName()))
+                                .thenCompose(commitHashes -> fileDiffManager.loadCommitsForSnapshot(
+                                    primaryRepo.getName(), commitHashes));
+                            filesFuture = reconcileSnapshotsFuture
+                                .thenCompose(ignored2 -> reviewContextManager
+                                    .loadFilesFromStoredReviewCommits(
+                                        reviewId,
+                                        repositories,
+                                        reviewContext.getBranch(),
+                                        reviewContext.getBaseBranch()));
                         } else {
                             commitsFuture = fileDiffManager
                                 .loadCommitsForReview(primaryRepo.getName(), remoteBranch, 1000);
@@ -548,6 +563,7 @@ public class ReviewPanel extends ThemedPanel {
                 updatedContext.reviewId,
                 updatedContext.getRepositories(),
                 updatedContext.getBranch(),
+                updatedContext.getBaseBranch(),
                 currentUser)
             : CompletableFuture.completedFuture(null);
 
