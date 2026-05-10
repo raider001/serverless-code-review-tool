@@ -12,6 +12,8 @@ import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedSp
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
 import com.kalynx.serverlessreviewtool.theme.Theme;
 import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewpanel.CodeViewerModel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import javax.swing.text.*;
@@ -24,6 +26,7 @@ import java.util.List;
 public class DiffViewerPanel extends ThemedPanel {
     @Serial
     private static final long serialVersionUID = 1L;
+    private static final Logger LOGGER = LoggerFactory.getLogger(DiffViewerPanel.class);
 
     private transient final ThemeManager themeManager = ThemeManager.getInstance();
     private transient final CodeViewerModel codeViewerModel;
@@ -91,9 +94,9 @@ public class DiffViewerPanel extends ThemedPanel {
 
         if (leftContent != null && rightContent != null && leftPane != null && rightPane != null) {
             if (leftContent.isEmpty()) {
-                System.err.println("[DiffViewerPanel] WARNING: Left content is EMPTY");
+                LOGGER.warn("[DiffViewerPanel] Left content is empty");
             } else {
-                System.out.println("[DiffViewerPanel] Updating left content with highlighting: " + leftContent.length() + " chars");
+                LOGGER.debug("[DiffViewerPanel] Updating left content with highlighting: {} chars", leftContent.length());
             }
 
             SwingUtilities.invokeLater(() -> {
@@ -110,9 +113,9 @@ public class DiffViewerPanel extends ThemedPanel {
 
         if (leftContent != null && rightContent != null && leftPane != null && rightPane != null) {
             if (rightContent.isEmpty()) {
-                System.err.println("[DiffViewerPanel] WARNING: Right content is EMPTY");
+                LOGGER.warn("[DiffViewerPanel] Right content is empty");
             } else {
-                System.out.println("[DiffViewerPanel] Updating right content with highlighting: " + rightContent.length() + " chars");
+                LOGGER.debug("[DiffViewerPanel] Updating right content with highlighting: {} chars", rightContent.length());
             }
 
             SwingUtilities.invokeLater(() -> {
@@ -127,9 +130,9 @@ public class DiffViewerPanel extends ThemedPanel {
         String content = codeViewerModel.unifiedDiffContent.getValue();
         if (content != null && unifiedPane != null) {
             if (content.isEmpty()) {
-                System.err.println("[DiffViewerPanel] WARNING: Unified content is EMPTY");
+                LOGGER.warn("[DiffViewerPanel] Unified content is empty");
             } else {
-                System.out.println("[DiffViewerPanel] Updating unified content with highlighting: " + content.length() + " chars");
+                LOGGER.debug("[DiffViewerPanel] Updating unified content with highlighting: {} chars", content.length());
             }
 
             SwingUtilities.invokeLater(() -> {
@@ -426,7 +429,7 @@ public class DiffViewerPanel extends ThemedPanel {
     private AlignedContent alignContentUsingDiff(String beforeContent, String afterContent, String unifiedDiff) {
         // If no valid diff or files are identical, don't align
         if (unifiedDiff == null || unifiedDiff.isEmpty() || unifiedDiff.startsWith("//")) {
-            System.out.println("[DiffViewer] No valid unified diff, returning unaligned content");
+            LOGGER.debug("[DiffViewer] No valid unified diff, returning unaligned content");
             return new AlignedContent(beforeContent, afterContent, new java.util.HashSet<>(), new java.util.HashSet<>(), new java.util.HashSet<>());
         }
 
@@ -444,11 +447,11 @@ public class DiffViewerPanel extends ThemedPanel {
         }
 
         if (!hasChanges) {
-            System.out.println("[DiffViewer] Diff shows no changes, returning unaligned content");
+            LOGGER.debug("[DiffViewer] Diff shows no changes, returning unaligned content");
             return new AlignedContent(beforeContent, afterContent, new java.util.HashSet<>(), new java.util.HashSet<>(), new java.util.HashSet<>());
         }
 
-        System.out.println("[DiffViewer] Aligning content using diff with modification detection...");
+        LOGGER.debug("[DiffViewer] Aligning content using diff with modification detection");
 
         String[] beforeLines = beforeContent.split("\n", -1);
         String[] afterLines = afterContent.split("\n", -1);
@@ -492,7 +495,7 @@ public class DiffViewerPanel extends ThemedPanel {
                         }
                     }
                 } catch (Exception e) {
-                    System.err.println("[DiffViewer] Failed to parse hunk header: " + diffLine);
+                    LOGGER.warn("[DiffViewer] Failed to parse hunk header: {}", diffLine, e);
                 }
                 parsedDiff.add(new DiffLine(DiffLineType.HUNK, diffLine));
             } else if (diffLine.startsWith("---") || diffLine.startsWith("+++") || diffLine.startsWith("diff ") || diffLine.startsWith("index ")) {
@@ -596,9 +599,8 @@ public class DiffViewerPanel extends ThemedPanel {
         String leftAligned = String.join("\n", alignedLeft);
         String rightAligned = String.join("\n", alignedRight);
 
-        System.out.println("[DiffViewer] Alignment complete: " + alignedLeft.size() + " lines, " +
-                         leftEmpty.size() + " left empty, " + rightEmpty.size() + " right empty, " +
-                         modifiedLines.size() + " modified");
+        LOGGER.debug("[DiffViewer] Alignment complete: {} lines, {} left empty, {} right empty, {} modified",
+            alignedLeft.size(), leftEmpty.size(), rightEmpty.size(), modifiedLines.size());
 
         return new AlignedContent(leftAligned, rightAligned, leftEmpty, rightEmpty, modifiedLines);
     }
@@ -777,17 +779,56 @@ public class DiffViewerPanel extends ThemedPanel {
         String ext = getFileExtension();
         if (ext.isEmpty()) return;
         pluginManager.getSyntaxHighlighterFor(ext).ifPresent(plugin -> {
-            List<SyntaxHighlighterPlugin.SyntaxToken> tokens = plugin.tokenize(source);
+            List<SyntaxHighlighterPlugin.SyntaxToken> tokens = safeTokenize(plugin, source, ext);
+            if (tokens.isEmpty()) {
+                return;
+            }
             StyledDocument doc = textPane.getStyledDocument();
             boolean darkTheme = isDarkTheme();
             for (SyntaxHighlighterPlugin.SyntaxToken token : tokens) {
                 if (token.offset < 0 || token.length <= 0) continue;
                 if (token.offset + token.length > doc.getLength()) continue;
                 Style style = textPane.addStyle(null, null);
-                StyleConstants.setForeground(style, plugin.getColorForTokenType(token.type, darkTheme));
+                StyleConstants.setForeground(style, resolveTokenColor(plugin, token.type, darkTheme));
                 doc.setCharacterAttributes(token.offset, token.length, style, false);
             }
         });
+    }
+
+    private Color resolveTokenColor(SyntaxHighlighterPlugin plugin, SyntaxHighlighterPlugin.TokenType type, boolean darkTheme) {
+        try {
+            Object resolved = plugin.getClass()
+                .getMethod("getColorForTokenType", SyntaxHighlighterPlugin.TokenType.class, boolean.class)
+                .invoke(plugin, type, darkTheme);
+            if (resolved instanceof Color color) {
+                return color;
+            }
+        } catch (ReflectiveOperationException ignored) {
+        }
+
+        try {
+            Object resolved = plugin.getClass()
+                .getMethod("getColorForTokenType", SyntaxHighlighterPlugin.TokenType.class)
+                .invoke(plugin, type);
+            if (resolved instanceof Color color) {
+                return color;
+            }
+        } catch (ReflectiveOperationException ignored) {
+        }
+
+        return themeManager.getCurrentTheme().getForegroundColor();
+    }
+
+    private List<SyntaxHighlighterPlugin.SyntaxToken> safeTokenize(SyntaxHighlighterPlugin plugin, String source, String extension) {
+        try {
+            return plugin.tokenize(source);
+        } catch (StackOverflowError error) {
+            LOGGER.error("Syntax highlighting failed with stack overflow for extension {} ({} chars)", extension, source == null ? 0 : source.length(), error);
+            return List.of();
+        } catch (RuntimeException error) {
+            LOGGER.error("Syntax highlighting failed for extension {} ({} chars)", extension, source == null ? 0 : source.length(), error);
+            return List.of();
+        }
     }
 
     private boolean isDarkTheme() {

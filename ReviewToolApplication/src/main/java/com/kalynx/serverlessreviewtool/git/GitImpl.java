@@ -262,13 +262,52 @@ public class GitImpl implements Git {
     private CompletableFuture<Void> fetchNotes(Path repository) {
         return executeAsync(repository, "git", "fetch", ORIGIN, "refs/notes/*:refs/notes/*")
             .thenCompose(ignored -> mergeAllNotes(repository))
-            .exceptionally(ex -> {
-                if (ex.getMessage() != null && ex.getMessage().contains("Couldn't find remote ref")) {
-                    return null;
+            .handle((ignored, ex) -> {
+                if (ex == null) {
+                    return CompletableFuture.<Void>completedFuture(null);
                 }
-                logger.warn("Failed to fetch notes: {}", ex.getMessage());
-                return null;
-            });
+
+                String message = ex.getMessage();
+                if (isMissingRemoteRefError(message)) {
+                    return CompletableFuture.<Void>completedFuture(null);
+                }
+
+                if (isNonFastForwardError(message)) {
+                    logger.info("Notes fetch reported non-fast-forward refs; retrying via remote-tracking refs");
+                    return fetchNotesToRemoteTracking(repository)
+                        .thenCompose(ignoredRetry -> mergeAllNotes(repository))
+                        .exceptionally(retryEx -> {
+                            logger.warn("Failed to recover notes fetch after non-fast-forward: {}", retryEx.getMessage());
+                            return null;
+                        });
+                }
+
+                logger.warn("Failed to fetch notes: {}", message);
+                return CompletableFuture.<Void>completedFuture(null);
+            })
+            .thenCompose(future -> future);
+    }
+
+    private CompletableFuture<Void> fetchNotesToRemoteTracking(Path repository) {
+        return executeAsync(
+            repository,
+            "git",
+            "fetch",
+            ORIGIN,
+            "+refs/notes/*:refs/remotes/origin/refs/notes/*"
+        ).thenApply(ignored -> null);
+    }
+
+    private boolean isMissingRemoteRefError(String message) {
+        return message != null && message.contains("Couldn't find remote ref");
+    }
+
+    private boolean isNonFastForwardError(String message) {
+        if (message == null) {
+            return false;
+        }
+        String lower = message.toLowerCase();
+        return lower.contains("non-fast-forward") || lower.contains("[rejected]");
     }
 
     private CompletableFuture<Void> mergeAllNotes(Path repository) {

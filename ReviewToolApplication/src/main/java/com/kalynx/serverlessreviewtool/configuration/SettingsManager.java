@@ -28,7 +28,7 @@ public class SettingsManager {
     private final Gson gson;
     private final Path settingsFile;
     private final RepositoryManager repositoryManager;
-    private AppSettings currentSettings;
+    private final AppSettings currentSettings;
     private final Set<Consumer<String>> userNameListeners = new HashSet<>();
     private final Set<Runnable> pollingSettingsListeners = new HashSet<>();
     private final Set<Consumer<List<AppSettings.RepositoryConfig>>> repositoryNameListeners = new HashSet<>();
@@ -45,7 +45,7 @@ public class SettingsManager {
         try {
             Files.createDirectories(appDir);
         } catch (IOException e) {
-            System.err.println("Failed to create settings directory: " + e.getMessage());
+            LOGGER.error("Failed to create settings directory: {}", appDir, e);
         }
 
         // Load or create default settings
@@ -68,17 +68,17 @@ public class SettingsManager {
         File file = settingsFile.toFile();
 
         if (!file.exists()) {
-            System.out.println("Settings file not found, using defaults: " + settingsFile);
+            LOGGER.info("Settings file not found, using defaults: {}", settingsFile);
             return new AppSettings();
         }
 
         try (FileReader reader = new FileReader(file)) {
             AppSettings settings = gson.fromJson(reader, AppSettings.class);
             notifyRepositoryNameListeners();
-            System.out.println("Loaded settings from: " + settingsFile);
+            LOGGER.info("Loaded settings from: {}", settingsFile);
             return settings;
         } catch (Exception e) {
-            System.err.println("Failed to load settings: " + e.getMessage());
+            LOGGER.warn("Failed to load settings from {}, using defaults", settingsFile, e);
             return new AppSettings();
         }
     }
@@ -93,15 +93,6 @@ public class SettingsManager {
         } catch (IOException e) {
             LOGGER.error("Failed to save settings: {}", e.getMessage(), e);
         }
-    }
-
-    /**
-     * Update settings and auto-save
-     */
-    public void updateSettings(AppSettings settings) {
-        this.currentSettings = settings;
-        saveSettings();
-        repositoryManager.updateRepositories(settings.getRepositories());
     }
 
     /**
@@ -124,27 +115,10 @@ public class SettingsManager {
         notifyPollingSettingsListeners();
     }
 
-    public void updateTheme(String theme) {
-        currentSettings.setTheme(theme);
-        saveSettings();
-    }
-
     public void updateWindowDefaults(int width, int height) {
         currentSettings.getWindow().setDefaultWidth(width);
         currentSettings.getWindow().setDefaultHeight(height);
         saveSettings();
-    }
-
-    public void updateUserName(String userName) {
-        currentSettings.setUserName(userName);
-        saveSettings();
-        notifyUserNameListeners();
-    }
-
-    public void updateUserEmail(String userEmail) {
-        currentSettings.setUserEmail(userEmail);
-        saveSettings();
-        notifyUserNameListeners();
     }
 
     /**

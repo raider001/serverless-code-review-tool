@@ -89,7 +89,7 @@ public class ReviewItemManager {
         String incomingPrimary = incoming.getPrimaryRepository();
 
         if (existingPrimary == null && incomingPrimary == null) {
-            return existing.getRepositories().isEmpty() ? null : existing.getRepositories().get(0);
+            return existing.getRepositories().isEmpty() ? null : existing.getRepositories().getFirst();
         }
 
         if (existingPrimary != null && incomingPrimary != null && !existingPrimary.equals(incomingPrimary)) {
@@ -105,10 +105,6 @@ public class ReviewItemManager {
         notifyListeners();
     }
 
-    public List<ReviewItem> getReviewItems() {
-        return List.copyOf(reviewItems);
-    }
-
     public void addListener(Consumer<List<ReviewItem>> listener) {
         listeners.add(listener);
         listener.accept(List.copyOf(reviewItems));
@@ -119,7 +115,7 @@ public class ReviewItemManager {
     }
 
     private void notifyListeners() {
-        LOGGER.info("Notifying listeners of review item list update: {} items", reviewItems.size());
+        LOGGER.debug("Notifying listeners of review item list update: {} items", reviewItems.size());
         listeners.forEach(listener -> listener.accept(List.copyOf(reviewItems)));
     }
 

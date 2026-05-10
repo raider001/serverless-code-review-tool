@@ -89,7 +89,6 @@ public class FileNavigationPanel extends ThemedPanel {
         SwingUtilities.invokeLater(() -> {
             try {
                 if (files != null && !files.isEmpty()) {
-                    LOGGER.info("Building tree with {} files", files.size());
                     ReviewFile currentSelection = codeViewerModel.selectedFile.getValue();
                     buildFileTreeFromModel(files);
 
@@ -99,17 +98,14 @@ public class FileNavigationPanel extends ThemedPanel {
                                            f.getRepository().equals(currentSelection.getRepository()));
 
                         if (fileStillExists) {
-                            LOGGER.info("Restoring selection: {}", currentSelection.getPath());
                             selectFileInTree(currentSelection);
                         } else {
-                            LOGGER.info("Current file no longer exists, clearing selection");
                             fileTree.clearSelection();
                             codeViewerModel.selectFile(null);
                             codeViewerModel.setFileContent("", "", "");
                         }
                     }
                 } else {
-                    LOGGER.info("No files, clearing tree");
                     rootNode.removeAllChildren();
                     treeModel.reload();
                     fileTree.clearSelection();
@@ -127,7 +123,6 @@ public class FileNavigationPanel extends ThemedPanel {
     }
 
     private void buildFileTreeFromModel(List<ReviewFile> files) {
-        LOGGER.info("buildFileTreeFromModel: Building tree with {} files", files.size());
         rootNode.removeAllChildren();
 
         Map<String, DefaultMutableTreeNode> repoNodes = new HashMap<>();
@@ -151,16 +146,10 @@ public class FileNavigationPanel extends ThemedPanel {
             compactDirectoryNodes(repoNode);
         }
 
-        LOGGER.info("Tree model has {} repository nodes", rootNode.getChildCount());
         treeModel.reload();
-        LOGGER.info("Tree model reloaded");
-
         expandAllNodes();
-        LOGGER.info("Tree nodes expanded");
-
         fileTree.revalidate();
         fileTree.repaint();
-        LOGGER.info("Tree repainted");
     }
 
     private void expandAllNodes() {
@@ -192,28 +181,6 @@ public class FileNavigationPanel extends ThemedPanel {
                 .orElse(null);
         }
         return null;
-    }
-
-    private void buildFileTree(ReviewContext reviewContext) {
-        rootNode.removeAllChildren();
-
-        for (Repository repo : reviewContext.getRepositories()) {
-            DefaultMutableTreeNode repoNode = new DefaultMutableTreeNode(repo);
-            for (ReviewFile file : repo.getFiles()) {
-                addFileToTree(repoNode, file);
-            }
-
-            compactDirectoryNodes(repoNode);
-
-            rootNode.add(repoNode);
-        }
-
-        treeModel.reload();
-
-        expandAllNodes();
-
-        fileTree.revalidate();
-        fileTree.repaint();
     }
 
     private void addFileToTree(DefaultMutableTreeNode repoNode, ReviewFile file) {
@@ -276,14 +243,6 @@ public class FileNavigationPanel extends ThemedPanel {
         return onlyChild.getUserObject() instanceof String;
     }
 
-    public ReviewFile getSelectedFile() {
-        DefaultMutableTreeNode selectedNode = (DefaultMutableTreeNode) fileTree.getLastSelectedPathComponent();
-        if (selectedNode != null && selectedNode.getUserObject() instanceof ReviewFile) {
-            return (ReviewFile) selectedNode.getUserObject();
-        }
-        return null;
-    }
-
     private void selectFileInTree(ReviewFile file) {
         DefaultMutableTreeNode node = findNodeForFile(rootNode, file);
         if (node != null) {
@@ -313,13 +272,6 @@ public class FileNavigationPanel extends ThemedPanel {
         return null;
     }
 
-    public void refreshDisplay() {
-        treeModel.reload();
-        expandAllNodes();
-        fileTree.revalidate();
-        fileTree.repaint();
-    }
-
     // File tree cell renderer
     private class FileTreeCellRenderer extends DefaultTreeCellRenderer {
         @Serial
@@ -343,60 +295,62 @@ public class FileNavigationPanel extends ThemedPanel {
 
             int iconSize = 16; // Standard icon size for tree items
 
-            if (userObject instanceof Repository repo) {
-                setText(repo.getName());
-                setFont(getFont().deriveFont(Font.BOLD));
-                setIcon(new RepositoryIcon(iconSize));
-            } else if (userObject instanceof ReviewFile file) {
-                setText(file.getFileName());
+            switch (userObject) {
+                case Repository repo -> {
+                    setText(repo.getName());
+                    setFont(getFont().deriveFont(Font.BOLD));
+                    setIcon(new RepositoryIcon(iconSize));
+                }
+                case ReviewFile file -> {
+                    setText(file.getFileName());
 
-                // Check for comments on this file
-                Icon fileIcon = new FileIcon(iconSize);
-                if (currentReviewContext != null) {
-                    List<ReviewComment> comments = currentReviewContext.getCommentsForFile(file.getPath());
-                    if (!comments.isEmpty()) {
-                        // Determine if comments need resolution
-                        boolean hasUnresolved = comments.stream()
-                            .anyMatch(c -> c.needsResolution() && !c.isResolved());
-                        boolean hasResolved = comments.stream()
-                            .anyMatch(c -> c.needsResolution() && c.isResolved());
+                    // Check for comments on this file
+                    Icon fileIcon = new FileIcon(iconSize);
+                    if (currentReviewContext != null) {
+                        List<ReviewComment> comments = currentReviewContext.getCommentsForFile(file.getPath());
+                        if (!comments.isEmpty()) {
+                            // Determine if comments need resolution
+                            boolean hasUnresolved = comments.stream()
+                                    .anyMatch(c -> c.needsResolution() && !c.isResolved());
+                            boolean hasResolved = comments.stream()
+                                    .anyMatch(c -> c.needsResolution() && c.isResolved());
 
-                        Color commentColor = hasUnresolved
-                            ? new Color(255, 152, 0)  // Orange for unresolved
-                            : (hasResolved ? new Color(76, 175, 80) : theme.getAccentColor());  // Green for resolved
+                            Color commentColor = hasUnresolved
+                                    ? new Color(255, 152, 0)  // Orange for unresolved
+                                    : (hasResolved ? new Color(76, 175, 80) : theme.getAccentColor());  // Green for resolved
 
-                        int commentCount = comments.size();
-                        Icon commentIcon = new FileCommentIcon(10, commentColor, commentCount, false);
-                        fileIcon = new CompositeIcon(fileIcon, commentIcon);
+                            int commentCount = comments.size();
+                            Icon commentIcon = new FileCommentIcon(10, commentColor, commentCount, false);
+                            fileIcon = new CompositeIcon(fileIcon, commentIcon);
+                        }
+                    }
+                    setIcon(fileIcon);
+
+                    // Color by change type (only when not selected)
+                    if (!sel) {
+                        switch (file.getChangeType()) {
+                            case ADDED:
+                                setForeground(new Color(40, 167, 69)); // Green
+                                break;
+                            case DELETED:
+                                setForeground(new Color(220, 53, 69)); // Red
+                                break;
+                            case MODIFIED:
+                                setForeground(theme.getAccentColor());
+                                break;
+                            case RENAMED:
+                                setForeground(new Color(255, 193, 7)); // Yellow
+                                break;
+                        }
+                    } else {
+                        setForeground(Color.WHITE);
                     }
                 }
-                setIcon(fileIcon);
-
-                // Color by change type (only when not selected)
-                if (!sel) {
-                    switch (file.getChangeType()) {
-                        case ADDED:
-                            setForeground(new Color(40, 167, 69)); // Green
-                            break;
-                        case DELETED:
-                            setForeground(new Color(220, 53, 69)); // Red
-                            break;
-                        case MODIFIED:
-                            setForeground(theme.getAccentColor());
-                            break;
-                        case RENAMED:
-                            setForeground(new Color(255, 193, 7)); // Yellow
-                            break;
-                    }
-                } else {
-                    setForeground(Color.WHITE);
+                case String _ -> {
+                    setText(value.toString());
+                    setIcon(new FolderIcon(iconSize));
                 }
-            } else if (userObject instanceof String) {
-                // It's a folder
-                setText(value.toString());
-                setIcon(new FolderIcon(iconSize));
-            } else {
-                setText(value.toString());
+                case null, default -> setText(value.toString());
             }
 
             return this;

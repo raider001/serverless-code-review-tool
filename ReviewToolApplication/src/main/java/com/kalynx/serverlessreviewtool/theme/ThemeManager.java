@@ -1,5 +1,8 @@
 package com.kalynx.serverlessreviewtool.theme;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.swing.*;
 import javax.swing.plaf.ColorUIResource;
 import javax.swing.plaf.FontUIResource;
@@ -11,7 +14,8 @@ import java.util.Enumeration;
  * Uses only native Java Swing components
  */
 public class ThemeManager {
-    
+    private static final Logger LOGGER = LoggerFactory.getLogger(ThemeManager.class);
+
     private static ThemeManager instance;
     private Theme currentTheme;
     private float dpiScale = 1.0f;
@@ -47,7 +51,7 @@ public class ThemeManager {
         if (dpiScale < 1.0f) dpiScale = 1.0f;
         if (dpiScale > 3.0f) dpiScale = 3.0f;
         
-        System.out.println("DPI Scale Factor: " + dpiScale + " (Screen DPI: " + dpi + ")");
+        LOGGER.info("DPI Scale Factor: {} (Screen DPI: {})", dpiScale, dpi);
     }
     
     /**
@@ -56,14 +60,7 @@ public class ThemeManager {
     public int scale(int size) {
         return Math.round(size * dpiScale);
     }
-    
-    /**
-     * Get scaled font
-     */
-    public Font scaleFont(Font font) {
-        return font.deriveFont(font.getSize() * dpiScale);
-    }
-    
+
     /**
      * Apply the current theme to all Swing components
      */
@@ -87,7 +84,7 @@ public class ThemeManager {
             }
 
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error("Failed to apply theme", e);
         }
     }
     
@@ -204,11 +201,5 @@ public class ThemeManager {
     public Theme getCurrentTheme() {
         return currentTheme;
     }
-    
-    /**
-     * Get DPI scale factor
-     */
-    public float getDpiScale() {
-        return dpiScale;
-    }
+
 }

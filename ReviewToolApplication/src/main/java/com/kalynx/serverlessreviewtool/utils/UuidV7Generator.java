@@ -1,5 +1,8 @@
 package com.kalynx.serverlessreviewtool.utils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.security.SecureRandom;
 import java.util.UUID;
 
@@ -21,6 +24,7 @@ import java.util.UUID;
 public class UuidV7Generator {
 
     private static final SecureRandom RANDOM = new SecureRandom();
+    private static final Logger LOGGER = LoggerFactory.getLogger(UuidV7Generator.class);
 
     /**
      * Generates a new UUID v7.
@@ -55,10 +59,10 @@ public class UuidV7Generator {
         return value;
     }
 
-    public static void main(String[] args) {
-        System.out.println("UUID v7 Examples:");
+    static void main() {
+        LOGGER.info("UUID v7 Examples:");
         for (int i = 0; i < 10; i++) {
-            System.out.println(generate());
+            LOGGER.info("{}", generate());
             try {
                 Thread.sleep(1);
             } catch (InterruptedException e) {

@@ -33,10 +33,10 @@ class GitReviewNotesManagerTests {
     @BeforeAll
     static void setUpMockRepositories() {
         try {
-            System.out.println("Setting up mock Git repositories for GitReviewNotesManager tests...");
+            logger.info("Setting up mock Git repositories for GitReviewNotesManager tests...");
             GitRepositoryInitializer.main();
         } catch (Exception e) {
-            System.err.println("Failed to initialize mock repositories: " + e.getMessage());
+            logger.error("Failed to initialize mock repositories", e);
             throw new RuntimeException("Cannot run tests without mock repositories", e);
         }
     }

@@ -4,6 +4,8 @@ import java.io.Serial;
 
 import com.kalynx.serverlessreviewtool.theme.Theme;
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.awt.*;
@@ -17,6 +19,7 @@ import java.awt.event.MouseEvent;
 public class SlideOutMenu extends ThemedPanel {
     @Serial
     private static final long serialVersionUID = 1L;
+    private static final Logger LOGGER = LoggerFactory.getLogger(SlideOutMenu.class);
 
     private transient final ThemeManager themeManager;
     private final JFrame parentFrame;
@@ -69,10 +72,10 @@ public class SlideOutMenu extends ThemedPanel {
         menuContentPanel.add(Box.createVerticalStrut(themeManager.scale(20)));
 
         // Add sample menu items
-        addMenuItem("Dashboard", () -> System.out.println("Dashboard clicked"));
-        addMenuItem("Settings", () -> System.out.println("Settings clicked"));
-        addMenuItem("About", () -> System.out.println("About clicked"));
-        addMenuItem("Help", () -> System.out.println("Help clicked"));
+        addMenuItem("Dashboard", () -> LOGGER.debug("Dashboard clicked"));
+        addMenuItem("Settings", () -> LOGGER.debug("Settings clicked"));
+        addMenuItem("About", () -> LOGGER.debug("About clicked"));
+        addMenuItem("Help", () -> LOGGER.debug("Help clicked"));
 
         // Use ThemedScrollPane for proper theming
         ThemedScrollPane scrollPane = new ThemedScrollPane(

@@ -7,6 +7,8 @@ import com.kalynx.serverlessreviewtool.mockdata.repositories.pythonapi.DatabaseF
 import com.kalynx.serverlessreviewtool.mockdata.repositories.pythonapi.branches.FeatureLoggingBranch;
 import com.kalynx.serverlessreviewtool.mockdata.repositories.pythonapi.branches.FeatureOAuthIntegrationBranch;
 import com.kalynx.serverlessreviewtool.mockdata.repositories.pythonapi.branches.RefactorDatabaseBranch;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -14,6 +16,7 @@ import java.nio.file.Path;
 
 public class PythonApiRepository extends BaseRepository {
     private static final String REPO_NAME = "python-api-service";
+    private static final Logger LOGGER = LoggerFactory.getLogger(PythonApiRepository.class);
 
     public static void create(Path basePath) throws Exception {
         Path repoPath = basePath.resolve(REPO_NAME);
@@ -22,27 +25,27 @@ public class PythonApiRepository extends BaseRepository {
         initGitRepository(repoPath);
         createInitialStructure(repoPath);
 
-        System.out.println("  Creating app.py with incremental commits...");
+        LOGGER.info("Creating app.py with incremental commits");
         AppFileMock.create(repoPath);
 
-        System.out.println("  Creating models.py with incremental commits...");
+        LOGGER.info("Creating models.py with incremental commits");
         ModelsFileMock.create(repoPath);
 
-        System.out.println("  Creating auth.py with incremental commits...");
+        LOGGER.info("Creating auth.py with incremental commits");
         AuthFileMock.create(repoPath);
 
-        System.out.println("  Creating database.py with incremental commits...");
+        LOGGER.info("Creating database.py with incremental commits");
         DatabaseFileMock.create(repoPath);
 
-        System.out.println("  Adding review notes...");
+        LOGGER.info("Adding review notes");
         addReviewNotes(repoPath);
 
-        System.out.println("  Creating feature branches...");
+        LOGGER.info("Creating feature branches");
         FeatureLoggingBranch.create(repoPath);
         FeatureOAuthIntegrationBranch.create(repoPath);
         RefactorDatabaseBranch.create(repoPath);
 
-        System.out.println("  Python API repository created at: " + repoPath);
+        LOGGER.info("Python API repository created at: {}", repoPath);
     }
 
     private static void addReviewNotes(Path repoPath) throws IOException, InterruptedException {

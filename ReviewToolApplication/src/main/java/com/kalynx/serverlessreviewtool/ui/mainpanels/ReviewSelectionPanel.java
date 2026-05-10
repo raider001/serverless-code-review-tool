@@ -14,6 +14,8 @@ import com.kalynx.serverlessreviewtool.ui.review.CreateReviewDialog;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewselectionpanel.FilterPanel;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewselectionpanel.ReviewListPanel;
 import net.miginfocom.swing.MigLayout;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.util.function.Consumer;
@@ -22,6 +24,7 @@ import java.util.function.Consumer;
  * ReviewSelectionPanel - Main UI for selecting and filtering code reviews
  */
 public class ReviewSelectionPanel extends ThemedPanel implements Refreshable {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ReviewSelectionPanel.class);
 
     private final ReviewListPanel listPanel;
     private final FilterPanel filterPanel;
@@ -97,10 +100,10 @@ public class ReviewSelectionPanel extends ThemedPanel implements Refreshable {
     public void onRefresh() {
         LoadingStateManager.getInstance().startLoading("review-refresh");
         reviewItemManager.refresh()
-            .whenComplete((result, error) -> {
+            .whenComplete((_, error) -> {
                 LoadingStateManager.getInstance().stopLoading("review-refresh");
                 if (error != null) {
-                    System.err.println("Error refreshing reviews: " + error.getMessage());
+                    LOGGER.error("Error refreshing reviews", error);
                 }
             });
     }

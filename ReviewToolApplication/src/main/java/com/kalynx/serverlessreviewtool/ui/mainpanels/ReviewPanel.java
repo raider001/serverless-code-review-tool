@@ -125,7 +125,7 @@ public class ReviewPanel extends ThemedPanel {
             .map(Repository::getName)
             .toList();
 
-        LOGGER.info("Applying reviewer decision {} for user {} on review {}",
+        LOGGER.debug("Applying reviewer decision {} for user {} on review {}",
             status, currentUser, currentReviewContext.reviewId);
 
         LoadingStateManager.getInstance().startLoading(loadingMessage);
@@ -138,7 +138,7 @@ public class ReviewPanel extends ThemedPanel {
                 currentReviewContext = updatedContext;
                 ReviewStatus desired = computeOverallStatus(updatedContext);
                 if (desired != updatedContext.status && !isTerminalStatus(updatedContext.status)) {
-                    LOGGER.info("Syncing overall status to {} based on reviewer decisions", desired);
+                    LOGGER.debug("Syncing overall status to {} based on reviewer decisions", desired);
                     ReviewContext synced = new ReviewContext(
                         updatedContext.reviewId,
                         updatedContext.title,
@@ -213,7 +213,7 @@ public class ReviewPanel extends ThemedPanel {
         if (context != null) {
             model.commentsPanelModel.setComments(context.getComments());
             model.commentsPanelModel.setCurrentUser(settingsManager.getCurrentUserName());
-            LOGGER.info("Synced {} comments to CommentsPanelModel for user: {}",
+            LOGGER.debug("Synced {} comments to CommentsPanelModel for user: {}",
                 context.getComments().size(), settingsManager.getCurrentUserName());
         } else {
             model.commentsPanelModel.clear();
@@ -242,9 +242,9 @@ public class ReviewPanel extends ThemedPanel {
         model.setCurrentReview(reviewId);
         LoadingStateManager.getInstance().startLoading("Loading review context...");
 
-        LOGGER.info("=== REVIEW PANEL LOAD START ===");
-        LOGGER.info("Review ID: {}", reviewId);
-        LOGGER.info("Repository Names from ReviewItem: {}", repositoryNames);
+        LOGGER.debug("=== REVIEW PANEL LOAD START ===");
+        LOGGER.debug("Review ID: {}", reviewId);
+        LOGGER.debug("Repository Names from ReviewItem: {}", repositoryNames);
 
         reviewContextManager.loadReviewMetadata(reviewId, repositoryNames)
             .thenCompose(reviewContext -> {
@@ -258,10 +258,10 @@ public class ReviewPanel extends ThemedPanel {
 
                 List<com.kalynx.serverlessreviewtool.models.Repository> repositories = reviewContext.getRepositories();
 
-                LOGGER.info("=== REPOSITORIES FROM REVIEW CONTEXT ===");
-                LOGGER.info("Number of repositories: {}", repositories.size());
+                LOGGER.debug("=== REPOSITORIES FROM REVIEW CONTEXT ===");
+                LOGGER.debug("Number of repositories: {}", repositories.size());
                 for (com.kalynx.serverlessreviewtool.models.Repository repo : repositories) {
-                    LOGGER.info("  - Repository: {} (url: {})", repo.getName(), repo.getUrl());
+                    LOGGER.debug("  - Repository: {} (url: {})", repo.getName(), repo.getUrl());
                 }
 
                 if (repositories.isEmpty()) {
@@ -286,7 +286,7 @@ public class ReviewPanel extends ThemedPanel {
                         CompletableFuture<Void> commitsFuture;
                         CompletableFuture<List<ReviewFile>> filesFuture;
                         if (reviewContext.hasClosedHistory()) {
-                            LOGGER.info("Review {} has closed-history; using stored commit snapshot loading", reviewId);
+                            LOGGER.debug("Review {} has closed-history; using stored commit snapshot loading", reviewId);
                             String snapshotEditor = settingsManager.getCurrentUserName();
                             if (snapshotEditor == null || snapshotEditor.isBlank()) {
                                 snapshotEditor = "system";
@@ -322,21 +322,21 @@ public class ReviewPanel extends ThemedPanel {
                                     reviewContext.getBaseBranch());
                         }
 
-                        LOGGER.info("=== LOADING FILES FROM REPOSITORIES ===");
-                        LOGGER.info("Repositories being passed to loadFilesFromReviewCommits:");
+                        LOGGER.debug("=== LOADING FILES FROM REPOSITORIES ===");
+                        LOGGER.debug("Repositories being passed to loadFilesFromReviewCommits:");
                         for (com.kalynx.serverlessreviewtool.models.Repository repo : repositories) {
-                            LOGGER.info("  - {}", repo.getName());
+                            LOGGER.debug("  - {}", repo.getName());
                         }
 
                         return CompletableFuture.allOf(commitsFuture, filesFuture)
                             .thenAccept(_ -> {
                                 List<ReviewFile> allFiles = filesFuture.join();
 
-                                LOGGER.info("=== FILES LOADED FROM REVIEW ===");
-                                LOGGER.info("Total files: {}", allFiles.size());
+                                LOGGER.debug("=== FILES LOADED FROM REVIEW ===");
+                                LOGGER.debug("Total files: {}", allFiles.size());
 
                                 for (ReviewFile file : allFiles) {
-                                    LOGGER.info("  - {} (repository: {})", file.getPath(), file.getRepository());
+                                    LOGGER.debug("  - {} (repository: {})", file.getPath(), file.getRepository());
                                 }
 
                                 if (!allFiles.isEmpty()) {
@@ -345,15 +345,15 @@ public class ReviewPanel extends ThemedPanel {
                                     String baseBranch = firstFile.getBaseBranch();
 
                                     if (reviewBranch != null && baseBranch != null) {
-                                        LOGGER.info("Setting review branches in model: base={}, review={}",
+                                        LOGGER.debug("Setting review branches in model: base={}, review={}",
                                             baseBranch, reviewBranch);
                                         model.codeViewerModel.setReviewBranches(reviewBranch, baseBranch);
                                     }
                                 }
 
-                                LOGGER.info("=== SETTING FILES TO MODEL ===");
+                                LOGGER.debug("=== SETTING FILES TO MODEL ===");
                                 model.codeViewerModel.setAvailableFiles(allFiles);
-                                LOGGER.info("=== REVIEW PANEL LOAD COMPLETE ===");
+                                LOGGER.debug("=== REVIEW PANEL LOAD COMPLETE ===");
                             });
                     });
             })
@@ -370,7 +370,7 @@ public class ReviewPanel extends ThemedPanel {
             return;
         }
 
-        LOGGER.info("Opening edit dialog for review: {}", currentReviewContext.reviewId);
+        LOGGER.debug("Opening edit dialog for review: {}", currentReviewContext.reviewId);
 
         EditReviewDialog dialog = new EditReviewDialog(
             this,
@@ -382,7 +382,7 @@ public class ReviewPanel extends ThemedPanel {
         );
 
         dialog.setOnReviewUpdated(() -> {
-            LOGGER.info("Review field updated, refreshing context...");
+            LOGGER.debug("Review field updated, refreshing context...");
             reviewContextManager.loadReviewMetadata(currentReviewContext.reviewId,
                 currentReviewContext.repositories.stream()
                     .map(Repository::getName)
@@ -417,7 +417,7 @@ public class ReviewPanel extends ThemedPanel {
 
         final String currentUser = settingsManager.getCurrentUserName();
 
-        LOGGER.info("Adding {} as reviewer to review: {}", currentUser, currentReviewContext.reviewId);
+        LOGGER.debug("Adding {} as reviewer to review: {}", currentUser, currentReviewContext.reviewId);
 
         LoadingStateManager.getInstance().startLoading("Joining review...");
 
@@ -426,7 +426,7 @@ public class ReviewPanel extends ThemedPanel {
                 .map(Repository::getName)
                 .toList())
             .thenAccept(_ -> {
-                LOGGER.info("Successfully added {} as reviewer", currentUser);
+                LOGGER.debug("Successfully added {} as reviewer", currentUser);
                 reviewContextManager.loadReviewMetadata(currentReviewContext.reviewId,
                     currentReviewContext.repositories.stream()
                         .map(Repository::getName)
@@ -466,7 +466,7 @@ public class ReviewPanel extends ThemedPanel {
 
         final String currentUser = settingsManager.getCurrentUserName();
 
-        LOGGER.info("Removing {} from review: {}", currentUser, currentReviewContext.reviewId);
+        LOGGER.debug("Removing {} from review: {}", currentUser, currentReviewContext.reviewId);
 
         LoadingStateManager.getInstance().startLoading("Leaving review...");
 
@@ -475,7 +475,7 @@ public class ReviewPanel extends ThemedPanel {
                 .map(Repository::getName)
                 .toList())
             .thenAccept(_ -> {
-                LOGGER.info("Successfully removed {} from reviewers", currentUser);
+                LOGGER.debug("Successfully removed {} from reviewers", currentUser);
                 reviewContextManager.loadReviewMetadata(currentReviewContext.reviewId,
                     currentReviewContext.repositories.stream()
                         .map(Repository::getName)
@@ -537,11 +537,11 @@ public class ReviewPanel extends ThemedPanel {
         }
 
         if (currentReviewContext.status == targetStatus) {
-            LOGGER.info("Review {} is already {}", currentReviewContext.reviewId, targetStatus);
+            LOGGER.debug("Review {} is already {}", currentReviewContext.reviewId, targetStatus);
             return;
         }
 
-        LOGGER.info("Applying status {} to review {} by author {}", targetStatus, currentReviewContext.reviewId, currentUser);
+        LOGGER.debug("Applying status {} to review {} by author {}", targetStatus, currentReviewContext.reviewId, currentUser);
         LoadingStateManager.getInstance().startLoading(loadingMessage);
 
         ReviewContext updatedContext = new ReviewContext(

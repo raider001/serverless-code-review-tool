@@ -5,6 +5,8 @@ import java.io.Serial;
 import com.kalynx.serverlessreviewtool.models.ReviewItem;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedList;
 import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewselectionpanel.reviewitem.ReviewItemCellRenderer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -14,6 +16,7 @@ import java.util.function.Consumer;
 public class ReviewList extends ThemedList<ReviewItem> {
     @Serial
     private static final long serialVersionUID = 1L;
+    private static final Logger LOGGER = LoggerFactory.getLogger(ReviewList.class);
 
     private transient Consumer<ReviewItem> doubleClickCallback;
 
@@ -46,11 +49,7 @@ public class ReviewList extends ThemedList<ReviewItem> {
     }
 
     private void onReviewSelected(ReviewItem reviewItem) {
-        System.out.println("Selected review: " + reviewItem.getTitle());
-    }
-
-    public void setFilters(String titleFilter, String authorFilter, List<String> repositoryFilter) {
-        ((ReviewItemFilterableModel) getModel()).filter(titleFilter, authorFilter, repositoryFilter);
+        LOGGER.debug("Selected review: {}", reviewItem.getTitle());
     }
 
     private static class ReviewItemFilterableModel extends FilterableDefaultListModel<ReviewItem> {

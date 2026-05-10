@@ -6,6 +6,8 @@ import com.kalynx.serverlessreviewtool.mockdata.repositories.reactfrontend.UserL
 import com.kalynx.serverlessreviewtool.mockdata.repositories.reactfrontend.ApiFileMock;
 import com.kalynx.serverlessreviewtool.mockdata.repositories.reactfrontend.branches.FeatureThemingBranch;
 import com.kalynx.serverlessreviewtool.mockdata.repositories.reactfrontend.branches.PerformanceOptimizationBranch;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -13,6 +15,7 @@ import java.nio.file.Path;
 
 public class ReactFrontendRepository extends BaseRepository {
     private static final String REPO_NAME = "react-frontend-app";
+    private static final Logger LOGGER = LoggerFactory.getLogger(ReactFrontendRepository.class);
 
     public static void create(Path basePath) throws Exception {
         Path repoPath = basePath.resolve(REPO_NAME);
@@ -21,26 +24,26 @@ public class ReactFrontendRepository extends BaseRepository {
         initGitRepository(repoPath);
         createInitialStructure(repoPath);
 
-        System.out.println("  Creating App.tsx with incremental commits...");
+        LOGGER.info("Creating App.tsx with incremental commits");
         AppFileMock.create(repoPath);
 
-        System.out.println("  Creating LoginForm.tsx with incremental commits...");
+        LOGGER.info("Creating LoginForm.tsx with incremental commits");
         LoginFormFileMock.create(repoPath);
 
-        System.out.println("  Creating UserList.tsx with incremental commits...");
+        LOGGER.info("Creating UserList.tsx with incremental commits");
         UserListFileMock.create(repoPath);
 
-        System.out.println("  Creating api.ts with incremental commits...");
+        LOGGER.info("Creating api.ts with incremental commits");
         ApiFileMock.create(repoPath);
 
-        System.out.println("  Adding review notes...");
+        LOGGER.info("Adding review notes");
         addReviewNotes(repoPath);
 
-        System.out.println("  Creating feature branches...");
+        LOGGER.info("Creating feature branches");
         FeatureThemingBranch.create(repoPath);
         PerformanceOptimizationBranch.create(repoPath);
 
-        System.out.println("  React Frontend repository created at: " + repoPath);
+        LOGGER.info("React Frontend repository created at: {}", repoPath);
     }
 
     private static void addReviewNotes(Path repoPath) throws IOException, InterruptedException {

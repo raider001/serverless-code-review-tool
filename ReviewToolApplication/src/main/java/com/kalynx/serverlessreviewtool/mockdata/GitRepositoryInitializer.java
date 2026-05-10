@@ -25,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 public class GitRepositoryInitializer {
     private static final Logger LOGGER = LoggerFactory.getLogger(GitRepositoryInitializer.class);
     private static final Path MOCK_BASE_PATH = Paths.get(System.getProperty("user.home"), ".serverless-review-tool", "mock-repos");
+    private static final Path LOCAL_REPOSITORIES_PATH = Paths.get(System.getProperty("user.home"), ".serverless-review-tool", "repositories");
     private static final List<String> EXPECTED_REPOSITORIES = List.of(
         "java-backend-service",
         "python-api-service",
@@ -42,6 +43,7 @@ public class GitRepositoryInitializer {
             long startTime = System.currentTimeMillis();
             cleanupExistingRepositories();
             createMockRepositories();
+            cleanupLocalMockRepositoryClones();
 
             long elapsedTime = System.currentTimeMillis() - startTime;
             LOGGER.info("Mock repositories created successfully!");
@@ -74,6 +76,7 @@ public class GitRepositoryInitializer {
 
         cleanupExistingRepositories();
         createMockRepositories();
+        cleanupLocalMockRepositoryClones();
     }
 
     /**
@@ -208,6 +211,29 @@ public class GitRepositoryInitializer {
                     } catch (InterruptedException ignored) {
                     }
                 }
+            }
+        }
+    }
+
+    private static void cleanupLocalMockRepositoryClones() {
+        if (!Files.isDirectory(LOCAL_REPOSITORIES_PATH)) {
+            return;
+        }
+
+        for (String repositoryName : EXPECTED_REPOSITORIES) {
+            Path localRepositoryPath = LOCAL_REPOSITORIES_PATH.resolve(repositoryName);
+            if (!Files.exists(localRepositoryPath)) {
+                continue;
+            }
+
+            try {
+                try (var stream = Files.walk(localRepositoryPath)) {
+                    stream.sorted(Comparator.reverseOrder())
+                        .forEach(GitRepositoryInitializer::deleteWithRetry);
+                }
+                LOGGER.info("Removed stale local mock repository clone: {}", localRepositoryPath);
+            } catch (IOException e) {
+                LOGGER.warn("Failed to remove local mock repository clone: {}", localRepositoryPath, e);
             }
         }
     }

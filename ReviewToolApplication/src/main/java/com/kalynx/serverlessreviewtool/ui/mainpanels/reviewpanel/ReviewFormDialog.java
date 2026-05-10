@@ -9,6 +9,8 @@ import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel.reviewformdialo
 import com.kalynx.serverlessreviewtool.ui.models.reviewpanel.reviewformdialog.ReviewFormModels;
 import com.kalynx.serverlessreviewtool.models.ReviewerInfo;
 import net.miginfocom.swing.MigLayout;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.awt.*;
@@ -18,6 +20,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 public abstract class ReviewFormDialog extends ThemedPopupDialog {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ReviewFormDialog.class);
 
     private static final int DIALOG_W = 880;
     private static final int DIALOG_H = 720;
@@ -138,7 +141,7 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
                 models.availableBranches.setValue(commonBranches);
             }))
             .exceptionally(error -> {
-                System.err.println("Failed to fetch branches: " + error.getMessage());
+                LOGGER.error("Failed to fetch branches for {}", primaryRepoName, error);
                 List<String> commonBranches = findCommonBranches(selectedRepos);
                 SwingUtilities.invokeLater(() -> models.availableBranches.setValue(commonBranches));
                 return null;
@@ -245,19 +248,19 @@ public abstract class ReviewFormDialog extends ThemedPopupDialog {
     }
 
     private void printReviewFormModels() {
-        System.out.println("=== ReviewFormModels Values ===");
-        System.out.println("Review ID: " + models.reviewId.getValue());
-        System.out.println("Title: " + models.title.getValue());
-        System.out.println("Author: " + models.author.getValue());
-        System.out.println("Summary: " + models.summary.getValue());
-        System.out.println("Selected Branch: " + models.selectedBranchModel.getValue());
-        System.out.println("Selected Base Branch: " + models.selectedBaseBranchModel.getValue());
-        System.out.println("Available Branches: " + models.availableBranches.getValue());
-        System.out.println("Selected Repositories: " + models.selectedRepositories.getValue());
-        System.out.println("Available Repositories: " + models.availableRepositories.getValue());
-        System.out.println("Selected Reviewers: " + models.selectedReviewers.getValue());
-        System.out.println("Available Reviewers: " + models.availableReviewers.getValue());
-        System.out.println("===============================");
+        LOGGER.debug("=== ReviewFormModels Values ===");
+        LOGGER.debug("Review ID: {}", models.reviewId.getValue());
+        LOGGER.debug("Title: {}", models.title.getValue());
+        LOGGER.debug("Author: {}", models.author.getValue());
+        LOGGER.debug("Summary: {}", models.summary.getValue());
+        LOGGER.debug("Selected Branch: {}", models.selectedBranchModel.getValue());
+        LOGGER.debug("Selected Base Branch: {}", models.selectedBaseBranchModel.getValue());
+        LOGGER.debug("Available Branches: {}", models.availableBranches.getValue());
+        LOGGER.debug("Selected Repositories: {}", models.selectedRepositories.getValue());
+        LOGGER.debug("Available Repositories: {}", models.availableRepositories.getValue());
+        LOGGER.debug("Selected Reviewers: {}", models.selectedReviewers.getValue());
+        LOGGER.debug("Available Reviewers: {}", models.availableReviewers.getValue());
+        LOGGER.debug("===============================");
     }
 
     public boolean isConfirmed() {

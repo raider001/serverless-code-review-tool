@@ -1,6 +1,8 @@
 package manualtests;
 
 import com.kalynx.serverlessreviewtool.managers.PluginManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -11,13 +13,12 @@ import java.util.List;
  * Quick smoke runner for syntax highlighter plugin discovery.
  */
 public class SyntaxPluginDiscoverySmoke {
+    private static final Logger LOGGER = LoggerFactory.getLogger(SyntaxPluginDiscoverySmoke.class);
 
     /**
      * Runs discovery checks for configured syntax extensions.
-     *
-     * @param args ignored
      */
-    public static void main(String[] args) {
+    static void main() {
         configurePluginDirectory();
 
         PluginManager pluginManager = new PluginManager();
@@ -34,7 +35,7 @@ public class SyntaxPluginDiscoverySmoke {
             String plugin = pluginManager.getSyntaxHighlighterFor(extension)
                 .map(p -> p.getClass().getSimpleName())
                 .orElse("<missing>");
-            System.out.println(extension + " -> " + plugin);
+            LOGGER.info("{} -> {}", extension, plugin);
         }
 
         pluginManager.shutdown();

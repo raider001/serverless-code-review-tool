@@ -37,10 +37,9 @@ public class SyntaxHighlighterManualTestHarness {
 
     /**
      * Starts the manual syntax highlighting viewer.
-     *
-     * @param args ignored
+
      */
-    public static void main(String[] args) {
+    static void main() {
         SwingUtilities.invokeLater(() -> new SyntaxHighlighterManualTestHarness().show());
     }
 
@@ -85,8 +84,8 @@ public class SyntaxHighlighterManualTestHarness {
         frame.add(topPanel, BorderLayout.NORTH);
         frame.add(splitPane, BorderLayout.CENTER);
 
-        languageSelector.addActionListener(e -> loadSelectedSample());
-        darkThemeToggle.addActionListener(e -> renderSelected());
+        languageSelector.addActionListener(_ -> loadSelectedSample());
+        darkThemeToggle.addActionListener(_ -> renderSelected());
         sourceArea.getDocument().addDocumentListener(new DocumentListener() {
             @Override
             public void insertUpdate(DocumentEvent e) {
@@ -200,14 +199,41 @@ public class SyntaxHighlighterManualTestHarness {
                 continue;
             }
             SimpleAttributeSet style = new SimpleAttributeSet();
-            StyleConstants.setForeground(style, plugin.getColorForTokenType(token.type, darkTheme));
+            StyleConstants.setForeground(style, resolveTokenColor(plugin, token.type, darkTheme, foreground));
             doc.setCharacterAttributes(token.offset, token.length, style, false);
         }
     }
 
+    private Color resolveTokenColor(SyntaxHighlighterPlugin plugin,
+                                    SyntaxHighlighterPlugin.TokenType tokenType,
+                                    boolean darkTheme,
+                                    Color fallback) {
+        try {
+            Object resolved = plugin.getClass()
+                .getMethod("getColorForTokenType", SyntaxHighlighterPlugin.TokenType.class, boolean.class)
+                .invoke(plugin, tokenType, darkTheme);
+            if (resolved instanceof Color color) {
+                return color;
+            }
+        } catch (ReflectiveOperationException ignored) {
+        }
+
+        try {
+            Object resolved = plugin.getClass()
+                .getMethod("getColorForTokenType", SyntaxHighlighterPlugin.TokenType.class)
+                .invoke(plugin, tokenType);
+            if (resolved instanceof Color color) {
+                return color;
+            }
+        } catch (ReflectiveOperationException ignored) {
+        }
+
+        return fallback;
+    }
+
     private Map<String, String> createSamples() {
         Map<String, String> map = new LinkedHashMap<>();
-        map.put("java", "class User { String name = \"Ada\"; }\nclass Demo {\n  public static void main(String[] args) {\n    User user = new User();\n    System.out.println(user.name);\n  }\n}\n");
+        map.put("java", "class User { String name = \"Ada\"; }\nclass Demo {\n  public static String getName() {\n    User user = new User();\n    return user.name;\n  }\n}\n");
         map.put("py", "class User:\n    def __init__(self):\n        self.name = \"Ada\"\n\nuser = User()\nprint(user.name)\n");
         map.put("js", "const user = { name: \"Ada\" };\nif (user.name) {\n  console.log(user.name);\n}\n");
         map.put("html", "<section class=\"card\">\n  <h1 id=\"title\">Hello</h1>\n  <button @click=\"save\">Save</button>\n</section>\n");

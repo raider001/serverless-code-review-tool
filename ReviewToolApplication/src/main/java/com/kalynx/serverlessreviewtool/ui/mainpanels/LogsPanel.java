@@ -9,6 +9,8 @@ import javax.swing.text.*;
 import java.awt.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * LogsPanel displays application logs in real-time with color-coded severity levels.
@@ -23,7 +25,10 @@ public class LogsPanel extends ThemedPanel {
     private final StyledDocument document;
     private final ThemedScrollPane scrollPane;
     private final ThemedButton clearButton;
+    private final ThemedComboBox<LogLevel> displayLevelComboBox;
     private final ThemeManager themeManager;
+    private final List<LogEntry> logEntries;
+    private LogLevel activeDisplayLevel;
 
     private Style infoStyle;
     private Style warnStyle;
@@ -37,6 +42,9 @@ public class LogsPanel extends ThemedPanel {
         this.document = logTextPane.getStyledDocument();
         this.scrollPane = new ThemedScrollPane(logTextPane);
         this.clearButton = new ThemedButton("Clear Logs");
+        this.displayLevelComboBox = new ThemedComboBox<>(LogLevel.values());
+        this.logEntries = new ArrayList<>();
+        this.activeDisplayLevel = LogLevel.INFO;
 
         configureLogPane();
         initializeStyles();
@@ -82,9 +90,14 @@ public class LogsPanel extends ThemedPanel {
         setLayout(new MigLayout("fill, insets 0", "[grow]", "[][grow]"));
 
         ThemedPanel headerPanel = new ThemedPanel();
-        headerPanel.setLayout(new MigLayout("insets 5", "[grow][]", "[]"));
+        headerPanel.setLayout(new MigLayout("insets 5", "[grow][][][]", "[]"));
         headerPanel.setBorder(ThemedTitledBorder.create("Application Logs"));
 
+        ThemedLabel levelLabel = new ThemedLabel("Level:");
+        displayLevelComboBox.setSelectedItem(activeDisplayLevel);
+
+        headerPanel.add(levelLabel);
+        headerPanel.add(displayLevelComboBox, "w 90!");
         headerPanel.add(clearButton, "align right");
 
         add(headerPanel, "growx, wrap");
@@ -92,7 +105,8 @@ public class LogsPanel extends ThemedPanel {
     }
 
     private void setupListeners() {
-        clearButton.addActionListener(e -> clearLogs());
+        clearButton.addActionListener(ignored -> clearLogs());
+        displayLevelComboBox.addActionListener(ignored -> onDisplayLevelChanged());
     }
 
     /**
@@ -101,7 +115,7 @@ public class LogsPanel extends ThemedPanel {
      * @param message the log message
      */
     public void appendInfo(String message) {
-        appendLog("INFO", message, infoStyle);
+        appendLog(LogLevel.INFO, message);
     }
 
     /**
@@ -110,7 +124,7 @@ public class LogsPanel extends ThemedPanel {
      * @param message the log message
      */
     public void appendWarn(String message) {
-        appendLog("WARN", message, warnStyle);
+        appendLog(LogLevel.WARN, message);
     }
 
     /**
@@ -119,7 +133,7 @@ public class LogsPanel extends ThemedPanel {
      * @param message the log message
      */
     public void appendError(String message) {
-        appendLog("ERROR", message, errorStyle);
+        appendLog(LogLevel.ERROR, message);
     }
 
     /**
@@ -128,20 +142,21 @@ public class LogsPanel extends ThemedPanel {
      * @param message the log message
      */
     public void appendDebug(String message) {
-        appendLog("DEBUG", message, debugStyle);
+        appendLog(LogLevel.DEBUG, message);
     }
 
-    private void appendLog(String level, String message, Style levelStyle) {
+    private void appendLog(LogLevel level, String message) {
         SwingUtilities.invokeLater(() -> {
             try {
                 String timestamp = LocalDateTime.now().format(TIME_FORMATTER);
-
-                document.insertString(document.getLength(), timestamp + " ", timestampStyle);
-                document.insertString(document.getLength(), String.format("%-5s", level) + " ", levelStyle);
-                document.insertString(document.getLength(), message + "\n", null);
-
+                LogEntry entry = new LogEntry(timestamp, level, message);
+                logEntries.add(entry);
                 trimLogIfNeeded();
-                scrollToBottom();
+
+                if (shouldDisplay(level)) {
+                    appendEntry(entry);
+                    scrollToBottom();
+                }
 
             } catch (BadLocationException e) {
                 e.printStackTrace();
@@ -149,19 +164,25 @@ public class LogsPanel extends ThemedPanel {
         });
     }
 
-    private void trimLogIfNeeded() {
-        try {
-            Element root = document.getDefaultRootElement();
-            int lineCount = root.getElementCount();
+    private void appendEntry(LogEntry entry) throws BadLocationException {
+        document.insertString(document.getLength(), entry.timestamp() + " ", timestampStyle);
+        document.insertString(document.getLength(), String.format("%-5s", entry.level().name()) + " ", getStyleForLevel(entry.level()));
+        document.insertString(document.getLength(), entry.message() + "\n", null);
+    }
 
-            if (lineCount > MAX_LOG_LINES) {
-                int linesToRemove = lineCount - MAX_LOG_LINES;
-                Element lineToRemove = root.getElement(linesToRemove - 1);
-                int endOffset = lineToRemove.getEndOffset();
-                document.remove(0, endOffset);
-            }
-        } catch (BadLocationException e) {
-            e.printStackTrace();
+    private Style getStyleForLevel(LogLevel level) {
+        return switch (level) {
+            case INFO -> infoStyle;
+            case WARN -> warnStyle;
+            case ERROR -> errorStyle;
+            case DEBUG -> debugStyle;
+        };
+    }
+
+    private void trimLogIfNeeded() {
+        if (logEntries.size() > MAX_LOG_LINES) {
+            int itemsToRemove = logEntries.size() - MAX_LOG_LINES;
+            logEntries.subList(0, itemsToRemove).clear();
         }
     }
 
@@ -171,11 +192,65 @@ public class LogsPanel extends ThemedPanel {
 
     private void clearLogs() {
         try {
+            logEntries.clear();
             document.remove(0, document.getLength());
         } catch (BadLocationException e) {
             e.printStackTrace();
         }
     }
+
+    private void onDisplayLevelChanged() {
+        LogLevel selectedLevel = (LogLevel) displayLevelComboBox.getSelectedItem();
+        if (selectedLevel == null || selectedLevel == activeDisplayLevel) {
+            return;
+        }
+
+        activeDisplayLevel = selectedLevel;
+        renderFilteredLogs();
+    }
+
+    private void renderFilteredLogs() {
+        try {
+            document.remove(0, document.getLength());
+            for (LogEntry entry : logEntries) {
+                if (shouldDisplay(entry.level())) {
+                    appendEntry(entry);
+                }
+            }
+            scrollToBottom();
+        } catch (BadLocationException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private boolean shouldDisplay(LogLevel level) {
+        return switch (activeDisplayLevel) {
+            case ERROR -> level == LogLevel.ERROR;
+            case WARN -> level == LogLevel.WARN || level == LogLevel.ERROR;
+            case INFO -> level == LogLevel.INFO || level == LogLevel.WARN || level == LogLevel.ERROR;
+            case DEBUG -> true;
+        };
+    }
+
+    private enum LogLevel {
+        DEBUG("Debug"),
+        INFO("Info"),
+        WARN("Warn"),
+        ERROR("Error");
+
+        private final String label;
+
+        LogLevel(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
+    private record LogEntry(String timestamp, LogLevel level, String message) {}
 }
 
 

@@ -3,6 +3,8 @@ package com.kalynx.serverlessreviewtool.git;
 import com.kalynx.serverlessreviewtool.models.ReviewItem;
 import com.kalynx.serverlessreviewtool.models.ReviewStatus;
 import com.kalynx.serverlessreviewtool.models.review.StreamEntry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,6 +15,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class ReviewItemLoader {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ReviewItemLoader.class);
 
     private final Git git;
     private static final String NOTES_REF_PREFIX = "refs/notes/reviews/";
@@ -51,9 +54,7 @@ public class ReviewItemLoader {
 
                 return reviewIds;
             })
-            .exceptionally(ex -> {
-                return new ArrayList<>();
-            });
+            .exceptionally(_ -> new ArrayList<>());
     }
 
     private CompletableFuture<List<ReviewItem>> loadReviewItems(String repositoryName, List<String> reviewIds) {
@@ -72,19 +73,19 @@ public class ReviewItemLoader {
         GitReviewNotesManager notesManager = new GitReviewNotesManager(git, repositoryName);
 
         CompletableFuture<List<StreamEntry<String>>> titleFuture = notesManager.readTitles(reviewId)
-            .exceptionally(ex -> new ArrayList<>());
+            .exceptionally(_ -> new ArrayList<>());
 
         CompletableFuture<List<StreamEntry<String>>> authorFuture = notesManager.readAuthors(reviewId)
-            .exceptionally(ex -> new ArrayList<>());
+            .exceptionally(_ -> new ArrayList<>());
 
         CompletableFuture<List<StreamEntry<String>>> primaryRepoFuture = notesManager.readPrimaryRepository(reviewId)
-            .exceptionally(ex -> new ArrayList<>());
+            .exceptionally(_ -> new ArrayList<>());
 
         CompletableFuture<List<StreamEntry<String>>> statusFuture = notesManager.readStatuses(reviewId)
-            .exceptionally(ex -> new ArrayList<>());
+            .exceptionally(_ -> new ArrayList<>());
 
         CompletableFuture<List<StreamEntry<com.kalynx.serverlessreviewtool.models.review.ReviewerData>>> reviewersFuture = notesManager.readReviewers(reviewId)
-            .exceptionally(ex -> new ArrayList<>());
+            .exceptionally(_ -> new ArrayList<>());
 
         return CompletableFuture.allOf(titleFuture, authorFuture, primaryRepoFuture, statusFuture, reviewersFuture)
             .thenApply(ignored -> {
@@ -117,7 +118,7 @@ public class ReviewItemLoader {
                 return new ReviewItem(reviewId, title, author, primaryRepo, List.of(repositoryName), status, lastUpdate, reviewers);
             })
             .exceptionally(ex -> {
-                System.err.println("Failed to load review " + reviewId + " from " + repositoryName + ": " + ex.getMessage());
+                LOGGER.warn("Failed to load review {} from {}", reviewId, repositoryName, ex);
                 return null;
             });
     }

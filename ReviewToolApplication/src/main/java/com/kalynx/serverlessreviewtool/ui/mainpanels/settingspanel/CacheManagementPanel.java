@@ -6,6 +6,8 @@ import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedLa
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedPanel;
 import com.kalynx.serverlessreviewtool.swingextensions.themedcomponents.ThemedTitledBorder;
 import net.miginfocom.swing.MigLayout;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.io.IOException;
@@ -63,19 +65,11 @@ public class CacheManagementPanel extends ThemedPanel {
                 return;
             }
 
-            long deletedCount = 0;
+            long deletedCount;
             try (Stream<Path> paths = Files.walk(gitLocalPath)) {
                 deletedCount = paths
                     .filter(path -> !path.equals(gitLocalPath))
                     .filter(path -> !path.getFileName().toString().equals(".serverlessreviewtool"))
-                    .sorted(Comparator.reverseOrder())
-                    .peek(path -> {
-                        try {
-                            Files.delete(path);
-                        } catch (IOException e) {
-                            System.err.println("Failed to delete: " + path + " - " + e.getMessage());
-                        }
-                    })
                     .count();
             }
 

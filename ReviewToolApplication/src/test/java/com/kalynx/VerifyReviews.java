@@ -4,51 +4,57 @@ import com.kalynx.serverlessreviewtool.git.Git;
 import com.kalynx.serverlessreviewtool.git.GitFactory;
 import com.kalynx.serverlessreviewtool.git.ReviewItemLoader;
 import com.kalynx.serverlessreviewtool.models.ReviewItem;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
+/**
+ * Utility runner for verifying review-note loading from sample repositories.
+ */
 public class VerifyReviews {
-    public static void main(String[] args) {
+    private static final Logger LOGGER = LoggerFactory.getLogger(VerifyReviews.class);
+
+    /**
+     * Runs verification against configured sample repositories.
+     */
+    static void main() {
         try {
             Git git = GitFactory.getInstance();
             ReviewItemLoader loader = new ReviewItemLoader(git);
 
-            System.out.println("=== Java Backend Service ===");
+            LOGGER.info("=== Java Backend Service ===");
             List<ReviewItem> javaReviews = loader.loadReviewsFromRepository("java-backend-service").get();
-            System.out.println("Found " + javaReviews.size() + " reviews:");
+            LOGGER.info("Found {} reviews", javaReviews.size());
             for (ReviewItem review : javaReviews) {
-                System.out.println("  Title: " + review.getTitle());
-                System.out.println("  Author: " + review.getAuthor());
-                System.out.println("  Status: " + review.getStatus());
-                System.out.println();
+                LOGGER.info("  Title: {}", review.getTitle());
+                LOGGER.info("  Author: {}", review.getAuthor());
+                LOGGER.info("  Status: {}", review.getStatus());
             }
 
-            System.out.println("=== Python API Service ===");
+            LOGGER.info("=== Python API Service ===");
             List<ReviewItem> pythonReviews = loader.loadReviewsFromRepository("python-api-service").get();
-            System.out.println("Found " + pythonReviews.size() + " reviews:");
+            LOGGER.info("Found {} reviews", pythonReviews.size());
             for (ReviewItem review : pythonReviews) {
-                System.out.println("  Title: " + review.getTitle());
-                System.out.println("  Author: " + review.getAuthor());
-                System.out.println("  Status: " + review.getStatus());
-                System.out.println();
+                LOGGER.info("  Title: {}", review.getTitle());
+                LOGGER.info("  Author: {}", review.getAuthor());
+                LOGGER.info("  Status: {}", review.getStatus());
             }
 
-            System.out.println("=== React Frontend App ===");
+            LOGGER.info("=== React Frontend App ===");
             List<ReviewItem> reactReviews = loader.loadReviewsFromRepository("react-frontend-app").get();
-            System.out.println("Found " + reactReviews.size() + " reviews:");
+            LOGGER.info("Found {} reviews", reactReviews.size());
             for (ReviewItem review : reactReviews) {
-                System.out.println("  Title: " + review.getTitle());
-                System.out.println("  Author: " + review.getAuthor());
-                System.out.println("  Status: " + review.getStatus());
-                System.out.println();
+                LOGGER.info("  Title: {}", review.getTitle());
+                LOGGER.info("  Author: {}", review.getAuthor());
+                LOGGER.info("  Status: {}", review.getStatus());
             }
 
             int totalReviews = javaReviews.size() + pythonReviews.size() + reactReviews.size();
-            System.out.println("✓ SUCCESS: " + totalReviews + " reviews loaded with proper titles!");
+            LOGGER.info("SUCCESS: {} reviews loaded with proper titles", totalReviews);
 
         } catch (Exception e) {
-            System.err.println("✗ ERROR: " + e.getMessage());
-            e.printStackTrace();
+            LOGGER.error("ERROR while verifying reviews", e);
         }
     }
 }

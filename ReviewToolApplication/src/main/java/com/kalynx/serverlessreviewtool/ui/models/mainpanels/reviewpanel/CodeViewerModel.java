@@ -3,11 +3,14 @@ package com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewpanel;
 import com.kalynx.serverlessreviewtool.models.Commit;
 import com.kalynx.serverlessreviewtool.models.ReviewFile;
 import com.kalynx.serverlessreviewtool.swingextensions.ComponentModel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class CodeViewerModel {
+    private static final Logger LOGGER = LoggerFactory.getLogger(CodeViewerModel.class);
 
     public enum DiffMode {
         SIDE_BY_SIDE,
@@ -75,32 +78,14 @@ public class CodeViewerModel {
         selectedLine.setValue(-1);
     }
 
-    public void selectLine(int lineNumber) {
-        selectedLine.setValue(lineNumber);
-    }
-
     public void setCommitRange(Commit start, Commit end) {
         startCommit.setValue(start);
         endCommit.setValue(end);
     }
 
-    public void setStartCommit(Commit commit) {
-        startCommit.setValue(commit);
-    }
-
-    public void setEndCommit(Commit commit) {
-        endCommit.setValue(commit);
-    }
-
     public void setReviewBranches(String branch, String baseBranch) {
         reviewBranch.setValue(branch);
         reviewBaseBranch.setValue(baseBranch);
-    }
-
-    public void toggleDiffMode() {
-        diffMode.setValue(diffMode.getValue() == DiffMode.SIDE_BY_SIDE
-            ? DiffMode.UNIFIED
-            : DiffMode.SIDE_BY_SIDE);
     }
 
     public void setDiffMode(DiffMode mode) {
@@ -115,39 +100,29 @@ public class CodeViewerModel {
 
     public void setLeftContent(String content) {
         String safeContent = content != null ? content : "";
-        System.out.println("[CodeViewerModel] setLeftContent called: " + safeContent.length() + " chars");
+        LOGGER.debug("[CodeViewerModel] setLeftContent called: {} chars", safeContent.length());
         if (safeContent.isEmpty()) {
-            System.err.println("[CodeViewerModel] WARNING: Setting EMPTY left content!");
-            Thread.dumpStack();
+            LOGGER.warn("[CodeViewerModel] Setting empty left content");
         }
         leftContent.setValue(safeContent);
     }
 
     public void setRightContent(String content) {
         String safeContent = content != null ? content : "";
-        System.out.println("[CodeViewerModel] setRightContent called: " + safeContent.length() + " chars");
+        LOGGER.debug("[CodeViewerModel] setRightContent called: {} chars", safeContent.length());
         if (safeContent.isEmpty()) {
-            System.err.println("[CodeViewerModel] WARNING: Setting EMPTY right content!");
+            LOGGER.warn("[CodeViewerModel] Setting empty right content");
         }
         rightContent.setValue(safeContent);
     }
 
     public void setUnifiedDiffContent(String content) {
         String safeContent = content != null ? content : "";
-        System.out.println("[CodeViewerModel] setUnifiedDiffContent called: " + safeContent.length() + " chars");
+        LOGGER.debug("[CodeViewerModel] setUnifiedDiffContent called: {} chars", safeContent.length());
         if (safeContent.isEmpty()) {
-            System.err.println("[CodeViewerModel] WARNING: Setting EMPTY unified diff content!");
+            LOGGER.warn("[CodeViewerModel] Setting empty unified diff content");
         }
         unifiedDiffContent.setValue(safeContent);
-    }
-
-    public boolean hasSelectedFile() {
-        ReviewFile file = selectedFile.getValue();
-        return file != null;
-    }
-
-    public boolean hasCommitRange() {
-        return startCommit.getValue() != null && endCommit.getValue() != null;
     }
 }
 

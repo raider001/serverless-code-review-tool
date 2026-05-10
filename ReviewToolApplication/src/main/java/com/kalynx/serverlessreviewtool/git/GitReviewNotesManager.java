@@ -1,6 +1,8 @@
 package com.kalynx.serverlessreviewtool.git;
 
 import com.kalynx.serverlessreviewtool.models.review.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -12,6 +14,7 @@ import java.util.stream.Stream;
 
 public class GitReviewNotesManager {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(GitReviewNotesManager.class);
     private final Git git;
     private final String repositoryName;
     private static final String NOTES_REF_PREFIX = "refs/notes/reviews/";
@@ -588,7 +591,7 @@ public class GitReviewNotesManager {
                     sortedEntries.add(new EntryWithTimestamp(id, timestamp, line));
                 }
             } catch (Exception e) {
-                System.err.println("Warning: Skipping malformed entry: " + line);
+                LOGGER.warn("Skipping malformed entry: {}", line, e);
             }
         }
 

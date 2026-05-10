@@ -3,9 +3,9 @@ package com.kalynx.serverlessreviewtool.plugins.defaults.highlighters;
 import com.kalynx.serverlessreviewtool.plugin.SyntaxHighlighterPlugin;
 
 import java.awt.Color;
-import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 
 /**
  * Syntax highlighter for Java source files.
@@ -24,23 +24,6 @@ public class JavaSyntaxHighlighter extends SyntaxHighlighterPlugin {
         "permits", "yield", "null", "true", "false"
     );
 
-    private static final Pattern KEYWORD_PATTERN =
-        Pattern.compile("\\b(" + String.join("|", KEYWORDS) + ")\\b");
-    private static final Pattern STRING_PATTERN =
-        Pattern.compile("\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*'");
-    private static final Pattern COMMENT_PATTERN =
-        Pattern.compile("//[^\n]*|/\\*[\\s\\S]*?\\*/");
-    private static final Pattern NUMBER_PATTERN =
-        Pattern.compile("\\b(0x[0-9A-Fa-f]+|\\d+\\.?\\d*[fFlLdD]?)\\b");
-    private static final Pattern ANNOTATION_PATTERN =
-        Pattern.compile("@\\w+");
-    private static final Pattern OPERATOR_PATTERN =
-        Pattern.compile("[+\\-*/%&|^!=<>?:~]|&&|\\|\\||->|<<|>>|\\+=|-=|\\*=|/=|%=|&=|\\|=|\\^=|<<=|>>=");
-    private static final Pattern OBJECT_PATTERN =
-        Pattern.compile("\\b[_$a-zA-Z][_$a-zA-Z0-9]*\\b(?=\\s*\\.)");
-    private static final Pattern VARIABLE_PATTERN =
-        Pattern.compile("\\b[_a-z][_a-zA-Z0-9]*\\b");
-
     @Override
     public String getFileExtension() {
         return "java";
@@ -49,16 +32,61 @@ public class JavaSyntaxHighlighter extends SyntaxHighlighterPlugin {
     @Override
     public List<SyntaxToken> tokenize(String source) {
         List<SyntaxToken> tokens = new ArrayList<>();
-        boolean[] covered = new boolean[source.length()];
+        int length = source.length();
+        int index = 0;
 
-        addTokens(tokens, covered, source, COMMENT_PATTERN,    TokenType.COMMENT);
-        addTokens(tokens, covered, source, STRING_PATTERN,     TokenType.STRING);
-        addTokens(tokens, covered, source, ANNOTATION_PATTERN, TokenType.ANNOTATION);
-        addTokens(tokens, covered, source, NUMBER_PATTERN,     TokenType.NUMBER);
-        addTokens(tokens, covered, source, KEYWORD_PATTERN,    TokenType.KEYWORD);
-        addTokens(tokens, covered, source, OPERATOR_PATTERN,   TokenType.OPERATOR);
-        addTokens(tokens, covered, source, OBJECT_PATTERN,     TokenType.OBJECT);
-        addTokens(tokens, covered, source, VARIABLE_PATTERN,   TokenType.VARIABLE);
+        while (index < length) {
+            int commentLength = matchCommentLength(source, index);
+            if (commentLength > 0) {
+                tokens.add(new SyntaxToken(index, commentLength, TokenType.COMMENT));
+                index += commentLength;
+                continue;
+            }
+
+            int stringLength = matchStringLength(source, index);
+            if (stringLength > 0) {
+                tokens.add(new SyntaxToken(index, stringLength, TokenType.STRING));
+                index += stringLength;
+                continue;
+            }
+
+            int annotationLength = matchAnnotationLength(source, index);
+            if (annotationLength > 0) {
+                tokens.add(new SyntaxToken(index, annotationLength, TokenType.ANNOTATION));
+                index += annotationLength;
+                continue;
+            }
+
+            int numberLength = matchNumberLength(source, index);
+            if (numberLength > 0) {
+                tokens.add(new SyntaxToken(index, numberLength, TokenType.NUMBER));
+                index += numberLength;
+                continue;
+            }
+
+            int identifierLength = matchIdentifierLength(source, index);
+            if (identifierLength > 0) {
+                String identifier = source.substring(index, index + identifierLength);
+                if (KEYWORDS.contains(identifier)) {
+                    tokens.add(new SyntaxToken(index, identifierLength, TokenType.KEYWORD));
+                } else if (isObjectReference(source, index + identifierLength)) {
+                    tokens.add(new SyntaxToken(index, identifierLength, TokenType.OBJECT));
+                } else {
+                    tokens.add(new SyntaxToken(index, identifierLength, TokenType.VARIABLE));
+                }
+                index += identifierLength;
+                continue;
+            }
+
+            int operatorLength = matchOperatorLength(source, index);
+            if (operatorLength > 0) {
+                tokens.add(new SyntaxToken(index, operatorLength, TokenType.OPERATOR));
+                index += operatorLength;
+                continue;
+            }
+
+            index++;
+        }
 
         return tokens;
     }
@@ -94,28 +122,165 @@ public class JavaSyntaxHighlighter extends SyntaxHighlighterPlugin {
         };
     }
 
-    private void addTokens(List<SyntaxToken> tokens, boolean[] covered,
-                           String source, Pattern pattern, TokenType type) {
-        Matcher m = pattern.matcher(source);
-        while (m.find()) {
-            int start = m.start();
-            int end   = m.end();
-            if (!isCovered(covered, start, end)) {
-                markCovered(covered, start, end);
-                tokens.add(new SyntaxToken(start, end - start, type));
+    private int matchCommentLength(String source, int start) {
+        int length = source.length();
+        if (start + 1 >= length || source.charAt(start) != '/') {
+            return 0;
+        }
+
+        char next = source.charAt(start + 1);
+        if (next == '/') {
+            int end = start + 2;
+            while (end < length && source.charAt(end) != '\n') {
+                end++;
+            }
+            return end - start;
+        }
+        if (next == '*') {
+            int end = start + 2;
+            while (end + 1 < length) {
+                if (source.charAt(end) == '*' && source.charAt(end + 1) == '/') {
+                    return end + 2 - start;
+                }
+                end++;
+            }
+            return length - start;
+        }
+        return 0;
+    }
+
+    private int matchStringLength(String source, int start) {
+        int length = source.length();
+        char quote = source.charAt(start);
+        if (quote != '\'' && quote != '"') {
+            return 0;
+        }
+
+        int index = start + 1;
+        while (index < length) {
+            char current = source.charAt(index);
+            if (current == '\\') {
+                index = Math.min(length, index + 2);
+                continue;
+            }
+            if (current == quote) {
+                return index + 1 - start;
+            }
+            index++;
+        }
+        return length - start;
+    }
+
+    private int matchAnnotationLength(String source, int start) {
+        if (source.charAt(start) != '@') {
+            return 0;
+        }
+
+        int identifierLength = matchIdentifierLength(source, start + 1);
+        if (identifierLength <= 0) {
+            return 0;
+        }
+
+        return identifierLength + 1;
+    }
+
+    private int matchNumberLength(String source, int start) {
+        int length = source.length();
+        if (!Character.isDigit(source.charAt(start))) {
+            return 0;
+        }
+
+        int index = start;
+        if (source.charAt(index) == '0' && index + 1 < length && (source.charAt(index + 1) == 'x' || source.charAt(index + 1) == 'X')) {
+            index += 2;
+            while (index < length && isHexDigit(source.charAt(index))) {
+                index++;
+            }
+            return index - start;
+        }
+
+        while (index < length && Character.isDigit(source.charAt(index))) {
+            index++;
+        }
+
+        if (index < length && source.charAt(index) == '.') {
+            index++;
+            while (index < length && Character.isDigit(source.charAt(index))) {
+                index++;
             }
         }
-    }
 
-    private boolean isCovered(boolean[] covered, int start, int end) {
-        for (int i = start; i < end; i++) {
-            if (covered[i]) return true;
+        if (index < length && isNumberSuffix(source.charAt(index))) {
+            index++;
         }
-        return false;
+
+        return index - start;
     }
 
-    private void markCovered(boolean[] covered, int start, int end) {
-        Arrays.fill(covered, start, end, true);
+    private int matchIdentifierLength(String source, int start) {
+        int length = source.length();
+        if (start >= length || !isIdentifierStart(source.charAt(start))) {
+            return 0;
+        }
+
+        int index = start + 1;
+        while (index < length && isIdentifierPart(source.charAt(index))) {
+            index++;
+        }
+        return index - start;
+    }
+
+    private int matchOperatorLength(String source, int start) {
+        int length = source.length();
+        if (start + 3 <= length) {
+            String tri = source.substring(start, start + 3);
+            if (tri.equals("<<=") || tri.equals(">>=")) {
+                return 3;
+            }
+        }
+
+        if (start + 2 <= length) {
+            String bi = source.substring(start, start + 2);
+            if (bi.equals("&&") || bi.equals("||") || bi.equals("->")
+                || bi.equals("<<") || bi.equals(">>")
+                || bi.equals("+=") || bi.equals("-=") || bi.equals("*=") || bi.equals("/=")
+                || bi.equals("%=") || bi.equals("&=") || bi.equals("|=") || bi.equals("^=")
+                || bi.equals("==") || bi.equals("!=") || bi.equals("<=") || bi.equals(">=")) {
+                return 2;
+            }
+        }
+
+        char current = source.charAt(start);
+        if ("+-*/%&|^!=<>?:~".indexOf(current) >= 0) {
+            return 1;
+        }
+        return 0;
+    }
+
+    private boolean isObjectReference(String source, int index) {
+        int length = source.length();
+        while (index < length && Character.isWhitespace(source.charAt(index))) {
+            index++;
+        }
+        return index < length && source.charAt(index) == '.';
+    }
+
+    private boolean isIdentifierStart(char value) {
+        return value == '_' || value == '$' || Character.isLetter(value);
+    }
+
+    private boolean isIdentifierPart(char value) {
+        return value == '_' || value == '$' || Character.isLetterOrDigit(value);
+    }
+
+    private boolean isHexDigit(char value) {
+        return (value >= '0' && value <= '9')
+            || (value >= 'a' && value <= 'f')
+            || (value >= 'A' && value <= 'F');
+    }
+
+    private boolean isNumberSuffix(char value) {
+        return value == 'f' || value == 'F' || value == 'l' || value == 'L' || value == 'd' || value == 'D';
     }
 }
 

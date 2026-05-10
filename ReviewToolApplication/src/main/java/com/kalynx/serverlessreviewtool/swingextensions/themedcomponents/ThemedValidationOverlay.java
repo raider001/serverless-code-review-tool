@@ -3,6 +3,8 @@ package com.kalynx.serverlessreviewtool.swingextensions.themedcomponents;
 import java.io.Serial;
 
 import com.kalynx.serverlessreviewtool.theme.ThemeManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.awt.*;
@@ -17,6 +19,7 @@ import java.awt.event.HierarchyEvent;
 public class ThemedValidationOverlay extends JPanel {
     @Serial
     private static final long serialVersionUID = 1L;
+    private static final Logger LOGGER = LoggerFactory.getLogger(ThemedValidationOverlay.class);
 
     private transient final ThemeManager themeManager;
     private final JLabel errorLabel;
@@ -72,7 +75,7 @@ public class ThemedValidationOverlay extends JPanel {
                 JRootPane rootPane = ((RootPaneContainer) window).getRootPane();
                 JLayeredPane layeredPane = rootPane.getLayeredPane();
                 layeredPane.add(this, JLayeredPane.POPUP_LAYER);
-                System.out.println("DEBUG: Overlay attached to layered pane");
+                LOGGER.debug("Overlay attached to layered pane");
             }
         });
     }
@@ -83,7 +86,7 @@ public class ThemedValidationOverlay extends JPanel {
      * @param message The error message to display
      */
     public void showError(String message) {
-        System.out.println("DEBUG: showError() called with message: " + message);
+        LOGGER.debug("showError() called with message: {}", message);
         errorLabel.setText(message);
 
         // Ensure we're attached to the layered pane
@@ -93,9 +96,9 @@ public class ThemedValidationOverlay extends JPanel {
 
         updatePosition();
         setVisible(true);
-        System.out.println("DEBUG: Overlay bounds: " + getBounds());
-        System.out.println("DEBUG: Overlay visible: " + isVisible());
-        System.out.println("DEBUG: Overlay parent: " + getParent());
+        LOGGER.debug("Overlay bounds: {}", getBounds());
+        LOGGER.debug("Overlay visible: {}", isVisible());
+        LOGGER.debug("Overlay parent: {}", getParent());
 
         repaint();
     }
@@ -141,7 +144,7 @@ public class ThemedValidationOverlay extends JPanel {
             labelSize.height
         );
 
-        System.out.println("DEBUG: updatePosition() set bounds to: " + getBounds());
+        LOGGER.debug("updatePosition() set bounds to: {}", getBounds());
     }
 
     @Override

@@ -75,7 +75,7 @@ public class CodePanel extends ThemedPanel {
         if (context != null) {
             persistedCommentIds.clear();
             context.getComments().forEach(comment -> persistedCommentIds.add(comment.getId()));
-            LOGGER.info("Loaded {} persisted comments", persistedCommentIds.size());
+            LOGGER.debug("Loaded {} persisted comments", persistedCommentIds.size());
         }
         loadCommentsForCurrentFile();
     }
@@ -94,7 +94,7 @@ public class CodePanel extends ThemedPanel {
             return;
         }
 
-        LOGGER.info("Line {} double-clicked in file: {}", lineNumber, file.getPath());
+        LOGGER.debug("Line {} double-clicked in file: {}", lineNumber, file.getPath());
 
         SwingUtilities.invokeLater(() -> {
             java.awt.Window window = SwingUtilities.getWindowAncestor(this);
@@ -112,7 +112,7 @@ public class CodePanel extends ThemedPanel {
     }
 
     private void onCommentAdded() {
-        LOGGER.info("Comment added, refreshing comments for current file");
+        LOGGER.debug("Comment added, refreshing comments for current file");
         loadCommentsForCurrentFile();
     }
 
@@ -141,17 +141,17 @@ public class CodePanel extends ThemedPanel {
         Commit startCommit = codeViewerModel.startCommit.getValue();
         Commit endCommit = codeViewerModel.endCommit.getValue();
 
-        LOGGER.info("=== FILE OR COMMIT CHANGED ===");
-        LOGGER.info("File: {} (repository: {})", file.getPath(), file.getRepository());
-        LOGGER.info("Start commit: {}", startCommit != null ? startCommit.getShortHash() : "null");
-        LOGGER.info("End commit: {}", endCommit != null ? endCommit.getShortHash() : "null");
+        LOGGER.debug("=== FILE OR COMMIT CHANGED ===");
+        LOGGER.debug("File: {} (repository: {})", file.getPath(), file.getRepository());
+        LOGGER.debug("Start commit: {}", startCommit != null ? startCommit.getShortHash() : "null");
+        LOGGER.debug("End commit: {}", endCommit != null ? endCommit.getShortHash() : "null");
 
         if (startCommit == null || endCommit == null) {
-            LOGGER.warn("Commit range not set, skipping diff load");
+            LOGGER.debug("Commit range not set, skipping diff load");
             return;
         }
 
-        LOGGER.info("Loading diff for file: {} between commits {} and {}",
+        LOGGER.debug("Loading diff for file: {} between commits {} and {}",
             file.getPath(), startCommit.getShortHash(), endCommit.getShortHash());
 
         fileDiffManager.loadDiffForFile(file.getRepository(), file, startCommit, endCommit)

@@ -4,12 +4,15 @@ import com.kalynx.serverlessreviewtool.configuration.AppSettings;
 import com.kalynx.serverlessreviewtool.models.FileChangeType;
 import com.kalynx.serverlessreviewtool.models.Repository;
 import com.kalynx.serverlessreviewtool.models.ReviewFile;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public class RepositoryLoader {
+    private static final Logger LOGGER = LoggerFactory.getLogger(RepositoryLoader.class);
 
     private final Git git;
 
@@ -41,7 +44,7 @@ public class RepositoryLoader {
             .thenCompose(_ -> git.fetch(repoName))
             .thenCompose(_ -> loadRepositoryData(config))
             .exceptionally(ex -> {
-                System.err.println("Failed to load repository " + repoName + ": " + ex.getMessage());
+                LOGGER.warn("Failed to load repository {}", repoName, ex);
                 return createEmptyRepository(config);
             });
     }
@@ -63,7 +66,7 @@ public class RepositoryLoader {
         return git.listBranches(repoName)
             .thenAccept(repository::setBranches)
             .exceptionally(ex -> {
-                System.err.println("Failed to load branches for " + repoName + ": " + ex.getMessage());
+                LOGGER.warn("Failed to load branches for {}", repoName, ex);
                 return null;
             });
     }
@@ -90,7 +93,7 @@ public class RepositoryLoader {
                         });
                 }))
             .exceptionally(ex -> {
-                System.err.println("Failed to load changed files for " + repoName + ": " + ex.getMessage());
+                LOGGER.warn("Failed to load changed files for {}", repoName, ex);
                 return null;
             });
     }

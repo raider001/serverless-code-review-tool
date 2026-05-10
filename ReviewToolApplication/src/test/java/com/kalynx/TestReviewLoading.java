@@ -4,59 +4,66 @@ import com.kalynx.serverlessreviewtool.git.Git;
 import com.kalynx.serverlessreviewtool.git.GitFactory;
 import com.kalynx.serverlessreviewtool.git.ReviewItemLoader;
 import com.kalynx.serverlessreviewtool.models.ReviewItem;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
+/**
+ * Utility runner for manually validating review loading from sample repositories.
+ */
 public class TestReviewLoading {
-    public static void main(String[] args) {
+    private static final Logger LOGGER = LoggerFactory.getLogger(TestReviewLoading.class);
+
+    /**
+     * Executes review loading checks.
+
+     */
+    static void main() {
         try {
             Git git = GitFactory.getInstance();
             ReviewItemLoader loader = new ReviewItemLoader(git);
 
-            System.out.println("Loading reviews from java-backend-service...");
+            LOGGER.info("Loading reviews from java-backend-service...");
             List<ReviewItem> reviews = loader.loadReviewsFromRepository("java-backend-service")
                 .get();
 
-            System.out.println("\nFound " + reviews.size() + " reviews:");
+            LOGGER.info("Found {} reviews", reviews.size());
             for (ReviewItem review : reviews) {
-                System.out.println("  - Title: " + review.getTitle());
-                System.out.println("    Author: " + review.getAuthor());
-                System.out.println("    Repositories: " + String.join(", ", review.getRepositories()));
-                System.out.println("    Status: " + review.getStatus());
-                System.out.println();
+                LOGGER.info("  - Title: {}", review.getTitle());
+                LOGGER.info("    Author: {}", review.getAuthor());
+                LOGGER.info("    Repositories: {}", String.join(", ", review.getRepositories()));
+                LOGGER.info("    Status: {}", review.getStatus());
             }
 
-            System.out.println("Loading reviews from python-api-service...");
+            LOGGER.info("Loading reviews from python-api-service...");
             reviews = loader.loadReviewsFromRepository("python-api-service")
                 .get();
 
-            System.out.println("\nFound " + reviews.size() + " reviews:");
+            LOGGER.info("Found {} reviews", reviews.size());
             for (ReviewItem review : reviews) {
-                System.out.println("  - Title: " + review.getTitle());
-                System.out.println("    Author: " + review.getAuthor());
-                System.out.println("    Repositories: " + String.join(", ", review.getRepositories()));
-                System.out.println("    Status: " + review.getStatus());
-                System.out.println();
+                LOGGER.info("  - Title: {}", review.getTitle());
+                LOGGER.info("    Author: {}", review.getAuthor());
+                LOGGER.info("    Repositories: {}", String.join(", ", review.getRepositories()));
+                LOGGER.info("    Status: {}", review.getStatus());
             }
 
-            System.out.println("Loading reviews from react-frontend-app...");
+            LOGGER.info("Loading reviews from react-frontend-app...");
             reviews = loader.loadReviewsFromRepository("react-frontend-app")
                 .get();
 
-            System.out.println("\nFound " + reviews.size() + " reviews:");
+            LOGGER.info("Found {} reviews", reviews.size());
             for (ReviewItem review : reviews) {
-                System.out.println("  - Title: " + review.getTitle());
-                System.out.println("    Author: " + review.getAuthor());
-                System.out.println("    Repositories: " + String.join(", ", review.getRepositories()));
-                System.out.println("    Status: " + review.getStatus());
-                System.out.println();
+                LOGGER.info("  - Title: {}", review.getTitle());
+                LOGGER.info("    Author: {}", review.getAuthor());
+                LOGGER.info("    Repositories: {}", String.join(", ", review.getRepositories()));
+                LOGGER.info("    Status: {}", review.getStatus());
             }
 
-            System.out.println("✓ All reviews loaded successfully with no null values!");
+            LOGGER.info("All reviews loaded successfully with no null values");
 
         } catch (Exception e) {
-            System.err.println("Error loading reviews: " + e.getMessage());
-            e.printStackTrace();
+            LOGGER.error("Error loading reviews", e);
         }
     }
 }

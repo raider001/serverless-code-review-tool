@@ -1,8 +1,13 @@
 package com.kalynx.serverlessreviewtool.theme;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -11,8 +16,10 @@ import java.util.Set;
  */
 public class LoadingStateManager {
 
+    private static final Logger logger = LoggerFactory.getLogger(LoadingStateManager.class);
     private static LoadingStateManager instance;
     private final Set<String> activeOperations = new HashSet<>();
+    private final Map<String, Long> operationStartTimes = new HashMap<>();
     private final List<Runnable> listeners = new ArrayList<>();
 
     private LoadingStateManager() {
@@ -38,7 +45,10 @@ public class LoadingStateManager {
      */
     public synchronized void startLoading(String operationId) {
         boolean wasLoading = isLoading();
-        activeOperations.add(operationId);
+        boolean added = activeOperations.add(operationId);
+        if (added) {
+            operationStartTimes.put(operationId, System.currentTimeMillis());
+        }
         if (!wasLoading && isLoading()) {
             notifyListeners();
         }
@@ -52,7 +62,16 @@ public class LoadingStateManager {
      */
     public synchronized void stopLoading(String operationId) {
         boolean wasLoading = isLoading();
-        activeOperations.remove(operationId);
+        boolean removed = activeOperations.remove(operationId);
+        Long startedAt = operationStartTimes.remove(operationId);
+        if (removed) {
+            long durationMs = startedAt == null ? -1L : Math.max(0L, System.currentTimeMillis() - startedAt);
+            if (durationMs >= 0L) {
+                logger.info("Loading operation completed: {} ({} ms)", operationId, durationMs);
+            } else {
+                logger.info("Loading operation completed: {}", operationId);
+            }
+        }
         if (wasLoading && !isLoading()) {
             notifyListeners();
         }

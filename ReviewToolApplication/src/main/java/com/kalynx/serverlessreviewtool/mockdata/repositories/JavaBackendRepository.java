@@ -6,6 +6,8 @@ import com.kalynx.serverlessreviewtool.mockdata.repositories.javabackend.Databas
 import com.kalynx.serverlessreviewtool.mockdata.repositories.javabackend.UserRepositoryFileMock;
 import com.kalynx.serverlessreviewtool.mockdata.repositories.javabackend.branches.FeatureAuthBranch;
 import com.kalynx.serverlessreviewtool.mockdata.repositories.javabackend.branches.BugfixSecurityBranch;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -13,6 +15,7 @@ import java.nio.file.Path;
 
 public class JavaBackendRepository extends BaseRepository {
     private static final String REPO_NAME = "java-backend-service";
+    private static final Logger LOGGER = LoggerFactory.getLogger(JavaBackendRepository.class);
 
     public static void create(Path basePath) throws Exception {
         Path repoPath = basePath.resolve(REPO_NAME);
@@ -21,26 +24,26 @@ public class JavaBackendRepository extends BaseRepository {
         initGitRepository(repoPath);
         createInitialStructure(repoPath);
 
-        System.out.println("  Creating UserService.java with incremental commits...");
+        LOGGER.info("Creating UserService.java with incremental commits");
         UserServiceFileMock.create(repoPath);
 
-        System.out.println("  Creating AuthController.java with incremental commits...");
+        LOGGER.info("Creating AuthController.java with incremental commits");
         AuthControllerFileMock.create(repoPath);
 
-        System.out.println("  Creating DatabaseConfig.java with incremental commits...");
+        LOGGER.info("Creating DatabaseConfig.java with incremental commits");
         DatabaseConfigFileMock.create(repoPath);
 
-        System.out.println("  Creating UserRepository.java with incremental commits...");
+        LOGGER.info("Creating UserRepository.java with incremental commits");
         UserRepositoryFileMock.create(repoPath);
 
-        System.out.println("  Adding review notes...");
+        LOGGER.info("Adding review notes");
         addReviewNotes(repoPath);
 
-        System.out.println("  Creating feature branches...");
+        LOGGER.info("Creating feature branches");
         FeatureAuthBranch.create(repoPath);
         BugfixSecurityBranch.create(repoPath);
 
-        System.out.println("  Java Backend repository created at: " + repoPath);
+        LOGGER.info("Java Backend repository created at: {}", repoPath);
     }
 
     private static void addReviewNotes(Path repoPath) throws IOException, InterruptedException {

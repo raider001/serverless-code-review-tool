@@ -18,7 +18,9 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -76,29 +78,25 @@ public class CommitSelectorPanel extends ThemedPanel {
 
         String branch = codeViewerModel.reviewBranch.getValue();
         String baseBranch = codeViewerModel.reviewBaseBranch.getValue();
-        if (branch == null) {
+        if (branch == null || branch.isBlank()) {
             LOGGER.warn("No review branch set, cannot load file commits");
             return;
         }
-        if (baseBranch == null) {
-            LOGGER.warn("No base branch set, cannot load file commits");
-            return;
-        }
 
-        LOGGER.info("=== LOADING COMMITS FOR FILE ===");
-        LOGGER.info("File: {} in repository: {}", filePath, repositoryName);
-        LOGGER.info("Review Branch: {}", branch);
-        LOGGER.info("Base Branch: {}", baseBranch);
+        LOGGER.debug("=== LOADING COMMITS FOR FILE ===");
+        LOGGER.debug("File: {} in repository: {}", filePath, repositoryName);
+        LOGGER.debug("Review Branch: {}", branch);
+        LOGGER.debug("Base Branch: {}", baseBranch);
 
-        String commitRange = baseBranch + ".." + branch;
-        git.executeAsync(repositoryName, "log", "--format=%H|%an|%ad|%s", "--date=short", "--follow", commitRange, "--", filePath)
+        resolveHistoryRefs(repositoryName, baseBranch, branch)
+            .thenCompose(refs -> loadCommitsWithFallback(repositoryName, filePath, refs.baseRef(), refs.branchRef()))
             .thenApply(output -> parseCommits(output.lines().toList()))
             .thenCompose(commits -> {
-                LOGGER.info("Loaded {} commits for file {}", commits.size(), filePath);
+                LOGGER.debug("Loaded {} commits for file {}", commits.size(), filePath);
 
                 if (!commits.isEmpty()) {
-                    LOGGER.info("First commit: {} - {}", commits.getFirst().getShortHash(), commits.getFirst().getMessage());
-                    LOGGER.info("Last commit: {} - {}", commits.getLast().getShortHash(), commits.getLast().getMessage());
+                    LOGGER.debug("First commit: {} - {}", commits.getFirst().getShortHash(), commits.getFirst().getMessage());
+                    LOGGER.debug("Last commit: {} - {}", commits.getLast().getShortHash(), commits.getLast().getMessage());
                 }
 
                 if (commits.isEmpty()) {
@@ -122,7 +120,7 @@ public class CommitSelectorPanel extends ThemedPanel {
                         commitSliderPanel.setEndIndex(reversedCommits.size() - 1);
 
                         Commit start = baseline != null ? baseline : oldestCommit;
-                        LOGGER.info("Setting initial commit range: {} -> {}", start.getShortHash(), newestCommit.getShortHash());
+                        LOGGER.debug("Setting initial commit range: {} -> {}", start.getShortHash(), newestCommit.getShortHash());
                         fireCommitRangeChanged(start, newestCommit);
                     });
             })
@@ -131,6 +129,131 @@ public class CommitSelectorPanel extends ThemedPanel {
                 commitSliderPanel.setCommits(new ArrayList<>());
                 return null;
             });
+    }
+
+    private CompletableFuture<ResolvedRefs> resolveHistoryRefs(String repositoryName, String baseBranch, String branch) {
+        CompletableFuture<String> resolvedBranch = resolveReviewBranchRef(repositoryName, branch);
+        CompletableFuture<String> resolvedBase = resolveBaseBranchRef(repositoryName, baseBranch);
+        return resolvedBase.thenCombine(resolvedBranch, ResolvedRefs::new);
+    }
+
+    private CompletableFuture<String> resolveReviewBranchRef(String repositoryName, String branch) {
+        return resolveCommitHashFromCandidates(repositoryName, buildRefCandidates(branch))
+            .handle((resolved, error) -> {
+                if (error == null) {
+                    return CompletableFuture.completedFuture(resolved);
+                }
+                LOGGER.warn("Unable to resolve review branch {} for repository {}. Falling back to HEAD", branch, repositoryName);
+                return resolveCommitHashFromCandidates(repositoryName, List.of("HEAD"));
+            })
+            .thenCompose(future -> future);
+    }
+
+    private CompletableFuture<String> resolveBaseBranchRef(String repositoryName, String baseBranch) {
+        if (baseBranch == null || baseBranch.isBlank()) {
+            return git.getDefaultBranch(repositoryName)
+                .thenCompose(defaultBranch -> resolveCommitHashFromCandidates(repositoryName, buildRefCandidates(defaultBranch)))
+                .handle((resolved, error) -> {
+                    if (error == null) {
+                        return CompletableFuture.completedFuture(resolved);
+                    }
+                    LOGGER.warn("Unable to resolve default base branch for repository {}. Falling back to HEAD", repositoryName);
+                    return resolveCommitHashFromCandidates(repositoryName, List.of("HEAD"));
+                })
+                .thenCompose(future -> future);
+        }
+
+        return resolveCommitHashFromCandidates(repositoryName, buildRefCandidates(baseBranch))
+            .handle((resolved, error) -> {
+                if (error == null) {
+                    return CompletableFuture.completedFuture(resolved);
+                }
+                LOGGER.warn("Unable to resolve base branch {} for repository {}. Falling back to default branch", baseBranch, repositoryName);
+                return git.getDefaultBranch(repositoryName)
+                    .thenCompose(defaultBranch -> resolveCommitHashFromCandidates(repositoryName, buildRefCandidates(defaultBranch)))
+                    .exceptionallyCompose(ignored -> resolveCommitHashFromCandidates(repositoryName, List.of("HEAD")));
+            })
+            .thenCompose(future -> future);
+    }
+
+    private List<String> buildRefCandidates(String ref) {
+        if (ref == null || ref.isBlank()) {
+            return List.of();
+        }
+
+        Set<String> candidates = new LinkedHashSet<>();
+        String trimmed = ref.trim();
+        String normalized = normalizeRef(trimmed);
+
+        candidates.add(trimmed);
+        candidates.add(normalized);
+        candidates.add("origin/" + normalized);
+        candidates.add("refs/heads/" + normalized);
+        candidates.add("refs/remotes/origin/" + normalized);
+        candidates.add("refs/remotes/" + normalized);
+
+        return candidates.stream()
+            .filter(candidate -> candidate != null && !candidate.isBlank())
+            .toList();
+    }
+
+    private String normalizeRef(String ref) {
+        if (ref.startsWith("refs/heads/")) {
+            return ref.substring("refs/heads/".length());
+        }
+        if (ref.startsWith("refs/remotes/origin/")) {
+            return ref.substring("refs/remotes/origin/".length());
+        }
+        if (ref.startsWith("origin/")) {
+            return ref.substring("origin/".length());
+        }
+        return ref;
+    }
+
+    private CompletableFuture<String> resolveCommitHashFromCandidates(String repositoryName, List<String> candidates) {
+        return tryResolveCommitHash(repositoryName, candidates, 0);
+    }
+
+    private CompletableFuture<String> tryResolveCommitHash(String repositoryName, List<String> candidates, int index) {
+        if (index >= candidates.size()) {
+            return CompletableFuture.failedFuture(new RuntimeException("Unable to resolve commit ref in repository " + repositoryName));
+        }
+
+        String candidate = candidates.get(index);
+        return git.executeAsync(repositoryName, "rev-parse", "--verify", candidate + "^{commit}")
+            .thenApply(String::trim)
+            .handle((resolved, error) -> {
+                if (error == null) {
+                    return CompletableFuture.completedFuture(resolved);
+                }
+                return tryResolveCommitHash(repositoryName, candidates, index + 1);
+            })
+            .thenCompose(future -> future);
+    }
+
+    private CompletableFuture<String> loadCommitsWithFallback(String repositoryName, String filePath, String baseCommit, String branchCommit) {
+        String commitRange = baseCommit + ".." + branchCommit;
+        return git.executeAsync(repositoryName, "log", "--format=%H|%an|%ad|%s", "--date=short", "--follow", commitRange, "--", filePath)
+            .handle((output, error) -> {
+                if (error == null) {
+                    return CompletableFuture.completedFuture(output);
+                }
+
+                if (isBadRevisionError(error)) {
+                    LOGGER.warn("Invalid commit range {} for repository {}. Falling back to branch-only file history for {}", commitRange, repositoryName, filePath);
+                    return git.executeAsync(repositoryName, "log", "--format=%H|%an|%ad|%s", "--date=short", "--follow", branchCommit, "--", filePath);
+                }
+
+                return CompletableFuture.<String>failedFuture(error);
+            })
+            .thenCompose(future -> future);
+    }
+
+    private record ResolvedRefs(String baseRef, String branchRef) {}
+
+    private boolean isBadRevisionError(Throwable error) {
+        String message = error.getMessage();
+        return message != null && message.contains("bad revision");
     }
 
     private List<Commit> parseCommits(List<String> commitStrings) {
@@ -190,9 +313,9 @@ public class CommitSelectorPanel extends ThemedPanel {
     }
 
     private void fireCommitRangeChanged(Commit startCommit, Commit endCommit) {
-        LOGGER.info("=== FIRING COMMIT RANGE CHANGED ===");
-        LOGGER.info("Start: {} - {}", startCommit.getShortHash(), startCommit.getMessage());
-        LOGGER.info("End: {} - {}", endCommit.getShortHash(), endCommit.getMessage());
+        LOGGER.debug("=== FIRING COMMIT RANGE CHANGED ===");
+        LOGGER.debug("Start: {} - {}", startCommit.getShortHash(), startCommit.getMessage());
+        LOGGER.debug("End: {} - {}", endCommit.getShortHash(), endCommit.getMessage());
         codeViewerModel.setCommitRange(startCommit, endCommit);
     }
 
@@ -240,19 +363,19 @@ public class CommitSelectorPanel extends ThemedPanel {
                     int endThumbX = getThumbX(endIndex);
                     int thumbY = getHeight() / 2 + themeManager.scale(5);
 
-                    LOGGER.info("Mouse pressed at x={}, startThumbX={}, endThumbX={}", e.getX(), startThumbX, endThumbX);
+                    LOGGER.debug("Mouse pressed at x={}, startThumbX={}, endThumbX={}", e.getX(), startThumbX, endThumbX);
 
                     if (isNearPoint(e.getX(), e.getY(), startThumbX, thumbY, THUMB_RADIUS)) {
                         dragThumb = 0;
-                        LOGGER.info("Selected START thumb (dragThumb=0), current startIndex={}", startIndex);
+                        LOGGER.debug("Selected START thumb (dragThumb=0), current startIndex={}", startIndex);
                         showTooltipForIndex(startIndex);
                     } else if (isNearPoint(e.getX(), e.getY(), endThumbX, thumbY, THUMB_RADIUS)) {
                         dragThumb = 1;
-                        LOGGER.info("Selected END thumb (dragThumb=1), current endIndex={}", endIndex);
+                        LOGGER.debug("Selected END thumb (dragThumb=1), current endIndex={}", endIndex);
                         showTooltipForIndex(endIndex);
                     } else {
                         int index = getIndexFromX(e.getX());
-                        LOGGER.info("Clicked on track (not on thumb), index={}", index);
+                        LOGGER.debug("Clicked on track (not on thumb), index={}", index);
                         showTooltipForIndex(index);
                     }
                 }
@@ -262,7 +385,7 @@ public class CommitSelectorPanel extends ThemedPanel {
                     if (dragThumb != -1 && !commits.isEmpty()) {
                         Commit start = commits.get(startIndex);
                         Commit end = commits.get(endIndex);
-                        LOGGER.info("Mouse released - dragThumb was {}, Final: startIndex={} ({}), endIndex={} ({})",
+                        LOGGER.debug("Mouse released - dragThumb was {}, Final: startIndex={} ({}), endIndex={} ({})",
                             dragThumb, startIndex, start.getShortHash(), endIndex, end.getShortHash());
                         fireCommitRangeChanged(start, end);
                     }
@@ -280,7 +403,7 @@ public class CommitSelectorPanel extends ThemedPanel {
                         int oldStartIndex = startIndex;
                         startIndex = Math.max(0, Math.min(newIndex, endIndex - 1));
                         if (oldStartIndex != startIndex) {
-                            LOGGER.info("Dragging START thumb: index {} -> {} (endIndex={})",
+                            LOGGER.debug("Dragging START thumb: index {} -> {} (endIndex={})",
                                 oldStartIndex, startIndex, endIndex);
                         }
                         showTooltipForIndex(startIndex);
@@ -288,7 +411,7 @@ public class CommitSelectorPanel extends ThemedPanel {
                         int oldEndIndex = endIndex;
                         endIndex = Math.max(startIndex + 1, Math.min(newIndex, commits.size() - 1));
                         if (oldEndIndex != endIndex) {
-                            LOGGER.info("Dragging END thumb: index {} -> {} (startIndex={})",
+                            LOGGER.debug("Dragging END thumb: index {} -> {} (startIndex={})",
                                 oldEndIndex, endIndex, startIndex);
                         }
                         showTooltipForIndex(endIndex);
