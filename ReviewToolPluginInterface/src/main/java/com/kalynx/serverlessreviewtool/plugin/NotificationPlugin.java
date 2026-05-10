@@ -1,65 +1,67 @@
 package com.kalynx.serverlessreviewtool.plugin;
 
 /**
- * Base class for review lifecycle notification plugins.
- * Extend this class and override only the events your plugin needs to handle.
+ * Base class for inbound review notification plugins.
+ * Extend this class and override the events your plugin needs to handle.
  *
  * <p>All methods default to no-ops. The tool calls these fire-and-forget;
  * exceptions are caught and logged without affecting the core workflow.
  */
-public abstract class NotificationPlugin implements Plugin {
+public abstract class NotificationPlugin
+    extends Notifier<NotificationPayload, NotificationPlugin.NotificationType>
+    implements Plugin {
 
+    /**
+     * Base notification events emitted by notification plugins.
+     */
+    public enum NotificationType {
+        REVIEW_UPDATED,
+        REPOSITORIES_UPDATED,
+    }
+
+    /**
+     * Initializes this plugin.
+     */
     @Override
     public void initialize() {}
 
     /**
-     * Called when a new review is created.
+     * Called when an existing review has changed and should be refreshed.
      *
-     * @param reviewId the unique identifier of the created review
-     * @param author   the git username of the review creator
-     * @param title    the review title
+     * @param update updated review list projection and query hints
      */
-    public void onReviewCreated(String reviewId, String author, String title) {}
+    public final void onReviewUpdated(ReviewListUpdate update) {
+        if (update == null) {
+            return;
+        }
+        handleReviewUpdated(update);
+        notifyListeners(NotificationType.REVIEW_UPDATED, update);
+    }
 
     /**
-     * Called when a reviewer joins a review.
+     * Called when the tracked repository listing has changed.
      *
-     * @param reviewId the unique identifier of the review
-     * @param reviewer the git username of the joining reviewer
+     * @param update repository listing update payload
      */
-    public void onReviewerJoined(String reviewId, String reviewer) {}
+    public final void onRepositoriesUpdated(RepositoryListUpdate update) {
+        if (update == null) {
+            return;
+        }
+        handleRepositoriesUpdated(update);
+        notifyListeners(NotificationType.REPOSITORIES_UPDATED, update);
+    }
 
     /**
-     * Called when a reviewer leaves a review.
+     * Optional hook called before {@code REVIEW_UPDATED} listeners are notified.
      *
-     * @param reviewId the unique identifier of the review
-     * @param reviewer the git username of the leaving reviewer
+     * @param update updated review list projection and query hints
      */
-    public void onReviewerLeft(String reviewId, String reviewer) {}
+    protected void handleReviewUpdated(ReviewListUpdate update) {}
 
     /**
-     * Called when a comment is added to a review.
+     * Optional hook called before {@code REPOSITORIES_UPDATED} listeners are notified.
      *
-     * @param reviewId   the unique identifier of the review
-     * @param author     the git username of the comment author
-     * @param filePath   the file the comment is on, null for general comments
-     * @param lineNumber the line number of the comment, -1 if not line-specific
+     * @param update repository listing update payload
      */
-    public void onCommentAdded(String reviewId, String author, String filePath, int lineNumber) {}
-
-    /**
-     * Called when a reviewer approves a review.
-     *
-     * @param reviewId the unique identifier of the review
-     * @param reviewer the git username of the approving reviewer
-     */
-    public void onReviewApproved(String reviewId, String reviewer) {}
-
-    /**
-     * Called when a reviewer requests changes on a review.
-     *
-     * @param reviewId the unique identifier of the review
-     * @param reviewer the git username of the reviewer requesting changes
-     */
-    public void onChangesRequested(String reviewId, String reviewer) {}
+    protected void handleRepositoriesUpdated(RepositoryListUpdate update) {}
 }

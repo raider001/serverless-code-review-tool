@@ -22,11 +22,10 @@ import com.kalynx.serverlessreviewtool.ui.mainpanels.reviewpanel.SwipeActionPane
 import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewpanel.ReviewPanelModel;
 import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewselectionpanel.ReviewSelectionPanelModel;
 import com.kalynx.serverlessreviewtool.ui.models.reviewpanel.reviewformdialog.ReviewFormModels;
-import com.kalynx.serverlessreviewtool.utils.TeeOutputStream;
+import com.kalynx.serverlessreviewtool.utils.ConsoleLogBridge;
 
 import javax.swing.*;
 import java.awt.*;
-import java.io.PrintStream;
 
 /**
  * MainFrame - The main application window
@@ -145,22 +144,11 @@ public class MainFrame extends ThemedFrame {
 
         reviewPanel.addReviewerStatusListener(swipeActionPanel::setEnabled);
 
-        settingsPanel = new SettingsPanel(settingsManager, pluginManager, git);
+        settingsPanel = new SettingsPanel(settingsManager, pluginManager);
         logsPanel = new LogsPanel();
         helpPanel = new HelpPanel();
 
-        redirectConsoleToLogsPanel();
-    }
-
-    private void redirectConsoleToLogsPanel() {
-        PrintStream originalOut = System.out;
-        PrintStream originalErr = System.err;
-
-        TeeOutputStream teeOut = new TeeOutputStream(originalOut, logsPanel);
-        TeeOutputStream teeErr = new TeeOutputStream(originalErr, logsPanel);
-
-        System.setOut(new PrintStream(teeOut, true));
-        System.setErr(new PrintStream(teeErr, true));
+        ConsoleLogBridge.attachLogsPanel(logsPanel);
     }
 
     private void setupReviewDoubleClickHandler() {

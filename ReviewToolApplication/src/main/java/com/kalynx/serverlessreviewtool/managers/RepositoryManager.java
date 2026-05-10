@@ -1,15 +1,17 @@
 package com.kalynx.serverlessreviewtool.managers;
 
-import com.kalynx.serverlessreviewtool.configuration.AppSettings;
-import com.kalynx.serverlessreviewtool.git.RepositoryLoader;
 import com.kalynx.serverlessreviewtool.models.Repository;
-import com.kalynx.serverlessreviewtool.theme.LoadingStateManager;
+import com.kalynx.serverlessreviewtool.plugin.RepositoryDescriptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -21,30 +23,8 @@ public class RepositoryManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(RepositoryManager.class);
     private List<Repository> repositories = new ArrayList<>();
     private final Set<Consumer<List<Repository>>> listeners = new HashSet<>();
-    private final RepositoryLoader repositoryLoader;
 
-    public RepositoryManager(RepositoryLoader repositoryLoader) {
-        this.repositoryLoader = repositoryLoader;
-    }
-
-    /**
-     * Update repositories from configuration.
-     * Asynchronously loads repository data via RepositoryLoader.
-     *
-     * @param configs repository configurations from settings
-     */
-    public void updateRepositories(List<AppSettings.RepositoryConfig> configs) {
-        LoadingStateManager.getInstance().startLoading("load-repositories");
-        repositoryLoader.loadRepositories(configs)
-            .thenAccept(loadedRepos -> {
-                LoadingStateManager.getInstance().stopLoading("load-repositories");
-                this.repositories = loadedRepos;
-                notifyListeners();
-            })
-            .exceptionally(ex -> {
-                LOGGER.error("Failed to load repositories: {}", ex.getMessage(), ex);
-                return null;
-            });
+    public RepositoryManager() {
     }
 
     public List<Repository> getRepositories() {
@@ -61,6 +41,42 @@ public class RepositoryManager {
             .orElse(null);
     }
 
+    /**
+     * Replaces the available repository list from notification plugin descriptors
+     * without performing any git fetch/clone work.
+     *
+     * @param descriptors repositories reported by notification plugins
+     */
+    public void setRepositoriesFromNotification(List<RepositoryDescriptor> descriptors) {
+        List<RepositoryDescriptor> safeDescriptors = descriptors == null ? List.of() : descriptors;
+        Map<String, Repository> previousByName = repositories.stream()
+            .collect(java.util.stream.Collectors.toMap(
+                Repository::getName,
+                repository -> repository,
+                (first, ignored) -> first,
+                LinkedHashMap::new));
+
+        Map<String, RepositoryDescriptor> dedupedByName = safeDescriptors.stream()
+            .filter(descriptor -> descriptor != null && descriptor.name() != null && !descriptor.name().isBlank())
+            .collect(java.util.stream.Collectors.toMap(
+                RepositoryDescriptor::name,
+                descriptor -> descriptor,
+                (_, second) -> second,
+                LinkedHashMap::new));
+
+        this.repositories = dedupedByName.values().stream()
+            .map(descriptor -> {
+                Repository existing = previousByName.get(descriptor.name());
+                List<String> branches = existing == null ? Collections.emptyList() : new ArrayList<>(existing.getBranches());
+                Repository repository = new Repository(descriptor.name(), "", descriptor.location());
+                repository.setBranches(branches);
+                return repository;
+            })
+            .sorted(Comparator.comparing(Repository::getName))
+            .toList();
+        notifyListeners();
+    }
+
     public void updateBranchesForRepository(String repositoryName, List<String> branches) {
         for (Repository repo : repositories) {
             if (repo.getName().equals(repositoryName)) {
@@ -75,11 +91,6 @@ public class RepositoryManager {
         listeners.add(listener);
         listener.accept(List.copyOf(repositories));
     }
-
-    public void removeListener(Consumer<List<Repository>> listener) {
-        listeners.remove(listener);
-    }
-
 
     public void notifyListeners() {
         LOGGER.info("Notifying listeners of repository list update: {} repositories", repositories.size());

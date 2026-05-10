@@ -1,6 +1,9 @@
 package com.kalynx.serverlessreviewtool.managers;
 
+import com.kalynx.serverlessreviewtool.plugin.NotificationPlugin;
 import com.kalynx.serverlessreviewtool.plugin.PluginRegistry;
+import com.kalynx.serverlessreviewtool.plugin.RepositoryListUpdate;
+import com.kalynx.serverlessreviewtool.plugin.ReviewListUpdate;
 import com.kalynx.serverlessreviewtool.plugin.SyntaxHighlighterPlugin;
 import com.kalynx.serverlessreviewtool.plugin.UserPlugin;
 import org.slf4j.Logger;
@@ -23,6 +26,7 @@ public class PluginManager {
     private boolean initialized;
 
     private final List<Runnable> pendingUserListeners = new ArrayList<>();
+    private final List<Runnable> pendingNotificationListeners = new ArrayList<>();
 
     /**
      * Loads plugins from the configured plugins directory.
@@ -37,6 +41,8 @@ public class PluginManager {
         pluginRegistry.load();
         pendingUserListeners.forEach(Runnable::run);
         pendingUserListeners.clear();
+        pendingNotificationListeners.forEach(Runnable::run);
+        pendingNotificationListeners.clear();
         pluginRegistry.initializePlugins();
         initialized = true;
         LOGGER.info("PluginManager initialized");
@@ -61,6 +67,65 @@ public class PluginManager {
     }
 
     /**
+     * Registers a listener for notification plugin events.
+     * If called before {@link #initialize()}, the listener is queued and applied
+     * after plugins are discovered but before they are initialized.
+     *
+     * @param type the notification event type to listen for
+     * @param listener the listener to register
+     */
+    public void addListenerToNotificationPlugins(
+        NotificationPlugin.NotificationType type,
+        Consumer<ReviewListUpdate[]> listener) {
+        if (!initialized) {
+            pendingNotificationListeners.add(() ->
+                pluginRegistry.getPlugins(NotificationPlugin.class)
+                    .forEach(plugin -> plugin.addListener(type, payloads -> {
+                        ReviewListUpdate[] updates = extractReviewUpdates(payloads);
+                        if (updates.length > 0) {
+                            listener.accept(updates);
+                        }
+                    }))
+            );
+        } else {
+            pluginRegistry.getPlugins(NotificationPlugin.class)
+                .forEach(plugin -> plugin.addListener(type, payloads -> {
+                    ReviewListUpdate[] updates = extractReviewUpdates(payloads);
+                    if (updates.length > 0) {
+                        listener.accept(updates);
+                    }
+                }));
+        }
+    }
+
+    /**
+     * Registers a listener for notification plugin repository list updates.
+     *
+     * @param listener repository update listener
+     */
+    public void addListenerToNotificationRepositoryUpdates(Consumer<RepositoryListUpdate[]> listener) {
+        if (!initialized) {
+            pendingNotificationListeners.add(() ->
+                pluginRegistry.getPlugins(NotificationPlugin.class)
+                    .forEach(plugin -> plugin.addListener(NotificationPlugin.NotificationType.REPOSITORIES_UPDATED, payloads -> {
+                        RepositoryListUpdate[] updates = extractRepositoryUpdates(payloads);
+                        if (updates.length > 0) {
+                            listener.accept(updates);
+                        }
+                    }))
+            );
+        } else {
+            pluginRegistry.getPlugins(NotificationPlugin.class)
+                .forEach(plugin -> plugin.addListener(NotificationPlugin.NotificationType.REPOSITORIES_UPDATED, payloads -> {
+                    RepositoryListUpdate[] updates = extractRepositoryUpdates(payloads);
+                    if (updates.length > 0) {
+                        listener.accept(updates);
+                    }
+                }));
+        }
+    }
+
+    /**
      * Indicates whether any user plugins are currently registered.
      *
      * @return true when at least one user plugin is available
@@ -80,8 +145,6 @@ public class PluginManager {
         return pluginRegistry.getPlugins(UserPlugin.class).stream()
             .anyMatch(plugin -> plugin.validateUser(user, validationString));
     }
-
-
 
     /**
      * Returns the registered syntax highlighter plugin for the given file extension, if any.
@@ -107,5 +170,21 @@ public class PluginManager {
         initialized = false;
         LOGGER.info("PluginManager shut down");
     }
+
+    private ReviewListUpdate[] extractReviewUpdates(com.kalynx.serverlessreviewtool.plugin.NotificationPayload[] payloads) {
+        return java.util.Arrays.stream(payloads)
+            .filter(ReviewListUpdate.class::isInstance)
+            .map(ReviewListUpdate.class::cast)
+            .toArray(ReviewListUpdate[]::new);
+    }
+
+    private RepositoryListUpdate[] extractRepositoryUpdates(com.kalynx.serverlessreviewtool.plugin.NotificationPayload[] payloads) {
+        return java.util.Arrays.stream(payloads)
+            .filter(RepositoryListUpdate.class::isInstance)
+            .map(RepositoryListUpdate.class::cast)
+            .toArray(RepositoryListUpdate[]::new);
+    }
 }
+
+
 

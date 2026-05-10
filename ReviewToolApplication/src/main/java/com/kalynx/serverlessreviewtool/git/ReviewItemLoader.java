@@ -10,10 +10,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+/**
+ * Loads review item projections from repository review notes.
+ */
 public class ReviewItemLoader {
     private static final Logger LOGGER = LoggerFactory.getLogger(ReviewItemLoader.class);
 
@@ -26,8 +30,44 @@ public class ReviewItemLoader {
     }
 
     public CompletableFuture<List<ReviewItem>> loadReviewsFromRepository(String repositoryName) {
-        return listReviewIds(repositoryName)
+        return synchronizeRepository(repositoryName)
+            .thenCompose(ignored -> listReviewIds(repositoryName))
             .thenCompose(reviewIds -> loadReviewItems(repositoryName, reviewIds));
+    }
+
+    /**
+     * Loads review items from a repository and emits each item as soon as it is available.
+     *
+     * @param repositoryName repository to load from
+     * @param onReviewLoaded callback invoked for each loaded review item
+     * @return future completed when all review items have been attempted
+     */
+    public CompletableFuture<Void> loadReviewsFromRepositoryLazy(String repositoryName, Consumer<ReviewItem> onReviewLoaded) {
+        return synchronizeRepository(repositoryName)
+            .thenCompose(ignored -> listReviewIds(repositoryName))
+            .thenCompose(reviewIds -> {
+                List<CompletableFuture<Void>> reviewFutures = reviewIds.stream()
+                    .map(reviewId -> loadReviewItem(repositoryName, reviewId)
+                        .thenAccept(reviewItem -> {
+                            if (reviewItem != null) {
+                                onReviewLoaded.accept(reviewItem);
+                            }
+                        }))
+                    .toList();
+
+                return CompletableFuture.allOf(reviewFutures.toArray(new CompletableFuture[0]));
+            });
+    }
+
+    private CompletableFuture<Void> synchronizeRepository(String repositoryName) {
+        long start = System.nanoTime();
+        return git.fetch(repositoryName)
+            .thenRun(() -> LOGGER.info("TIMING [{}] synchronizeRepository fetch: {}ms", repositoryName,
+                (System.nanoTime() - start) / 1_000_000))
+            .exceptionally(ex -> {
+                LOGGER.warn("Failed to synchronize repository {} before reading reviews", repositoryName, ex);
+                return null;
+            });
     }
 
     private CompletableFuture<List<String>> listReviewIds(String repositoryName) {
@@ -72,33 +112,12 @@ public class ReviewItemLoader {
     private CompletableFuture<ReviewItem> loadReviewItem(String repositoryName, String reviewId) {
         GitReviewNotesManager notesManager = new GitReviewNotesManager(git, repositoryName);
 
-        CompletableFuture<List<StreamEntry<String>>> titleFuture = notesManager.readTitles(reviewId)
-            .exceptionally(_ -> new ArrayList<>());
-
-        CompletableFuture<List<StreamEntry<String>>> authorFuture = notesManager.readAuthors(reviewId)
-            .exceptionally(_ -> new ArrayList<>());
-
-        CompletableFuture<List<StreamEntry<String>>> primaryRepoFuture = notesManager.readPrimaryRepository(reviewId)
-            .exceptionally(_ -> new ArrayList<>());
-
-        CompletableFuture<List<StreamEntry<String>>> statusFuture = notesManager.readStatuses(reviewId)
-            .exceptionally(_ -> new ArrayList<>());
-
-        CompletableFuture<List<StreamEntry<String>>> branchFuture = notesManager.readBranches(reviewId)
-            .exceptionally(_ -> new ArrayList<>());
-
-        CompletableFuture<List<StreamEntry<String>>> baseBranchFuture = notesManager.readBaseBranches(reviewId)
-            .exceptionally(_ -> new ArrayList<>());
-
-        CompletableFuture<List<StreamEntry<com.kalynx.serverlessreviewtool.models.review.ReviewerData>>> reviewersFuture = notesManager.readReviewers(reviewId)
-            .exceptionally(_ -> new ArrayList<>());
-
-        return CompletableFuture.allOf(titleFuture, authorFuture, primaryRepoFuture, statusFuture, branchFuture, baseBranchFuture, reviewersFuture)
-            .thenApply(ignored -> {
-                List<StreamEntry<String>> titleEntries = titleFuture.join();
-                List<StreamEntry<String>> authorEntries = authorFuture.join();
-                List<StreamEntry<String>> statusEntries = statusFuture.join();
-                List<StreamEntry<com.kalynx.serverlessreviewtool.models.review.ReviewerData>> reviewerEntries = reviewersFuture.join();
+        return notesManager.readAllMetadataFromLocal(reviewId)
+            .thenApply(metadata -> {
+                List<StreamEntry<String>> titleEntries = metadata.titles();
+                List<StreamEntry<String>> authorEntries = metadata.authors();
+                List<StreamEntry<String>> statusEntries = metadata.statuses();
+                List<StreamEntry<com.kalynx.serverlessreviewtool.models.review.ReviewerData>> reviewerEntries = metadata.reviewers();
 
                 String title = getLatestValue(titleEntries);
                 if (title == null) title = "Untitled Review";
@@ -106,14 +125,13 @@ public class ReviewItemLoader {
                 String author = getLatestValue(authorEntries);
                 if (author == null) author = "Unknown";
 
-                String primaryRepo = getLatestValue(primaryRepoFuture.join());
-                if (primaryRepo == null) primaryRepo = repositoryName;
+                String primaryRepo = normalizePrimaryRepository(getLatestValue(metadata.primaryRepository()), repositoryName);
 
                 String statusStr = getLatestValue(statusEntries);
                 if (statusStr == null) statusStr = "OPEN";
 
-                String branch = getLatestValue(branchFuture.join());
-                String baseBranch = getLatestValue(baseBranchFuture.join());
+                String branch = getLatestValue(metadata.branches());
+                String baseBranch = getLatestValue(metadata.baseBranches());
 
                 List<String> reviewers = reviewerEntries.stream()
                     .map(StreamEntry::editor)
@@ -130,6 +148,16 @@ public class ReviewItemLoader {
                 LOGGER.warn("Failed to load review {} from {}", reviewId, repositoryName, ex);
                 return null;
             });
+    }
+
+    private String normalizePrimaryRepository(String primaryRepositoryValue, String repositoryName) {
+        if (primaryRepositoryValue == null || primaryRepositoryValue.isBlank()) {
+            return repositoryName;
+        }
+        if ("true".equalsIgnoreCase(primaryRepositoryValue) || "false".equalsIgnoreCase(primaryRepositoryValue)) {
+            return repositoryName;
+        }
+        return primaryRepositoryValue;
     }
 
     private long getMostRecentTimestamp(List<StreamEntry<String>> titleEntries,

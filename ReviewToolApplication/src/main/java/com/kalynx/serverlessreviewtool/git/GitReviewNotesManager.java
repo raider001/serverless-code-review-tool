@@ -725,21 +725,6 @@ public class GitReviewNotesManager {
                 ReviewStreamHelper::readAuthors);
     }
 
-    public CompletableFuture<List<StreamEntry<String>>> readPrimaryRepository(String reviewId) {
-        return readStream(reviewId, "metadata/primaryRepository",
-                ReviewStreamHelper::readPrimaryRepository);
-    }
-
-    public CompletableFuture<List<StreamEntry<String>>> readBranches(String reviewId) {
-        return readStream(reviewId, "metadata/branch",
-                ReviewStreamHelper::readBranch);
-    }
-
-    public CompletableFuture<List<StreamEntry<String>>> readBaseBranches(String reviewId) {
-        return readStream(reviewId, "metadata/baseBranch",
-                ReviewStreamHelper::readBaseBranch);
-    }
-
     public CompletableFuture<List<StreamEntry<String>>> readStatuses(String reviewId) {
         return readStream(reviewId, "metadata/status",
                 ReviewStreamHelper::readStatuses);
@@ -802,6 +787,20 @@ public class GitReviewNotesManager {
      * @return future containing all metadata (title, description, author, status, reviewers)
      */
     public CompletableFuture<ReviewMetadata> readAllMetadata(String reviewId) {
+        return readAllMetadataInternal(reviewId, true);
+    }
+
+    /**
+     * Read all review metadata from local notes refs without fetching remote note refs.
+     *
+     * @param reviewId the review identifier
+     * @return future containing all locally available metadata
+     */
+    public CompletableFuture<ReviewMetadata> readAllMetadataFromLocal(String reviewId) {
+        return readAllMetadataInternal(reviewId, false);
+    }
+
+    private CompletableFuture<ReviewMetadata> readAllMetadataInternal(String reviewId, boolean fetchRemoteNotes) {
         List<String> streamPaths = List.of(
             "metadata/title",
             "metadata/description",
@@ -813,13 +812,18 @@ public class GitReviewNotesManager {
             "reviewers"
         );
 
-        long fetchAllStart = System.nanoTime();
-        return fetchAllNotes(reviewId, streamPaths)
-            .thenCompose(ignored -> {
-                LOGGER.info("TIMING [{}] readAllMetadata fetchAllNotes ({} streams, parallel, repo={}): {}ms",
-                    reviewId, streamPaths.size(), repositoryName, elapsedMs(fetchAllStart));
-                return getAnchorCommit();
-            })
+        CompletableFuture<Void> fetchFuture;
+        if (fetchRemoteNotes) {
+            long fetchAllStart = System.nanoTime();
+            fetchFuture = fetchAllNotes(reviewId, streamPaths)
+                .thenRun(() -> LOGGER.info("TIMING [{}] readAllMetadata fetchAllNotes ({} streams, parallel, repo={}): {}ms",
+                    reviewId, streamPaths.size(), repositoryName, elapsedMs(fetchAllStart)));
+        } else {
+            fetchFuture = CompletableFuture.completedFuture(null);
+        }
+
+        return fetchFuture
+            .thenCompose(ignored -> getAnchorCommit())
             .thenCompose(anchorCommit -> {
                 long extractStart = System.nanoTime();
                 List<CompletableFuture<Path>> extractFutures = streamPaths.stream()

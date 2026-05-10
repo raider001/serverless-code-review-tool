@@ -3,7 +3,6 @@ import com.kalynx.lwdi.DependencyInjector;
 import com.kalynx.serverlessreviewtool.configuration.AppSettings;
 import com.kalynx.serverlessreviewtool.configuration.SettingsManager;
 import com.kalynx.serverlessreviewtool.git.*;
-import com.kalynx.serverlessreviewtool.managers.PollingService;
 import com.kalynx.serverlessreviewtool.managers.PluginManager;
 import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
 import com.kalynx.serverlessreviewtool.managers.ReviewContextManager;
@@ -13,10 +12,14 @@ import com.kalynx.serverlessreviewtool.mockdata.GitRepositoryInitializer;
 import com.kalynx.serverlessreviewtool.models.Repository;
 import com.kalynx.serverlessreviewtool.models.User;
 import com.kalynx.serverlessreviewtool.plugin.UserPlugin;
+import com.kalynx.serverlessreviewtool.plugin.NotificationPlugin;
+import com.kalynx.serverlessreviewtool.plugin.RepositoryDescriptor;
+import com.kalynx.serverlessreviewtool.plugin.RepositoryListUpdate;
 import com.kalynx.serverlessreviewtool.ui.MainFrame;
 import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewpanel.ReviewPanelModel;
 import com.kalynx.serverlessreviewtool.ui.models.mainpanels.reviewselectionpanel.ReviewSelectionPanelModel;
 import com.kalynx.serverlessreviewtool.ui.models.reviewpanel.reviewformdialog.ReviewFormModels;
+import com.kalynx.serverlessreviewtool.utils.ConsoleLogBridge;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,7 +55,6 @@ public class Main {
             DI.inject(ReviewItemLoader.class);
             REVIEW_ITEM_MANAGER = DI.inject(ReviewItemManager.class);
             REVIEW_CONTEXT_MANAGER = DI.inject(ReviewContextManager.class);
-            DI.inject(PollingService.class);
             USER_MANAGER = DI.inject(UserManager.class);
             PLUGIN_MANAGER = DI.inject(PluginManager.class);
             REVIEW_FORM_MODELS = DI.inject(ReviewFormModels.class);
@@ -64,13 +66,13 @@ public class Main {
     }
 
     public static void main(String[] ignored) {
+        ConsoleLogBridge.install();
         logger.info("ServerlessReviewTool - Java Application");
         logger.info("Launching application...");
 
 
 
         USER_MANAGER.addListener(users -> REVIEW_FORM_MODELS.availableReviewers.setValue(users.stream().map(User::getName).toList()));
-        REPOSITORY_MANAGER.addListener(ignore -> REVIEW_ITEM_MANAGER.refresh());
         ensureConfiguredMockRepositoriesExist();
 
         PLUGIN_MANAGER.addListenerToUserPlugins(UserPlugin.NotificationType.USER_ADDED, usernames ->
@@ -86,6 +88,13 @@ public class Main {
                     }
                 }
         );
+
+        PLUGIN_MANAGER.addListenerToNotificationPlugins(
+            NotificationPlugin.NotificationType.REVIEW_UPDATED,
+                REVIEW_ITEM_MANAGER::applyNotificationUpdates
+        );
+
+        PLUGIN_MANAGER.addListenerToNotificationRepositoryUpdates(Main::onNotificationRepositoriesUpdated);
 
         PLUGIN_MANAGER.initialize();
         Runtime.getRuntime().addShutdownHook(new Thread(PLUGIN_MANAGER::shutdown));
@@ -104,7 +113,6 @@ public class Main {
             try {
                 MainFrame frame = DI.inject(MainFrame.class);
                 frame.setVisible(true);
-                SETTINGS_MANAGER.addRepositoryNameListener(REPOSITORY_MANAGER::updateRepositories);
 
             } catch (Exception e) {
                 logger.error("Failed to create MainFrame: {}", e.getMessage(), e);
@@ -132,6 +140,14 @@ public class Main {
         REPOSITORY_MANAGER.addListener(repositories -> REVIEW_FORM_MODELS.availableBranches.setValue(repositories.stream().flatMap(r -> r.getBranches().stream()).toList()));
         SETTINGS_MANAGER.addUserNameListener(REVIEW_FORM_MODELS.author::setValue);
         REVIEW_FORM_MODELS.author.setValue(SETTINGS_MANAGER.getCurrentUserName());
+    }
+
+    private static void onNotificationRepositoriesUpdated(RepositoryListUpdate[] updates) {
+        List<RepositoryDescriptor> repositories = updates.length == 0
+            ? List.of()
+            : updates[updates.length - 1].repositories();
+        REPOSITORY_MANAGER.setRepositoriesFromNotification(repositories);
+        REVIEW_ITEM_MANAGER.setNotificationPluginRepositories(repositories);
     }
 
     private static boolean isKnownUser(String username) {

@@ -2,7 +2,6 @@ package com.kalynx.serverlessreviewtool.configuration;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.kalynx.serverlessreviewtool.managers.RepositoryManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,7 +13,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -27,15 +25,12 @@ public class SettingsManager {
 
     private final Gson gson;
     private final Path settingsFile;
-    private final RepositoryManager repositoryManager;
+
     private final AppSettings currentSettings;
     private final Set<Consumer<String>> userNameListeners = new HashSet<>();
-    private final Set<Runnable> pollingSettingsListeners = new HashSet<>();
-    private final Set<Consumer<List<AppSettings.RepositoryConfig>>> repositoryNameListeners = new HashSet<>();
 
-    public SettingsManager(RepositoryManager repositoryManager) {
+    public SettingsManager() {
         this.gson = new GsonBuilder().setPrettyPrinting().create();
-        this.repositoryManager = repositoryManager;
 
 
         String userHome = System.getProperty("user.home");
@@ -74,7 +69,6 @@ public class SettingsManager {
 
         try (FileReader reader = new FileReader(file)) {
             AppSettings settings = gson.fromJson(reader, AppSettings.class);
-            notifyRepositoryNameListeners();
             LOGGER.info("Loaded settings from: {}", settingsFile);
             return settings;
         } catch (Exception e) {
@@ -101,18 +95,6 @@ public class SettingsManager {
     public void updateNotificationServiceUrl(String url) {
         currentSettings.setNotificationServiceUrl(url);
         saveSettings();
-    }
-
-    public void updatePollingInterval(int minutes) {
-        currentSettings.setPollingIntervalMinutes(minutes);
-        saveSettings();
-        notifyPollingSettingsListeners();
-    }
-
-    public void updateEnablePolling(boolean enable) {
-        currentSettings.setEnablePolling(enable);
-        saveSettings();
-        notifyPollingSettingsListeners();
     }
 
     public void updateWindowDefaults(int width, int height) {
@@ -173,27 +155,6 @@ public class SettingsManager {
         return loggedInUserEmail != null ? loggedInUserEmail : "";
     }
 
-    public void addRepository(AppSettings.RepositoryConfig config) {
-        currentSettings.getRepositories().add(config);
-        saveSettings();
-        repositoryManager.updateRepositories(currentSettings.getRepositories());
-        notifyPollingSettingsListeners();
-    }
-
-    public void updateRepository(int index, AppSettings.RepositoryConfig updated) {
-        currentSettings.getRepositories().set(index, updated);
-        saveSettings();
-        repositoryManager.updateRepositories(currentSettings.getRepositories());
-        notifyPollingSettingsListeners();
-    }
-
-    public void removeRepository(int index) {
-        currentSettings.getRepositories().remove(index);
-        saveSettings();
-        repositoryManager.updateRepositories(currentSettings.getRepositories());
-        notifyPollingSettingsListeners();
-    }
-
     public String getCurrentUserName() {
         String loggedInUserName = getLoggedInUserName();
         if (!loggedInUserName.isEmpty()) {
@@ -227,41 +188,10 @@ public class SettingsManager {
         listener.accept(getCurrentUserName());
     }
 
-    public void removeUserNameListener(Consumer<String> listener) {
-        userNameListeners.remove(listener);
-    }
-
     private void notifyUserNameListeners() {
         String currentUserName = getCurrentUserName();
         userNameListeners.forEach(listener -> listener.accept(currentUserName));
     }
 
-    public void addPollingSettingsListener(Runnable listener) {
-        pollingSettingsListeners.add(listener);
-    }
-
-    public void removePollingSettingsListener(Runnable listener) {
-        pollingSettingsListeners.remove(listener);
-    }
-
-    private void notifyPollingSettingsListeners() {
-        pollingSettingsListeners.forEach(Runnable::run);
-    }
-
-    public void addRepositoryNameListener(Consumer<List<AppSettings.RepositoryConfig>> listener) {
-        repositoryNameListeners.add(listener);
-        if (!currentSettings.getRepositories().isEmpty()) {
-            listener.accept(currentSettings.getRepositories());
-        }
-    }
-
-    public void removeRepositoryNameListener(Consumer<List<AppSettings.RepositoryConfig>> listener) {
-        repositoryNameListeners.remove(listener);
-    }
-
-    private void notifyRepositoryNameListeners() {
-        LOGGER.info("Notifying repository name listeners");
-        repositoryNameListeners.forEach(listener -> listener.accept(currentSettings.getRepositories()));
-    }
 }
 
