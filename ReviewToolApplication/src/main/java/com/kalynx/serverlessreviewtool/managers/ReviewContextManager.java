@@ -96,64 +96,59 @@ public class ReviewContextManager {
     private CompletableFuture<com.kalynx.serverlessreviewtool.models.ReviewComment> loadSingleComment(
             GitReviewNotesManager notesManager, String reviewId, String commentId) {
 
-        return notesManager.readCommentMetadata(reviewId, commentId)
-            .thenCombine(notesManager.readCommentText(reviewId, commentId),
-                (metadata, textEntries) -> {
-                    if (metadata.isEmpty() || textEntries.isEmpty()) {
-                        return null;
-                    }
+        CompletableFuture<List<StreamEntry<GitReviewNotesManager.CommentMetadata>>> metadataFuture =
+            notesManager.readCommentMetadata(reviewId, commentId);
+        CompletableFuture<List<StreamEntry<GitReviewNotesManager.CommentTextData>>> textFuture =
+            notesManager.readCommentText(reviewId, commentId);
+        CompletableFuture<List<StreamEntry<GitReviewNotesManager.CommentStatusData>>> statusFuture =
+            notesManager.readCommentStatus(reviewId, commentId);
 
-                    StreamEntry<GitReviewNotesManager.CommentMetadata> latestMetadata = metadata.getLast();
-                    StreamEntry<GitReviewNotesManager.CommentTextData> firstText = textEntries.getFirst();
+        return CompletableFuture.allOf(metadataFuture, textFuture, statusFuture)
+            .thenApply(ignored -> {
+                List<StreamEntry<GitReviewNotesManager.CommentMetadata>> metadata = metadataFuture.join();
+                List<StreamEntry<GitReviewNotesManager.CommentTextData>> textEntries = textFuture.join();
+                List<StreamEntry<GitReviewNotesManager.CommentStatusData>> statusEntries = statusFuture.join();
 
-                    GitReviewNotesManager.CommentMetadata metaData = latestMetadata.data();
-                    GitReviewNotesManager.CommentTextData textData = firstText.data();
-
-                    return new Object[] { commentId, metaData.file(), metaData.line(),
-                        firstText.editor(), textData.text(), firstText.timestamp().toString(),
-                        textData.replyTo(), "review".equals(textData.type()) };
-                })
-            .thenCompose(commentData -> {
-                if (commentData == null) {
-                    return CompletableFuture.completedFuture(null);
+                if (metadata.isEmpty() || textEntries.isEmpty()) {
+                    return null;
                 }
 
-                return notesManager.readCommentStatus(reviewId, commentId)
-                    .thenApply(statusEntries -> {
-                        String id = (String) commentData[0];
-                        String filePath = (String) commentData[1];
-                        int lineNumber = (int) commentData[2];
-                        String editor = (String) commentData[3];
-                        String text = (String) commentData[4];
-                        String timestamp = (String) commentData[5];
-                        String replyTo = (String) commentData[6];
-                        boolean needsResolution = (boolean) commentData[7];
+                StreamEntry<GitReviewNotesManager.CommentMetadata> latestMetadata = metadata.getLast();
+                StreamEntry<GitReviewNotesManager.CommentTextData> firstText = textEntries.getFirst();
 
-                        com.kalynx.serverlessreviewtool.models.ReviewComment comment =
-                            new com.kalynx.serverlessreviewtool.models.ReviewComment(
-                                id, filePath, lineNumber, editor, text, timestamp, replyTo, needsResolution
-                            );
+                GitReviewNotesManager.CommentMetadata metaData = latestMetadata.data();
+                GitReviewNotesManager.CommentTextData textData = firstText.data();
 
-                        if (!statusEntries.isEmpty()) {
-                            StreamEntry<GitReviewNotesManager.CommentStatusData> latestStatus =
-                                statusEntries.getLast();
-                            GitReviewNotesManager.CommentStatusData statusData = latestStatus.data();
+                com.kalynx.serverlessreviewtool.models.ReviewComment comment =
+                    new com.kalynx.serverlessreviewtool.models.ReviewComment(
+                        commentId,
+                        metaData.file(),
+                        metaData.line(),
+                        firstText.editor(),
+                        textData.text(),
+                        firstText.timestamp().toString(),
+                        textData.replyTo(),
+                        "review".equals(textData.type())
+                    );
 
-                            if (statusData.needsResolution() != null) {
-                                comment.setNeedsResolution(statusData.needsResolution());
-                            }
+                if (!statusEntries.isEmpty()) {
+                    StreamEntry<GitReviewNotesManager.CommentStatusData> latestStatus = statusEntries.getLast();
+                    GitReviewNotesManager.CommentStatusData statusData = latestStatus.data();
 
-                            if (statusData.resolved() != null) {
-                                if (statusData.resolved()) {
-                                    comment.markResolved(latestStatus.editor());
-                                } else {
-                                    comment.markUnresolved();
-                                }
-                            }
+                    if (statusData.needsResolution() != null) {
+                        comment.setNeedsResolution(statusData.needsResolution());
+                    }
+
+                    if (statusData.resolved() != null) {
+                        if (statusData.resolved()) {
+                            comment.markResolved(latestStatus.editor());
+                        } else {
+                            comment.markUnresolved();
                         }
+                    }
+                }
 
-                        return comment;
-                    });
+                return comment;
             })
             .exceptionally(error -> {
                 LOGGER.error("Failed to load comment {}: {}", commentId, error.getMessage());
@@ -413,10 +408,18 @@ public class ReviewContextManager {
             reviewId, primaryRepoName, reviewRepositories.size());
 
         GitReviewNotesManager notesManager = new GitReviewNotesManager(git, primaryRepoName);
+        List<com.kalynx.serverlessreviewtool.models.ReviewComment> existingComments =
+            currentReviewContext != null && reviewId.equals(currentReviewContext.reviewId)
+                ? new ArrayList<>(currentReviewContext.getComments())
+                : new ArrayList<>();
+
+        CompletableFuture<List<com.kalynx.serverlessreviewtool.models.ReviewComment>> commentsFuture = includeComments
+            ? loadCommentsFromKnownRepository(reviewId, primaryRepoName)
+            : CompletableFuture.completedFuture(existingComments);
 
         long readAllMetadataStart = System.nanoTime();
         return notesManager.readAllMetadata(reviewId)
-            .thenCompose(metadata -> {
+            .thenCombine(commentsFuture, (metadata, comments) -> {
                 LOGGER.info("TIMING [{}] readAllMetadata (repo={}): {}ms",
                     reviewId, primaryRepoName, elapsedMs(readAllMetadataStart));
                 String title = getLatestValue(metadata.titles());
@@ -459,32 +462,17 @@ public class ReviewContextManager {
                     })
                     .toList();
 
-                List<com.kalynx.serverlessreviewtool.models.ReviewComment> existingComments =
-                    currentReviewContext != null && reviewId.equals(currentReviewContext.reviewId)
-                        ? new ArrayList<>(currentReviewContext.getComments())
-                        : new ArrayList<>();
-
-                if (!includeComments) {
-                    ReviewContext reviewContext = new ReviewContext(
-                        reviewId, resolvedTitle, resolvedDescription, resolvedAuthor,
-                        status, reviewers, reviewRepositories, existingComments,
-                        branch, baseBranch, hasClosedHistory
-                    );
-                    setReviewContext(reviewContext);
-                    return CompletableFuture.completedFuture(reviewContext);
+                if (includeComments) {
+                    LOGGER.debug("Loaded {} comments for review {}", comments.size(), reviewId);
                 }
 
-                return loadCommentsFromKnownRepository(reviewId, primaryRepoName)
-                    .thenApply(comments -> {
-                        LOGGER.debug("Loaded {} comments for review {}", comments.size(), reviewId);
-                        ReviewContext reviewContext = new ReviewContext(
-                            reviewId, resolvedTitle, resolvedDescription, resolvedAuthor,
-                            status, reviewers, reviewRepositories, comments,
-                            branch, baseBranch, hasClosedHistory
-                        );
-                        setReviewContext(reviewContext);
-                        return reviewContext;
-                    });
+                ReviewContext reviewContext = new ReviewContext(
+                    reviewId, resolvedTitle, resolvedDescription, resolvedAuthor,
+                    status, reviewers, reviewRepositories, comments,
+                    branch, baseBranch, hasClosedHistory
+                );
+                setReviewContext(reviewContext);
+                return reviewContext;
             })
             .exceptionally(error -> {
                 LOGGER.error("Failed to load review metadata for {}: {}", reviewId, error.getMessage(), error);

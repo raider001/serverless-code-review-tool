@@ -84,10 +84,16 @@ public class ReviewItemLoader {
         CompletableFuture<List<StreamEntry<String>>> statusFuture = notesManager.readStatuses(reviewId)
             .exceptionally(_ -> new ArrayList<>());
 
+        CompletableFuture<List<StreamEntry<String>>> branchFuture = notesManager.readBranches(reviewId)
+            .exceptionally(_ -> new ArrayList<>());
+
+        CompletableFuture<List<StreamEntry<String>>> baseBranchFuture = notesManager.readBaseBranches(reviewId)
+            .exceptionally(_ -> new ArrayList<>());
+
         CompletableFuture<List<StreamEntry<com.kalynx.serverlessreviewtool.models.review.ReviewerData>>> reviewersFuture = notesManager.readReviewers(reviewId)
             .exceptionally(_ -> new ArrayList<>());
 
-        return CompletableFuture.allOf(titleFuture, authorFuture, primaryRepoFuture, statusFuture, reviewersFuture)
+        return CompletableFuture.allOf(titleFuture, authorFuture, primaryRepoFuture, statusFuture, branchFuture, baseBranchFuture, reviewersFuture)
             .thenApply(ignored -> {
                 List<StreamEntry<String>> titleEntries = titleFuture.join();
                 List<StreamEntry<String>> authorEntries = authorFuture.join();
@@ -106,6 +112,9 @@ public class ReviewItemLoader {
                 String statusStr = getLatestValue(statusEntries);
                 if (statusStr == null) statusStr = "OPEN";
 
+                String branch = getLatestValue(branchFuture.join());
+                String baseBranch = getLatestValue(baseBranchFuture.join());
+
                 List<String> reviewers = reviewerEntries.stream()
                     .map(StreamEntry::editor)
                     .distinct()
@@ -115,7 +124,7 @@ public class ReviewItemLoader {
 
                 long lastUpdate = getMostRecentTimestamp(titleEntries, authorEntries, statusEntries, reviewerEntries);
 
-                return new ReviewItem(reviewId, title, author, primaryRepo, List.of(repositoryName), status, lastUpdate, reviewers);
+                return new ReviewItem(reviewId, title, author, primaryRepo, List.of(repositoryName), status, lastUpdate, reviewers, branch, baseBranch);
             })
             .exceptionally(ex -> {
                 LOGGER.warn("Failed to load review {} from {}", reviewId, repositoryName, ex);

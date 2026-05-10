@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.swing.SwingUtilities;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -247,6 +248,23 @@ public class ReviewPanel extends ThemedPanel {
         LOGGER.info("TIMING [{}] === REVIEW LOAD START ===", reviewId);
         LOGGER.debug("Repository Names from ReviewItem: {}", repositoryNames);
 
+        String upfrontBranch = reviewItem.getBranch();
+        String upfrontBaseBranch = reviewItem.getBaseBranch();
+        CompletableFuture<Void> upfrontFetchFutureLocal = CompletableFuture.completedFuture(null);
+        if (upfrontBranch != null && upfrontBaseBranch != null && !repositoryNames.isEmpty()) {
+            long upfrontFetchStart = System.nanoTime();
+            List<String> upfrontBranchesToFetch = new ArrayList<>();
+            upfrontBranchesToFetch.add(upfrontBranch);
+            upfrontBranchesToFetch.add(upfrontBaseBranch);
+            List<CompletableFuture<Void>> upfrontFetchFutures = repositoryNames.stream()
+                .map(repoName -> git.fetchBranches(repoName, upfrontBranchesToFetch))
+                .toList();
+            upfrontFetchFutureLocal = CompletableFuture.allOf(upfrontFetchFutures.toArray(new CompletableFuture[0]))
+                .thenRun(() -> LOGGER.info("TIMING [{}] git.fetchBranchesUpfront ({} repos, targeted): {}ms",
+                    reviewId, repositoryNames.size(), elapsedMs(upfrontFetchStart)));
+        }
+        final CompletableFuture<Void> upfrontFetchFuture = upfrontFetchFutureLocal;
+
         long metadataStart = System.nanoTime();
         reviewContextManager.loadReviewMetadata(reviewId, repositoryNames)
             .thenCompose(reviewContext -> {
@@ -276,15 +294,30 @@ public class ReviewPanel extends ThemedPanel {
 
                 model.setRepositories(repositories);
 
-                long fetchStart = System.nanoTime();
-                List<CompletableFuture<Void>> fetchFutures = repositories.stream()
-                    .map(repo -> git.fetch(repo.getName()))
-                    .toList();
+                CompletableFuture<Void> fetchFuture = upfrontFetchFuture;
+                boolean canReuseUpfrontFetch = upfrontBranch != null
+                    && upfrontBaseBranch != null
+                    && upfrontBranch.equals(reviewContext.getBranch())
+                    && upfrontBaseBranch.equals(reviewContext.getBaseBranch())
+                    && new HashSet<>(repositoryNames).containsAll(repositories.stream().map(Repository::getName).toList());
 
-                return CompletableFuture.allOf(fetchFutures.toArray(new CompletableFuture[0]))
+                if (!canReuseUpfrontFetch) {
+                    List<String> branchesToFetch = new ArrayList<>();
+                    branchesToFetch.add(reviewContext.getBranch());
+                    branchesToFetch.add(reviewContext.getBaseBranch());
+                    long fetchStart = System.nanoTime();
+                    List<CompletableFuture<Void>> fetchFutures = repositories.stream()
+                        .map(repo -> git.fetchBranches(repo.getName(), branchesToFetch))
+                        .toList();
+                    fetchFuture = CompletableFuture.allOf(fetchFutures.toArray(new CompletableFuture[0]))
+                        .thenRun(() -> LOGGER.info("TIMING [{}] git.fetchBranches ({} repos, targeted): {}ms",
+                            reviewId, repositories.size(), elapsedMs(fetchStart)));
+                } else {
+                    LOGGER.debug("Reusing upfront targeted branch fetch for review {}", reviewId);
+                }
+
+                return fetchFuture
                     .thenCompose(ignored -> {
-                        LOGGER.info("TIMING [{}] git.fetch ({} repos, parallel): {}ms",
-                            reviewId, repositories.size(), elapsedMs(fetchStart));
 
                         com.kalynx.serverlessreviewtool.models.Repository primaryRepo = repositories.getFirst();
 

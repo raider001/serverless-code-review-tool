@@ -730,6 +730,16 @@ public class GitReviewNotesManager {
                 ReviewStreamHelper::readPrimaryRepository);
     }
 
+    public CompletableFuture<List<StreamEntry<String>>> readBranches(String reviewId) {
+        return readStream(reviewId, "metadata/branch",
+                ReviewStreamHelper::readBranch);
+    }
+
+    public CompletableFuture<List<StreamEntry<String>>> readBaseBranches(String reviewId) {
+        return readStream(reviewId, "metadata/baseBranch",
+                ReviewStreamHelper::readBaseBranch);
+    }
+
     public CompletableFuture<List<StreamEntry<String>>> readStatuses(String reviewId) {
         return readStream(reviewId, "metadata/status",
                 ReviewStreamHelper::readStatuses);

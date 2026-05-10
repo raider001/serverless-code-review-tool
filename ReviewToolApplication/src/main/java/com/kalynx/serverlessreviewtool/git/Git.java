@@ -34,6 +34,15 @@ public interface Git {
 
     CompletableFuture<Void> fetch(String repository);
 
+    /**
+     * Fetch only the provided branch refs for a repository.
+     *
+     * @param repository local repository name
+     * @param branches branch names or refs to fetch
+     * @return future that completes when branch refs are fetched
+     */
+    CompletableFuture<Void> fetchBranches(String repository, List<String> branches);
+
     CompletableFuture<Void> pull(String repository);
 
     CompletableFuture<Void> appendToNotes(String repository, String note, String data);

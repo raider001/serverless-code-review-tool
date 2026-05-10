@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -95,7 +96,7 @@ public class GitImpl implements Git {
     }
 
     private CompletableFuture<Void> fetchAllBranches(Path repoPath) {
-        return executeAsync(repoPath, "git", "fetch", ORIGIN, "+refs/heads/*:refs/heads/*")
+        return executeAsync(repoPath, "git", "fetch", ORIGIN, "+refs/heads/*:refs/remotes/origin/*")
             .exceptionally(ex -> {
                 if (ex.getMessage() != null && ex.getMessage().contains("refusing to fetch into branch")) {
                     return "NEEDS_DETACH";
@@ -106,7 +107,7 @@ public class GitImpl implements Git {
             .thenCompose(result -> {
                 if ("NEEDS_DETACH".equals(result)) {
                     return detachHead(repoPath)
-                        .thenCompose(ignored -> executeAsync(repoPath, "git", "fetch", ORIGIN, "+refs/heads/*:refs/heads/*"))
+                        .thenCompose(ignored -> executeAsync(repoPath, "git", "fetch", ORIGIN, "+refs/heads/*:refs/remotes/origin/*"))
                         .exceptionally(ex -> {
                             logger.warn("Failed to fetch all branches after detach: {}", ex.getMessage());
                             return "";
@@ -136,10 +137,91 @@ public class GitImpl implements Git {
             .thenCompose(ignored -> fetchNotes(repoPath));
     }
 
+    @Override
     public CompletableFuture<Void> fetch(String repository) {
         Path repoPath = gitLocalPath.resolve(repository);
-        return fetchAllBranches(repoPath)
+        return fetchBranches(repository, List.of("*"))
             .thenCompose(ignored -> fetchNotes(repoPath));
+    }
+
+    @Override
+    public CompletableFuture<Void> fetchBranches(String repository, List<String> branches) {
+        Path repoPath = gitLocalPath.resolve(repository);
+        List<String> normalizedBranches = normalizeBranches(branches);
+        if (normalizedBranches.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        if (normalizedBranches.size() == 1 && "*".equals(normalizedBranches.getFirst())) {
+            return fetchAllBranches(repoPath);
+        }
+
+        return fetchBranchesBatch(repoPath, normalizedBranches)
+            .exceptionallyCompose(ex -> {
+                String message = ex.getMessage() != null ? ex.getMessage().toLowerCase() : "";
+                if (!message.contains("couldn't find remote ref") && !message.contains("not found")) {
+                    return CompletableFuture.failedFuture(ex);
+                }
+                return fetchBranchesIndividually(repoPath, normalizedBranches);
+            });
+    }
+
+    private CompletableFuture<Void> fetchBranchesBatch(Path repoPath, List<String> branches) {
+        List<String> args = new ArrayList<>();
+        args.add("git");
+        args.add("fetch");
+        args.add(ORIGIN);
+        for (String branch : branches) {
+            args.add(toRemoteTrackingRefspec(branch));
+        }
+        return executeAsync(repoPath, args.toArray(new String[0]))
+            .thenApply(ignored -> null);
+    }
+
+    private CompletableFuture<Void> fetchBranchesIndividually(Path repoPath, List<String> branches) {
+        List<CompletableFuture<Void>> futures = branches.stream()
+            .map(branch -> executeAsync(repoPath, "git", "fetch", ORIGIN, toRemoteTrackingRefspec(branch))
+                .thenApply(ignored -> (Void) null)
+                .exceptionally(ex -> {
+                    String message = ex.getMessage() != null ? ex.getMessage().toLowerCase() : "";
+                    if (message.contains("couldn't find remote ref") || message.contains("not found")) {
+                        logger.debug("Branch {} not found on remote for repo {}", branch, repoPath.getFileName());
+                        return null;
+                    }
+                    throw new RuntimeException(ex);
+                }))
+            .toList();
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+    }
+
+    private List<String> normalizeBranches(List<String> branches) {
+        if (branches == null || branches.isEmpty()) {
+            return List.of();
+        }
+
+        LinkedHashSet<String> normalized = new LinkedHashSet<>();
+        for (String branch : branches) {
+            if (branch == null) {
+                continue;
+            }
+            String value = branch.trim();
+            if (value.isEmpty()) {
+                continue;
+            }
+            if (value.startsWith("refs/remotes/origin/")) {
+                value = value.substring("refs/remotes/origin/".length());
+            } else if (value.startsWith("refs/heads/")) {
+                value = value.substring("refs/heads/".length());
+            } else if (value.startsWith("origin/")) {
+                value = value.substring("origin/".length());
+            }
+            normalized.add(value);
+        }
+        return new ArrayList<>(normalized);
+    }
+
+    private String toRemoteTrackingRefspec(String branch) {
+        return "+refs/heads/" + branch + ":refs/remotes/origin/" + branch;
     }
 
     @Override

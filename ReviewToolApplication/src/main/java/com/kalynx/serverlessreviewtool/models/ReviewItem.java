@@ -14,8 +14,23 @@ public class ReviewItem {
     private final ReviewStatus status;
     private final long         lastUpdate;
     private final List<String> reviewers;
+    private final String       branch;
+    private final String       baseBranch;
 
     public ReviewItem(String reviewId, String title, String author, String primaryRepository, List<String> repositories, ReviewStatus status, long lastUpdate, List<String> reviewers) {
+        this(reviewId, title, author, primaryRepository, repositories, status, lastUpdate, reviewers, null, null);
+    }
+
+    public ReviewItem(String reviewId,
+                      String title,
+                      String author,
+                      String primaryRepository,
+                      List<String> repositories,
+                      ReviewStatus status,
+                      long lastUpdate,
+                      List<String> reviewers,
+                      String branch,
+                      String baseBranch) {
         this.reviewId          = reviewId;
         this.title             = title;
         this.author            = author;
@@ -24,10 +39,14 @@ public class ReviewItem {
         this.status            = status;
         this.lastUpdate        = lastUpdate;
         this.reviewers         = reviewers != null ? new ArrayList<>(reviewers) : new ArrayList<>();
+        this.branch            = branch;
+        this.baseBranch        = baseBranch;
     }
 
     public ReviewItem(ReviewItem reviewItem) {
-        this(reviewItem.reviewId, reviewItem.title, reviewItem.author, reviewItem.primaryRepository, reviewItem.repositories, reviewItem.status, reviewItem.lastUpdate, reviewItem.reviewers);
+        this(reviewItem.reviewId, reviewItem.title, reviewItem.author, reviewItem.primaryRepository,
+            reviewItem.repositories, reviewItem.status, reviewItem.lastUpdate, reviewItem.reviewers,
+            reviewItem.branch, reviewItem.baseBranch);
     }
 
     public String       getReviewId()          { return reviewId; }
@@ -38,6 +57,8 @@ public class ReviewItem {
     public ReviewStatus getStatus()            { return status; }
     public long         getLastUpdate()        { return lastUpdate; }
     public List<String> getReviewers()         { return new ArrayList<>(reviewers); }
+    public String       getBranch()            { return branch; }
+    public String       getBaseBranch()        { return baseBranch; }
 
     @Override
     public boolean equals(Object o) {
@@ -51,11 +72,13 @@ public class ReviewItem {
                Objects.equals(repositories, that.repositories) &&
                status == that.status &&
                Objects.equals(lastUpdate, that.lastUpdate) &&
-               Objects.equals(reviewers, that.reviewers);
+               Objects.equals(reviewers, that.reviewers) &&
+               Objects.equals(branch, that.branch) &&
+               Objects.equals(baseBranch, that.baseBranch);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(reviewId, title, author, primaryRepository, repositories, status, lastUpdate, reviewers);
+        return Objects.hash(reviewId, title, author, primaryRepository, repositories, status, lastUpdate, reviewers, branch, baseBranch);
     }
 }

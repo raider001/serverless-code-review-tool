@@ -55,6 +55,8 @@ public class ReviewItemManager {
                             mergedRepos.addAll(review.getRepositories());
 
                             String primaryRepo = determinePrimaryRepository(existing, review);
+                            String mergedBranch = review.getBranch() != null ? review.getBranch() : existing.getBranch();
+                            String mergedBaseBranch = review.getBaseBranch() != null ? review.getBaseBranch() : existing.getBaseBranch();
 
                             ReviewItem merged = new ReviewItem(
                                 reviewId,
@@ -64,7 +66,9 @@ public class ReviewItemManager {
                                 mergedRepos,
                                 review.getStatus(),
                                 Math.max(existing.getLastUpdate(), review.getLastUpdate()),
-                                review.getReviewers()
+                                review.getReviewers(),
+                                mergedBranch,
+                                mergedBaseBranch
                             );
                             reviewMap.put(reviewId, merged);
 
