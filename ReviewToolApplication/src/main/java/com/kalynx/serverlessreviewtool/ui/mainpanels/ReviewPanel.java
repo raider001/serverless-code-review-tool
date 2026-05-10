@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 import javax.swing.SwingUtilities;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
@@ -301,7 +302,7 @@ public class ReviewPanel extends ThemedPanel {
                                 snapshotEditor = "system";
                             }
 
-                            CompletableFuture<Void> reconcileSnapshotsFuture = reviewContextManager
+                            CompletableFuture<Map<String, List<String>>> reconcileSnapshotsFuture = reviewContextManager
                                 .captureReviewCommitSnapshots(
                                     reviewId,
                                     repositories,
@@ -310,17 +311,17 @@ public class ReviewPanel extends ThemedPanel {
                                     snapshotEditor);
 
                             commitsFuture = reconcileSnapshotsFuture
-                                .thenCompose(ignored2 -> reviewContextManager
-                                    .loadLatestReviewCommits(reviewId, primaryRepo.getName()))
+                                .thenApply(commitsByRepository -> commitsByRepository.getOrDefault(primaryRepo.getName(), List.of()))
                                 .thenCompose(commitHashes -> fileDiffManager.loadCommitsForSnapshot(
                                     primaryRepo.getName(), commitHashes));
                             filesFuture = reconcileSnapshotsFuture
-                                .thenCompose(ignored2 -> reviewContextManager
+                                .thenCompose(commitsByRepository -> reviewContextManager
                                     .loadFilesFromStoredReviewCommits(
                                         reviewId,
                                         repositories,
                                         reviewContext.getBranch(),
-                                        reviewContext.getBaseBranch()));
+                                        reviewContext.getBaseBranch(),
+                                        commitsByRepository));
                         } else {
                             long commitsStart = System.nanoTime();
                             commitsFuture = fileDiffManager
@@ -342,7 +343,7 @@ public class ReviewPanel extends ThemedPanel {
                         }
 
                         LOGGER.debug("Repositories being passed to loadFilesFromReviewCommits: {}",
-                            repositories.stream().map(r -> r.getName()).toList());
+                            repositories.stream().map(Repository::getName).toList());
 
                         return CompletableFuture.allOf(commitsFuture, filesFuture)
                             .thenAccept(_ -> {
@@ -581,14 +582,14 @@ public class ReviewPanel extends ThemedPanel {
             currentReviewContext.hasClosedHistory() || isTerminalStatus(targetStatus)
         );
 
-        CompletableFuture<Void> snapshotFuture = isTerminalStatus(targetStatus)
+        CompletableFuture<Map<String, List<String>>> snapshotFuture = isTerminalStatus(targetStatus)
             ? reviewContextManager.captureReviewCommitSnapshots(
                 updatedContext.reviewId,
                 updatedContext.getRepositories(),
                 updatedContext.getBranch(),
                 updatedContext.getBaseBranch(),
                 currentUser)
-            : CompletableFuture.completedFuture(null);
+            : CompletableFuture.completedFuture(Map.of());
 
         snapshotFuture
             .thenCompose(ignored -> reviewContextManager.saveReviewMetadata(updatedContext))

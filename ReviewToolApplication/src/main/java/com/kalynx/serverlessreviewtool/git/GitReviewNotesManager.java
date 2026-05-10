@@ -249,6 +249,63 @@ public class GitReviewNotesManager {
     }
 
     private CompletableFuture<Void> fetchAllNotes(String reviewId, List<String> streamPaths) {
+        if (streamPaths == null || streamPaths.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        long batchStart = System.nanoTime();
+        List<String> refspecs = streamPaths.stream()
+            .map(streamPath -> {
+                String ref = NOTES_REF_PREFIX + reviewId + "/" + streamPath;
+                return ref + ":" + ref;
+            })
+            .toList();
+
+        return fetchNotesBatch(refspecs)
+            .thenApply(ignored -> {
+                LOGGER.info("TIMING [{}] fetchAllNotesBatch ({}/{} streams): {}ms",
+                    reviewId, repositoryName, streamPaths.size(), elapsedMs(batchStart));
+                return (Throwable) null;
+            })
+            .exceptionally(this::unwrapCause)
+            .thenCompose(error -> {
+                if (error == null) {
+                    return CompletableFuture.completedFuture(null);
+                }
+
+                String message = error.getMessage() != null ? error.getMessage().toLowerCase() : "";
+                boolean shouldFallback = message.contains("couldn't find remote ref") ||
+                    message.contains("not found") ||
+                    message.contains("non-fast-forward") ||
+                    message.contains("invalid refspec");
+
+                if (!shouldFallback) {
+                    return CompletableFuture.failedFuture(error);
+                }
+
+                long fallbackStart = System.nanoTime();
+                return fetchAllNotesIndividually(reviewId, streamPaths)
+                    .thenApply(_ -> {
+                        LOGGER.info("TIMING [{}] fetchAllNotesFallback ({}/{} streams): {}ms",
+                            reviewId, repositoryName, streamPaths.size(), elapsedMs(fallbackStart));
+                        return null;
+                    });
+            });
+    }
+
+    private CompletableFuture<Void> fetchNotesBatch(List<String> refspecs) {
+        List<String> args = new ArrayList<>();
+        args.add("-c");
+        args.add("notes.mergeStrategy=union");
+        args.add("fetch");
+        args.add(REMOTE);
+        args.addAll(refspecs);
+
+        return git.executeAsync(repositoryName, args.toArray(new String[0]))
+            .thenApply(_ -> null);
+    }
+
+    private CompletableFuture<Void> fetchAllNotesIndividually(String reviewId, List<String> streamPaths) {
         List<CompletableFuture<Void>> fetchFutures = streamPaths.stream()
             .map(streamPath -> fetchAndMergeNotes(reviewId, streamPath))
             .toList();
@@ -876,6 +933,9 @@ public class GitReviewNotesManager {
         return (System.nanoTime() - startNano) / 1_000_000;
     }
 }
+
+
+
 
 
 
