@@ -16,7 +16,7 @@
       "poll_rate": 60000
     },
     {
-      "name": "github-sample-repo",
+      "name": "serverless-code-review-tool",
       "location": "https://github.com/raider001/serverless-code-review-tool.git",
       "poll_rate": 60000
     }

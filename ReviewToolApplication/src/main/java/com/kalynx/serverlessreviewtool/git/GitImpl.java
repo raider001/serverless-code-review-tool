@@ -574,11 +574,43 @@ public class GitImpl implements Git {
     @Override
     public CompletableFuture<List<String>> listCommits(String repository, String ref, int maxCount) {
         Path repoPath = gitLocalPath.resolve(repository);
-        String format = "%H|%an|%ai|%s";
-        return executeAsync(repoPath, "git", "log", ref, "--format=" + format, "-n", String.valueOf(maxCount))
-            .thenApply(output -> Arrays.stream(output.split("\n"))
-                .filter(line -> !line.trim().isEmpty())
-                .collect(Collectors.toList()));
+        return resolveBranchRef(repoPath, ref)
+            .thenCompose(resolvedRef -> {
+                String format = "%H|%an|%ai|%s";
+                return executeAsync(repoPath, "git", "log", resolvedRef, "--format=" + format, "-n", String.valueOf(maxCount))
+                    .thenApply(output -> Arrays.stream(output.split("\n"))
+                        .filter(line -> !line.trim().isEmpty())
+                        .collect(Collectors.toList()));
+            });
+    }
+
+    private CompletableFuture<String> resolveBranchRef(Path repoPath, String ref) {
+        if (ref == null || ref.trim().isEmpty()) {
+            return CompletableFuture.completedFuture(ref);
+        }
+
+        String[] parts = ref.split("\\.\\.");
+        if (parts.length == 2) {
+            return resolveSingleBranch(repoPath, parts[0])
+                .thenCompose(resolvedFrom ->
+                    resolveSingleBranch(repoPath, parts[1])
+                        .thenApply(resolvedTo -> resolvedFrom + ".." + resolvedTo)
+                );
+        } else {
+            return resolveSingleBranch(repoPath, ref);
+        }
+    }
+
+    private CompletableFuture<String> resolveSingleBranch(Path repoPath, String branchInput) {
+        String branch = branchInput.trim();
+        if (branch.isEmpty() || branch.startsWith("refs/") || branch.contains("[")) {
+            return CompletableFuture.completedFuture(branch);
+        }
+
+        final String branchRef = branch;
+        return executeAsync(repoPath, "git", "rev-parse", "--verify", branchRef)
+            .thenApply(_ -> branchRef)
+            .exceptionally(_ -> "origin/" + branchRef);
     }
 
     @Override
