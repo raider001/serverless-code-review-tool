@@ -14,8 +14,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -777,7 +779,7 @@ public class ReviewContextManager {
 
     public CompletableFuture<List<String>> loadLatestReviewCommits(String reviewId, String repositoryName) {
         if (reviewId == null || reviewId.isBlank() || repositoryName == null || repositoryName.isBlank()) {
-            return CompletableFuture.completedFuture(List.<String>of());
+            return CompletableFuture.completedFuture(List.of());
         }
         GitReviewNotesManager notesManager = new GitReviewNotesManager(git, repositoryName);
         return notesManager.readCommits(reviewId)
@@ -786,7 +788,7 @@ public class ReviewContextManager {
             .exceptionally(error -> {
                 LOGGER.warn("Unable to load stored commits for review {} in repo {}: {}",
                     reviewId, repositoryName, error.getMessage());
-                return List.<String>of();
+                return List.of();
             });
     }
 
@@ -813,32 +815,30 @@ public class ReviewContextManager {
                 GitReviewNotesManager notesManager = new GitReviewNotesManager(git, repo.getName());
                 String commitRange = baseBranch + ".." + reviewBranch;
                 return loadLatestReviewCommits(reviewId, repo.getName())
-                    .thenCompose(existingCommits -> {
-                        return git.listCommits(repo.getName(), commitRange, 1000)
-                            .thenApply(this::extractCommitHashes)
-                            .thenCompose(commitHashes -> {
-                                if (commitHashes.isEmpty()) {
-                                    if (existingCommits != null && !existingCommits.isEmpty()) {
-                                        LOGGER.info("Scoped review range {} is empty for review {} in repo {}; keeping existing stored snapshot of {} commits",
-                                            commitRange, reviewId, repo.getName(), existingCommits.size());
-                                    } else {
-                                        LOGGER.warn("No scoped review commits resolved for review {} in repo {} using range {}",
-                                            reviewId, repo.getName(), commitRange);
-                                    }
-                                    return CompletableFuture.completedFuture(null);
+                    .thenCompose(existingCommits -> git.listCommits(repo.getName(), commitRange, 1000)
+                        .thenApply(this::extractCommitHashes)
+                        .thenCompose(commitHashes -> {
+                            if (commitHashes.isEmpty()) {
+                                if (existingCommits != null && !existingCommits.isEmpty()) {
+                                    LOGGER.info("Scoped review range {} is empty for review {} in repo {}; keeping existing stored snapshot of {} commits",
+                                        commitRange, reviewId, repo.getName(), existingCommits.size());
+                                } else {
+                                    LOGGER.warn("No scoped review commits resolved for review {} in repo {} using range {}",
+                                        reviewId, repo.getName(), commitRange);
                                 }
+                                return CompletableFuture.completedFuture(null);
+                            }
 
-                                if (existingCommits != null && existingCommits.equals(commitHashes)) {
-                                    LOGGER.info("Stored commit snapshot for review {} in repo {} is already correct ({} commits)",
-                                        reviewId, repo.getName(), commitHashes.size());
-                                    return CompletableFuture.completedFuture(null);
-                                }
+                            if (existingCommits != null && existingCommits.equals(commitHashes)) {
+                                LOGGER.info("Stored commit snapshot for review {} in repo {} is already correct ({} commits)",
+                                    reviewId, repo.getName(), commitHashes.size());
+                                return CompletableFuture.completedFuture(null);
+                            }
 
-                                LOGGER.info("Capturing {} scoped review commits for review {} in repo {}",
-                                    commitHashes.size(), reviewId, repo.getName());
-                                return notesManager.writeReviewCommits(reviewId, editor, commitHashes);
-                            });
-                    })
+                            LOGGER.info("Capturing {} scoped review commits for review {} in repo {}",
+                                commitHashes.size(), reviewId, repo.getName());
+                            return notesManager.writeReviewCommits(reviewId, editor, commitHashes);
+                        }))
                     .exceptionally(error -> {
                         LOGGER.warn("Failed to capture commits for review {} in repo {}: {}",
                             reviewId, repo.getName(), error.getMessage());
@@ -878,14 +878,32 @@ public class ReviewContextManager {
                     return loadFilesForReview(repositoryName, branch, baseBranch);
                 }
 
-                String newestCommit = commits.getFirst();
-                String oldestCommit = commits.getLast();
+                List<CompletableFuture<List<String>>> perCommitFutures = commits.stream()
+                    .map(commitHash -> loadChangedFilesForCommit(repositoryName, commitHash))
+                    .toList();
 
-                return resolveBaselineHash(repositoryName, oldestCommit)
-                    .thenCompose(baselineCommit -> git.listChangedFiles(repositoryName, baselineCommit, newestCommit)
-                        .thenApply(changedFilePaths -> changedFilePaths.stream()
-                            .map(filePath -> parseChangedFileLine(filePath, repositoryName, baseBranch, branch))
-                            .toList()));
+                return CompletableFuture.allOf(perCommitFutures.toArray(new CompletableFuture[0]))
+                    .thenApply(ignored -> {
+                        Map<String, String> statusByPath = new LinkedHashMap<>();
+                        for (CompletableFuture<List<String>> future : perCommitFutures) {
+                            for (String line : future.join()) {
+                                String[] parts = line.trim().split("\\s+", 2);
+                                if (parts.length < 2) {
+                                    continue;
+                                }
+                                String status = parts[0];
+                                String path = parts[1];
+                                statusByPath.put(path, status);
+                            }
+                        }
+
+                        List<ReviewFile> files = new ArrayList<>();
+                        for (Map.Entry<String, String> entry : statusByPath.entrySet()) {
+                            files.add(parseChangedFileLine(entry.getValue() + " " + entry.getKey(),
+                                repositoryName, baseBranch, branch));
+                        }
+                        return files;
+                    });
             })
             .exceptionally(error -> {
                 LOGGER.error("Failed loading stored commit files for review {} in repo {}: {}",
@@ -894,13 +912,21 @@ public class ReviewContextManager {
             });
     }
 
-    private CompletableFuture<String> resolveBaselineHash(String repositoryName, String oldestCommitHash) {
-        if (oldestCommitHash == null || oldestCommitHash.isBlank()) {
-            return CompletableFuture.completedFuture(oldestCommitHash);
+    private CompletableFuture<List<String>> loadChangedFilesForCommit(String repositoryName, String commitHash) {
+        if (commitHash == null || commitHash.isBlank()) {
+            return CompletableFuture.completedFuture(List.of());
         }
-        return git.executeAsync(repositoryName, "rev-parse", oldestCommitHash + "^")
-            .thenApply(String::trim)
-            .exceptionally(ignored -> oldestCommitHash);
+        return git.executeAsync(repositoryName,
+                "show", "--name-status", "--pretty=format:", "--root", commitHash)
+            .thenApply(output -> Arrays.stream(output.split("\\R"))
+                .map(String::trim)
+                .filter(line -> !line.isEmpty())
+                .toList())
+            .exceptionally(error -> {
+                LOGGER.warn("Failed to load changed files for commit {} in repo {}: {}",
+                    commitHash, repositoryName, error.getMessage());
+                return List.of();
+            });
     }
 
     /**
