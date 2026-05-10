@@ -370,14 +370,34 @@ public class GitReviewNotesManager {
                 return CompletableFuture.allOf(extractFutures.toArray(new CompletableFuture[0]))
                     .thenCompose(ignored2 -> {
                         try {
-                            ReviewStreamHelper.writeTitle(getStreamPath(reviewId, "metadata/title"), editor, title);
-                            ReviewStreamHelper.writeDescription(getStreamPath(reviewId, "metadata/description"), editor, description);
-                            ReviewStreamHelper.writeAuthor(getStreamPath(reviewId, "metadata/author"), editor, author);
-                            ReviewStreamHelper.writeStatus(getStreamPath(reviewId, "metadata/status"), editor, status);
-
+                            Path titlePath = getStreamPath(reviewId, "metadata/title");
+                            Path descriptionPath = getStreamPath(reviewId, "metadata/description");
+                            Path authorPath = getStreamPath(reviewId, "metadata/author");
+                            Path statusPath = getStreamPath(reviewId, "metadata/status");
                             Path reviewersPath = getStreamPath(reviewId, "reviewers");
+
+                            if (shouldWriteStringEntry(titlePath, title, ReviewStreamHelper::readTitles)) {
+                                ReviewStreamHelper.writeTitle(titlePath, editor, title);
+                            }
+                            if (shouldWriteStringEntry(descriptionPath, description, ReviewStreamHelper::readDescriptions)) {
+                                ReviewStreamHelper.writeDescription(descriptionPath, editor, description);
+                            }
+                            if (shouldWriteStringEntry(authorPath, author, ReviewStreamHelper::readAuthors)) {
+                                ReviewStreamHelper.writeAuthor(authorPath, editor, author);
+                            }
+                            if (shouldWriteStringEntry(statusPath, status, ReviewStreamHelper::readStatuses)) {
+                                ReviewStreamHelper.writeStatus(statusPath, editor, status);
+                            }
+
+                            Map<String, ReviewerData> latestReviewerState = loadLatestReviewerState(reviewersPath);
                             for (Map.Entry<String, ReviewerData> entry : reviewerEntries) {
-                                ReviewStreamHelper.writeReviewer(reviewersPath, entry.getKey(), entry.getValue());
+                                String reviewerName = entry.getKey();
+                                ReviewerData incoming = entry.getValue();
+                                ReviewerData existing = latestReviewerState.get(reviewerName);
+                                if (isDifferentReviewerData(existing, incoming)) {
+                                    ReviewStreamHelper.writeReviewer(reviewersPath, reviewerName, incoming);
+                                    latestReviewerState.put(reviewerName, incoming);
+                                }
                             }
 
                             for (String streamPath : streamPaths) {
@@ -407,6 +427,46 @@ public class GitReviewNotesManager {
                 return CompletableFuture.<Void>failedFuture(new RuntimeException(cause));
             })
             .thenCompose(f -> f);
+    }
+
+    private boolean shouldWriteStringEntry(Path streamPath,
+                                           String incomingValue,
+                                           StringEntryReader reader) throws IOException {
+        String normalizedIncoming = incomingValue == null ? "" : incomingValue;
+        List<StreamEntry<String>> existingEntries = reader.read(streamPath);
+        if (existingEntries.isEmpty()) {
+            return true;
+        }
+        String lastValue = existingEntries.getLast().data();
+        String normalizedLast = lastValue == null ? "" : lastValue;
+        return !normalizedLast.equals(normalizedIncoming);
+    }
+
+    private Map<String, ReviewerData> loadLatestReviewerState(Path reviewersPath) throws IOException {
+        Map<String, ReviewerData> latestByReviewer = new HashMap<>();
+        for (StreamEntry<ReviewerData> entry : ReviewStreamHelper.readReviewers(reviewersPath)) {
+            latestByReviewer.put(entry.editor(), entry.data());
+        }
+        return latestByReviewer;
+    }
+
+    private boolean isDifferentReviewerData(ReviewerData existing, ReviewerData incoming) {
+        if (existing == null) {
+            return true;
+        }
+        String existingStatus = existing.getStatus() == null ? "" : existing.getStatus();
+        String incomingStatus = incoming.getStatus() == null ? "" : incoming.getStatus();
+        if (!existingStatus.equals(incomingStatus)) {
+            return true;
+        }
+        String existingComment = existing.getSummaryComment() == null ? "" : existing.getSummaryComment();
+        String incomingComment = incoming.getSummaryComment() == null ? "" : incoming.getSummaryComment();
+        return !existingComment.equals(incomingComment);
+    }
+
+    @FunctionalInterface
+    private interface StringEntryReader {
+        List<StreamEntry<String>> read(Path path) throws IOException;
     }
 
     private CompletableFuture<Void> forceResetAllFromRemote(String reviewId, List<String> streamPaths) {

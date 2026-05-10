@@ -73,6 +73,58 @@ public class FileDiffManager {
     }
 
     /**
+     * Loads commits directly from a stored commit-hash snapshot.
+     * Snapshot order is expected newest -> oldest.
+     */
+    public CompletableFuture<Void> loadCommitsForSnapshot(String repositoryName, List<String> commitHashes) {
+        if (commitHashes == null || commitHashes.isEmpty()) {
+            codeViewerModel.setAvailableCommits(new ArrayList<>());
+            return CompletableFuture.completedFuture(null);
+        }
+
+        List<CompletableFuture<Commit>> commitFutures = commitHashes.stream()
+            .map(hash -> git.executeAsync(repositoryName,
+                    "show", "-s", "--format=%H|%an|%ad|%s", "--date=short", hash)
+                .thenApply(this::parseSingleCommit)
+                .exceptionally(error -> {
+                    logger.warn("Failed to load stored commit {} in {}: {}", hash, repositoryName, error.getMessage());
+                    return null;
+                }))
+            .toList();
+
+        return CompletableFuture.allOf(commitFutures.toArray(new CompletableFuture[0]))
+            .thenCompose(ignored -> {
+                List<Commit> commits = commitFutures.stream()
+                    .map(CompletableFuture::join)
+                    .filter(java.util.Objects::nonNull)
+                    .toList();
+
+                if (commits.isEmpty()) {
+                    codeViewerModel.setAvailableCommits(new ArrayList<>());
+                    return CompletableFuture.completedFuture(null);
+                }
+
+                Commit endCommit = commits.getFirst();
+                return resolveBaselineCommit(repositoryName, commits)
+                    .thenAccept(startCommit -> {
+                        List<Commit> commitsForModel = new ArrayList<>(commits);
+                        if (startCommit != null && commitsForModel.stream().noneMatch(c -> c.getHash().equals(startCommit.getHash()))) {
+                            commitsForModel.add(startCommit);
+                        }
+                        codeViewerModel.setAvailableCommits(commitsForModel);
+
+                        Commit baselineCommit = startCommit != null ? startCommit : commits.getLast();
+                        codeViewerModel.setCommitRange(baselineCommit, endCommit);
+                    });
+            })
+            .exceptionally(error -> {
+                logger.error("Failed to load commits from snapshot: {}", error.getMessage(), error);
+                codeViewerModel.setAvailableCommits(new ArrayList<>());
+                return null;
+            });
+    }
+
+    /**
      * Loads diff content for a specific file between two commits.
      * Loads both side-by-side content (left/right) and unified diff format.
      * Updates the model with file content.
