@@ -56,9 +56,12 @@ This document defines the data structures used in the Serverless Code Review Too
 **Rationale**:
 - **Stable Reference**: Root commit hash never changes, even after merges, rebases, or branch operations
 - **Always Exists**: Every repository has an initial commit
-- **Always Fetchable**: Root commit is part of all branch histories, automatically fetched with any clone/pull
+- **Anchor Commit is Fetchable**: Root commit is part of branch history, so the note target object always exists locally
 - **Decoupled from Code**: Review metadata independent of code commit lifecycle
 - **Simple Discovery**: Easy to find via `git rev-list --max-parents=0 HEAD`
+
+**Operational Note**:
+- Notes refs under `refs/notes/reviews/*` still require explicit fetch configuration (or direct fetch commands).
 
 **Example**:
 ```bash
@@ -89,7 +92,9 @@ refs/notes/reviews/{review-id}/
 │   ├── description                        # NDJSON append stream
 │   ├── status                             # NDJSON append stream
 │   ├── commits                            # NDJSON append stream
-│   └── reviewStrategy                     # NDJSON append stream
+│   ├── primaryRepository                  # NDJSON append stream ("true"/"false")
+│   ├── branch                             # NDJSON append stream
+│   └── baseBranch                         # NDJSON append stream
 ├── reviewers                              # NDJSON append stream
 └── comments/                              # Comment threads (one namespace per thread)
     └── {comment-id}/                      # Individual comment thread
@@ -200,11 +205,14 @@ Every appended NDJSON line in a stream uses this structure:
 ```
 
 **Possible Values**:
-- `pending` - Review opened, awaiting reviewers
-- `in_progress` - Review being actively reviewed
-- `approved` - All required reviewers have approved
-- `rejected` - Review has been rejected
-- `changes_requested` - Changes requested before approval
+- `OPEN` - Review opened
+- `IN_PROGRESS` - Review being actively reviewed
+- `CHANGES_REQUESTED` - Changes requested before approval
+- `COMPLETED` - Review completed
+- `CANCELLED` - Review cancelled by author
+
+**Compatibility Note**:
+- Reader logic normalizes case when parsing; legacy lowercase values are still readable.
 
 ---
 
@@ -225,8 +233,21 @@ Every appended NDJSON line in a stream uses this structure:
 }
 ```
 
-### ReviewStrategy
-**Storage**: `refs/notes/reviews/{uuid}/metadata/reviewStrategy`
+**Lifecycle Semantics**:
+- **Active review (open/in-progress)**: UI/diff logic may use `metadata/branch` + `metadata/baseBranch` to compute current diffs.
+- **Closed review (completed/cancelled)**: `metadata/commits` becomes the canonical historical snapshot for that repository.
+- **Re-open of a closed review**: tooling should use the stored `metadata/commits` list (historical snapshot) instead of recomputing from branch/baseBranch.
+
+**Why this is required**:
+- After merge, branch history and base-branch tip may have moved, so branch-vs-base diffs no longer reliably reproduce the original reviewed change set.
+- Persisted commit snapshots preserve exactly what was reviewed at closure time.
+
+**Multi-repository behavior**:
+- Each repository that participates in a review stores its own `metadata/commits` stream.
+- On closed/re-open flows, each repository resolves files/diffs from its local commit snapshot.
+
+### Primary Repository Flag
+**Storage**: `refs/notes/reviews/{uuid}/metadata/primaryRepository`
 
 **Structure**:
 ```json
@@ -234,10 +255,33 @@ Every appended NDJSON line in a stream uses this structure:
   "id": "01890a5d-e7g8-774b-bcce-f1c2d34e7890",
   "timestamp": "2026-04-23T13:20:00.123456Z",
   "editor": "john@example.com",
-  "data": {
-    "branchToReview": "feature/new-login",
-    "branchToReviewAgainst": "master-staging"
-  }
+  "data": "true"
+}
+```
+
+### Branch
+**Storage**: `refs/notes/reviews/{uuid}/metadata/branch`
+
+**Structure**:
+```json
+{
+  "id": "01890a5d-e7g8-774b-bcce-f1c2d34e7890",
+  "timestamp": "2026-04-23T13:20:00.123456Z",
+  "editor": "john@example.com",
+  "data": "feature/new-login"
+}
+```
+
+### BaseBranch
+**Storage**: `refs/notes/reviews/{uuid}/metadata/baseBranch`
+
+**Structure**:
+```json
+{
+  "id": "01890a5d-e7g8-774b-bcce-f1c2d34e7890",
+  "timestamp": "2026-04-23T13:20:00.123456Z",
+  "editor": "john@example.com",
+  "data": "master-staging"
 }
 ```
 
@@ -258,16 +302,19 @@ Every appended NDJSON line in a stream uses this structure:
   "editor": "jane@example.com",
   "data": {
     "status": "approved",
-    "summary_comment": "Looks good overall, minor suggestions in comments"
+    "summaryComment": "Looks good overall, minor suggestions in comments"
   }
 }
 ```
 
 **Possible Status Values**:
-- `pending` - Assigned but not yet reviewed
+- `reviewing` - Assigned / currently reviewing
 - `approved` - Reviewer approves the changes
-- `rejected` - Reviewer rejects the changes
 - `changes_requested` - Reviewer requests modifications
+- `left` - Reviewer removed or left the review
+
+**Compatibility Note**:
+- Reader logic also maps legacy values like `pending` and `rejected`.
 
 **Example** (append entries in single reviewer stream):
 ```
@@ -306,7 +353,7 @@ refs/notes/reviews/{review-id}/comments/{comment-id}/
   "data": {
     "file": "src/login.py",
     "line": 42,
-    "line_end": 45,
+    "lineEnd": 45,
     "commit": "abc123def456..."
   }
 }
@@ -323,7 +370,7 @@ refs/notes/reviews/{review-id}/comments/{comment-id}/
   "editor": "john@example.com",
   "data": {
     "text": "Consider adding null check here",
-    "reply_to": null,
+    "replyTo": null,
     "type": "review"
   }
 }
@@ -333,7 +380,7 @@ refs/notes/reviews/{review-id}/comments/{comment-id}/
   "editor": "jane@example.com",
   "data": {
     "text": "Good catch, will fix",
-    "reply_to": "01890a5f-h2i3-774b-bcce-i5j6k7l89012",
+    "replyTo": "01890a5f-h2i3-774b-bcce-i5j6k7l89012",
     "type": "comment"
   }
 }
@@ -353,7 +400,7 @@ refs/notes/reviews/{review-id}/comments/{comment-id}/
   "timestamp": "2026-04-23T15:00:00.456789Z",
   "editor": "john@example.com",
   "data": {
-    "needs_resolution": true
+    "needsResolution": true
   }
 }
 {
@@ -382,6 +429,8 @@ refs/notes/reviews/{review-id}/comments/{comment-id}/
 - Title: `refs/notes/reviews/{uuid}/metadata/title`
 - Description: `refs/notes/reviews/{uuid}/metadata/description`
 - Primary Repository: `refs/notes/reviews/{uuid}/metadata/primaryRepository`
+- Branch: `refs/notes/reviews/{uuid}/metadata/branch`
+- Base Branch: `refs/notes/reviews/{uuid}/metadata/baseBranch`
 - Status: `refs/notes/reviews/{uuid}/metadata/status`
 - Commits: `refs/notes/reviews/{uuid}/metadata/commits`
 - Reviewers: `refs/notes/reviews/{uuid}/reviewers`
@@ -393,6 +442,7 @@ refs/notes/reviews/{review-id}/comments/{comment-id}/
 - **Structure IS the data**: The hierarchical path provides context
 - **Independent stream per field**: Metadata, reviewer status, and comments are isolated lanes
 - **Never update semantics, append entries**: New line entries preserve full history
+- **Historical replay over branch drift**: Closed reviews rely on persisted commit snapshots, not moving branch diffs
 - **Deterministic replay**: `timestamp` and `id` provide stable ordering and references
 - **Editor for accountability**: Every change tracked to source
 

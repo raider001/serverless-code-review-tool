@@ -486,6 +486,11 @@ public class ReviewContextManager {
                 String statusStr = getLatestValue(metadata.statuses());
                 String branch = getLatestValue(metadata.branches());
                 String baseBranch = getLatestValue(metadata.baseBranches());
+                boolean hasClosedHistory = metadata.statuses().stream()
+                    .map(StreamEntry::data)
+                    .filter(Objects::nonNull)
+                    .map(this::parseStatus)
+                    .anyMatch(this::isClosedStatus);
 
                 List<StreamEntry<com.kalynx.serverlessreviewtool.models.review.ReviewerData>> latestReviewerEntries = metadata.reviewers().stream()
                     .collect(Collectors.groupingBy(
@@ -534,7 +539,8 @@ public class ReviewContextManager {
                                 reviewRepositories,
                                 existingComments,
                                 branch,
-                                baseBranch
+                                baseBranch,
+                                hasClosedHistory
                             );
 
                             setReviewContext(reviewContext);
@@ -555,7 +561,8 @@ public class ReviewContextManager {
                                     reviewRepositories,
                                     comments,
                                     branch,
-                                    baseBranch
+                                    baseBranch,
+                                    hasClosedHistory
                                 );
 
                                 setReviewContext(reviewContext);
@@ -730,6 +737,153 @@ public class ReviewContextManager {
                 LOGGER.error("Failed to load files from review branches: {}", error.getMessage(), error);
                 return new ArrayList<>();
             });
+    }
+
+    /**
+     * Load files for a review using persisted commit snapshots instead of moving branch/base refs.
+     * This is used for reviews that have been closed at least once and later re-opened.
+     */
+    public CompletableFuture<List<ReviewFile>> loadFilesFromStoredReviewCommits(
+            String reviewId,
+            List<Repository> repositories,
+            String branch,
+            String baseBranch) {
+        if (reviewId == null || reviewId.isBlank() || repositories == null || repositories.isEmpty()) {
+            return CompletableFuture.completedFuture(new ArrayList<>());
+        }
+
+        LOGGER.info("Loading files from stored commit snapshots for review {} across {} repositories",
+            reviewId, repositories.size());
+
+        List<CompletableFuture<List<ReviewFile>>> fileFutures = repositories.stream()
+            .map(repo -> loadFilesForRepositoryFromStoredCommits(reviewId, repo.getName(), branch, baseBranch))
+            .toList();
+
+        return CompletableFuture.allOf(fileFutures.toArray(new CompletableFuture[0]))
+            .thenApply(ignored -> {
+                List<ReviewFile> allFiles = new ArrayList<>();
+                for (CompletableFuture<List<ReviewFile>> future : fileFutures) {
+                    allFiles.addAll(future.join());
+                }
+                LOGGER.info("Loaded {} files from stored commit snapshots for review {}", allFiles.size(), reviewId);
+                return allFiles;
+            })
+            .exceptionally(error -> {
+                LOGGER.error("Failed loading files from stored commits for review {}: {}",
+                    reviewId, error.getMessage(), error);
+                return new ArrayList<>();
+            });
+    }
+
+    public CompletableFuture<List<String>> loadLatestReviewCommits(String reviewId, String repositoryName) {
+        if (reviewId == null || reviewId.isBlank() || repositoryName == null || repositoryName.isBlank()) {
+            return CompletableFuture.completedFuture(List.<String>of());
+        }
+        GitReviewNotesManager notesManager = new GitReviewNotesManager(git, repositoryName);
+        return notesManager.readCommits(reviewId)
+            .thenApply(this::getLatestValue)
+            .thenApply(commits -> commits != null ? commits : List.<String>of())
+            .exceptionally(error -> {
+                LOGGER.warn("Unable to load stored commits for review {} in repo {}: {}",
+                    reviewId, repositoryName, error.getMessage());
+                return List.<String>of();
+            });
+    }
+
+    /**
+     * Capture commit snapshots for each repository participating in a review.
+     * Used when transitioning a review to a terminal state so reopened reviews can replay historical changes.
+     */
+    public CompletableFuture<Void> captureReviewCommitSnapshots(
+            String reviewId,
+            List<Repository> repositories,
+            String reviewBranch,
+            String editor) {
+        if (reviewId == null || reviewId.isBlank() || repositories == null || repositories.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        if (reviewBranch == null || reviewBranch.isBlank()) {
+            LOGGER.warn("Skipping commit snapshot capture for review {} - review branch is empty", reviewId);
+            return CompletableFuture.completedFuture(null);
+        }
+
+        String branchRef = normalizeRemoteBranch(reviewBranch);
+        List<CompletableFuture<Void>> futures = repositories.stream()
+            .map(repo -> git.listCommits(repo.getName(), branchRef, 1000)
+                .thenApply(this::extractCommitHashes)
+                .thenCompose(commitHashes -> {
+                    if (commitHashes.isEmpty()) {
+                        LOGGER.warn("No commits resolved for review {} in repo {} while capturing snapshot",
+                            reviewId, repo.getName());
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    GitReviewNotesManager notesManager = new GitReviewNotesManager(git, repo.getName());
+                    return notesManager.writeReviewCommits(reviewId, editor, commitHashes);
+                })
+                .exceptionally(error -> {
+                    LOGGER.warn("Failed to capture commits for review {} in repo {}: {}",
+                        reviewId, repo.getName(), error.getMessage());
+                    return null;
+                }))
+            .toList();
+
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+    }
+
+    private String normalizeRemoteBranch(String reviewBranch) {
+        return reviewBranch.startsWith("origin/") ? reviewBranch : "origin/" + reviewBranch;
+    }
+
+    private List<String> extractCommitHashes(List<String> commitRows) {
+        if (commitRows == null || commitRows.isEmpty()) {
+            return List.of();
+        }
+        return commitRows.stream()
+            .map(row -> row == null ? "" : row)
+            .map(row -> row.split("\\|", 2))
+            .filter(parts -> parts.length > 0 && !parts[0].isBlank())
+            .map(parts -> parts[0])
+            .toList();
+    }
+
+    private CompletableFuture<List<ReviewFile>> loadFilesForRepositoryFromStoredCommits(
+            String reviewId,
+            String repositoryName,
+            String branch,
+            String baseBranch) {
+        GitReviewNotesManager notesManager = new GitReviewNotesManager(git, repositoryName);
+        return notesManager.readCommits(reviewId)
+            .thenApply(this::getLatestValue)
+            .thenCompose(commits -> {
+                if (commits == null || commits.isEmpty()) {
+                    LOGGER.warn("No stored commit snapshot for review {} in repo {}; falling back to branch diff",
+                        reviewId, repositoryName);
+                    return loadFilesForReview(repositoryName, branch, baseBranch);
+                }
+
+                String newestCommit = commits.getFirst();
+                String oldestCommit = commits.getLast();
+
+                return resolveBaselineHash(repositoryName, oldestCommit)
+                    .thenCompose(baselineCommit -> git.listChangedFiles(repositoryName, baselineCommit, newestCommit)
+                        .thenApply(changedFilePaths -> changedFilePaths.stream()
+                            .map(filePath -> parseChangedFileLine(filePath, repositoryName, baseBranch, branch))
+                            .toList()));
+            })
+            .exceptionally(error -> {
+                LOGGER.error("Failed loading stored commit files for review {} in repo {}: {}",
+                    reviewId, repositoryName, error.getMessage(), error);
+                return new ArrayList<>();
+            });
+    }
+
+    private CompletableFuture<String> resolveBaselineHash(String repositoryName, String oldestCommitHash) {
+        if (oldestCommitHash == null || oldestCommitHash.isBlank()) {
+            return CompletableFuture.completedFuture(oldestCommitHash);
+        }
+        return git.executeAsync(repositoryName, "rev-parse", oldestCommitHash + "^")
+            .thenApply(String::trim)
+            .exceptionally(ignored -> oldestCommitHash);
     }
 
     /**
@@ -926,6 +1080,10 @@ public class ReviewContextManager {
             LOGGER.warn("Unknown review status: {}, defaulting to OPEN", statusStr);
             return ReviewStatus.OPEN;
         }
+    }
+
+    private boolean isClosedStatus(ReviewStatus status) {
+        return status == ReviewStatus.COMPLETED || status == ReviewStatus.CANCELLED;
     }
 
     private boolean isLeftReviewerStatus(String status) {

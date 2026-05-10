@@ -149,7 +149,8 @@ public class ReviewPanel extends ThemedPanel {
                         new ArrayList<>(updatedContext.repositories),
                         new ArrayList<>(updatedContext.comments),
                         updatedContext.getBranch(),
-                        updatedContext.getBaseBranch()
+                        updatedContext.getBaseBranch(),
+                        updatedContext.hasClosedHistory()
                     );
                     return reviewContextManager.saveReviewMetadata(synced)
                         .thenCompose(ignored2 -> reviewContextManager.loadReviewMetadataOnly(updatedContext.reviewId, repositoryNames));
@@ -282,17 +283,35 @@ public class ReviewPanel extends ThemedPanel {
                         String reviewBranchName = reviewContext.getBranch();
                         String remoteBranch = "origin/" + reviewBranchName;
 
-                        CompletableFuture<Void> commitsFuture = fileDiffManager
-                            .loadCommitsForReview(primaryRepo.getName(), remoteBranch, 1000);
+                        CompletableFuture<Void> commitsFuture;
+                        CompletableFuture<List<ReviewFile>> filesFuture;
+                        if (reviewContext.hasClosedHistory()) {
+                            LOGGER.info("Review {} has closed-history; using stored commit snapshot loading", reviewId);
+                            commitsFuture = reviewContextManager
+                                .loadLatestReviewCommits(reviewId, primaryRepo.getName())
+                                .thenCompose(commitHashes -> fileDiffManager.loadCommitsForSnapshot(
+                                    primaryRepo.getName(), commitHashes));
+                            filesFuture = reviewContextManager
+                                .loadFilesFromStoredReviewCommits(
+                                    reviewId,
+                                    repositories,
+                                    reviewContext.getBranch(),
+                                    reviewContext.getBaseBranch());
+                        } else {
+                            commitsFuture = fileDiffManager
+                                .loadCommitsForReview(primaryRepo.getName(), remoteBranch, 1000);
+                            filesFuture = reviewContextManager
+                                .loadFilesFromReviewCommits(
+                                    repositories,
+                                    reviewContext.getBranch(),
+                                    reviewContext.getBaseBranch());
+                        }
 
                         LOGGER.info("=== LOADING FILES FROM REPOSITORIES ===");
                         LOGGER.info("Repositories being passed to loadFilesFromReviewCommits:");
                         for (com.kalynx.serverlessreviewtool.models.Repository repo : repositories) {
                             LOGGER.info("  - {}", repo.getName());
                         }
-
-                        CompletableFuture<List<ReviewFile>> filesFuture = reviewContextManager
-                            .loadFilesFromReviewCommits(repositories, reviewContext.getBranch(), reviewContext.getBaseBranch());
 
                         return CompletableFuture.allOf(commitsFuture, filesFuture)
                             .thenAccept(_ -> {
@@ -520,10 +539,20 @@ public class ReviewPanel extends ThemedPanel {
             new ArrayList<>(currentReviewContext.repositories),
             new ArrayList<>(currentReviewContext.comments),
             currentReviewContext.getBranch(),
-            currentReviewContext.getBaseBranch()
+            currentReviewContext.getBaseBranch(),
+            currentReviewContext.hasClosedHistory() || isTerminalStatus(targetStatus)
         );
 
-        reviewContextManager.saveReviewMetadata(updatedContext)
+        CompletableFuture<Void> snapshotFuture = isTerminalStatus(targetStatus)
+            ? reviewContextManager.captureReviewCommitSnapshots(
+                updatedContext.reviewId,
+                updatedContext.getRepositories(),
+                updatedContext.getBranch(),
+                currentUser)
+            : CompletableFuture.completedFuture(null);
+
+        snapshotFuture
+            .thenCompose(ignored -> reviewContextManager.saveReviewMetadata(updatedContext))
             .thenCompose(ignored -> reviewContextManager.loadReviewMetadataOnly(
                 currentReviewContext.reviewId,
                 currentReviewContext.repositories.stream().map(Repository::getName).toList()

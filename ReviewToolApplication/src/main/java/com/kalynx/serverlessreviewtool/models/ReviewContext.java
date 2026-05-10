@@ -16,10 +16,11 @@ public class ReviewContext {
     public final List<ReviewComment> comments;
     public final String branch;
     public final String baseBranch;
+    public final boolean hasClosedHistory;
 
     public ReviewContext(String reviewId, String title, String summary, String author, ReviewStatus status,
                          List<ReviewerInfo> reviewers, List<Repository> repositories, List<ReviewComment> comments,
-                         String branch, String baseBranch) {
+                         String branch, String baseBranch, boolean hasClosedHistory) {
         this.reviewId = reviewId;
         this.title = title;
         this.summary = summary;
@@ -30,6 +31,7 @@ public class ReviewContext {
         this.comments = new ArrayList<>(comments);
         this.branch = branch;
         this.baseBranch = baseBranch;
+        this.hasClosedHistory = hasClosedHistory;
     }
 
     /**
@@ -48,6 +50,10 @@ public class ReviewContext {
      */
     public String getBaseBranch() {
         return baseBranch;
+    }
+
+    public boolean hasClosedHistory() {
+        return hasClosedHistory;
     }
 
     public String getReviewId() {
@@ -114,11 +120,13 @@ public class ReviewContext {
                Objects.equals(repositories, that.repositories) &&
                Objects.equals(comments, that.comments) &&
                Objects.equals(branch, that.branch) &&
-               Objects.equals(baseBranch, that.baseBranch);
+               Objects.equals(baseBranch, that.baseBranch) &&
+               hasClosedHistory == that.hasClosedHistory;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(reviewId, title, summary, author, status, reviewers, repositories, comments, branch, baseBranch);
+        return Objects.hash(reviewId, title, summary, author, status, reviewers, repositories, comments, branch, baseBranch,
+            hasClosedHistory);
     }
 }
